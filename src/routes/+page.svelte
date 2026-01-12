@@ -16,6 +16,7 @@
   import InputDashboard from "../components/input/InputDashboard.svelte";
   import ProgramsDashboard from "../components/programs/ProgramsDashboard.svelte";
   import RestoreDashboard from "../components/system/RestoreDashboard.svelte";
+  import UIDashboard from "../components/ui/UIDashboard.svelte";
   import TweakList from "../components/TweakList.svelte";
   import type { Tweak } from "$lib/types";
   import { activeCategory } from "$lib/stores";
@@ -82,6 +83,8 @@
         <ProgramsDashboard />
       {:else if currentCat === "Restore"}
         <RestoreDashboard />
+      {:else if currentCat === "InterfaceUx"}
+        <UIDashboard allTweaks={tweaks} />
       {:else}
         <TweakList bind:tweaks />
       {/if}

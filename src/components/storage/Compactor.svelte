@@ -326,39 +326,145 @@
         </div>
     {/if}
 
-    {#if (isScanning || isCompressing) && progressTotal > 0}
+    {#if isScanning || isCompressing || (scanResult && !isScanning)}
         <div class="live-progress">
+            <!-- Status Header -->
             <div class="progress-header">
                 <span class="progress-label">
-                    {isScanning ? "Scanning..." : "Compressing..."}
+                    {#if isScanning}
+                        🔍 Scanning files...
+                    {:else if isCompressing}
+                        🗜️ Compressing files...
+                    {:else if scanResult}
+                        ✅ Scan complete
+                    {/if}
                 </span>
-                <span class="progress-count">
-                    {progressCurrent} / {progressTotal} files
-                </span>
+                {#if progressTotal > 0}
+                    <span class="progress-count">
+                        {progressCurrent} / {progressTotal} files
+                    </span>
+                {/if}
             </div>
-            <div class="progress-bar-track">
-                <div
-                    class="progress-bar-fill"
-                    style="width: {Math.min(
-                        100,
-                        (progressCurrent / progressTotal) * 100,
-                    )}%"
-                ></div>
-            </div>
-            <div class="progress-stats">
-                {#if currentFile}
-                    <div class="current-file" title={currentFile}>
-                        📄 {currentFile.length > 50
-                            ? "..." + currentFile.slice(-47)
+
+            <!-- Main Progress Bar -->
+            {#if isScanning || isCompressing}
+                <div class="progress-bar-track main-bar">
+                    <div
+                        class="progress-bar-fill"
+                        style="width: {progressTotal > 0
+                            ? Math.min(
+                                  100,
+                                  (progressCurrent / progressTotal) * 100,
+                              )
+                            : 0}%"
+                    ></div>
+                </div>
+            {/if}
+
+            <!-- Current File Being Processed -->
+            {#if (isScanning || isCompressing) && currentFile}
+                <div class="current-file-display">
+                    <span class="file-icon">📄</span>
+                    <span class="file-name" title={currentFile}>
+                        {currentFile.length > 60
+                            ? "..." + currentFile.slice(-57)
                             : currentFile}
+                    </span>
+                </div>
+            {/if}
+
+            <!-- Detailed Stats Panel -->
+            {#if scanResult}
+                <div class="detailed-stats">
+                    <!-- Total Saved -->
+                    <div class="stat-summary">
+                        {#if scanResult.compressed_size && scanResult.compressed_size < scanResult.total_size}
+                            <span class="saved-info">
+                                💾 {formatBytes(
+                                    scanResult.total_size -
+                                        scanResult.compressed_size,
+                                )} of {formatBytes(scanResult.total_size)} saved
+                                ({(
+                                    ((scanResult.total_size -
+                                        scanResult.compressed_size) /
+                                        scanResult.total_size) *
+                                    100
+                                ).toFixed(1)}%)
+                            </span>
+                        {:else}
+                            <span class="saved-info">
+                                📊 {formatBytes(scanResult.total_size)} total in
+                                {scanResult.file_count} files
+                            </span>
+                        {/if}
                     </div>
-                {/if}
-                {#if bytesAnalyzed > 0}
-                    <div class="bytes-analyzed">
-                        💾 {formatBytes(bytesAnalyzed)} analyzed
+
+                    <!-- Colored Stats Bars -->
+                    <div class="stats-legend">
+                        <div class="legend-item">
+                            <span class="legend-color compressed"></span>
+                            <span class="legend-text">
+                                {formatBytes(scanResult.compressed_size || 0)} compressed
+                            </span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color compressible"></span>
+                            <span class="legend-text">
+                                {formatBytes(
+                                    scanResult.compressible_size ||
+                                        scanResult.total_size -
+                                            (scanResult.compressed_size || 0),
+                                )} compressible
+                            </span>
+                        </div>
+                        {#if scanResult.excluded_size}
+                            <div class="legend-item">
+                                <span class="legend-color excluded"></span>
+                                <span class="legend-text">
+                                    {formatBytes(scanResult.excluded_size)} excluded
+                                </span>
+                            </div>
+                        {/if}
                     </div>
-                {/if}
-            </div>
+
+                    <!-- Stacked Bar Chart -->
+                    <div class="stacked-bar">
+                        {#if scanResult.total_size > 0}
+                            <div
+                                class="bar-segment compressed"
+                                style="width: {((scanResult.compressed_size ||
+                                    0) /
+                                    scanResult.total_size) *
+                                    100}%"
+                            ></div>
+                            <div
+                                class="bar-segment compressible"
+                                style="width: {((scanResult.compressible_size ||
+                                    scanResult.total_size -
+                                        (scanResult.compressed_size || 0) -
+                                        (scanResult.excluded_size || 0)) /
+                                    scanResult.total_size) *
+                                    100}%"
+                            ></div>
+                            {#if scanResult.excluded_size}
+                                <div
+                                    class="bar-segment excluded"
+                                    style="width: {(scanResult.excluded_size /
+                                        scanResult.total_size) *
+                                        100}%"
+                                ></div>
+                            {/if}
+                        {/if}
+                    </div>
+                </div>
+            {/if}
+
+            <!-- Bytes Analyzed (during scan) -->
+            {#if (isScanning || isCompressing) && bytesAnalyzed > 0}
+                <div class="bytes-analyzed">
+                    ⚡ {formatBytes(bytesAnalyzed)} processed
+                </div>
+            {/if}
         </div>
     {/if}
 
@@ -935,5 +1041,118 @@
         font-family: monospace;
         font-weight: 500;
         white-space: nowrap;
+    }
+
+    /* Current File Display */
+    .current-file-display {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .file-icon {
+        flex-shrink: 0;
+    }
+
+    .file-name {
+        font-size: 12px;
+        color: var(--text-muted);
+        font-family: monospace;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Detailed Stats Panel */
+    .detailed-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px;
+        background: rgba(0, 0, 0, 0.15);
+        border-radius: 8px;
+    }
+
+    .stat-summary {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-color);
+    }
+
+    .saved-info {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* Stats Legend */
+    .stats-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .legend-color {
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+        flex-shrink: 0;
+    }
+
+    .legend-color.compressed {
+        background: #10b981; /* Green */
+    }
+
+    .legend-color.compressible {
+        background: #3b82f6; /* Blue */
+    }
+
+    .legend-color.excluded {
+        background: #f59e0b; /* Orange */
+    }
+
+    .legend-text {
+        font-size: 13px;
+        color: var(--text-muted);
+    }
+
+    /* Stacked Bar Chart */
+    .stacked-bar {
+        display: flex;
+        height: 12px;
+        border-radius: 6px;
+        overflow: hidden;
+        background: rgba(0, 0, 0, 0.3);
+    }
+
+    .bar-segment {
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+
+    .bar-segment.compressed {
+        background: #10b981;
+    }
+
+    .bar-segment.compressible {
+        background: #3b82f6;
+    }
+
+    .bar-segment.excluded {
+        background: #f59e0b;
+    }
+
+    .main-bar {
+        height: 10px;
     }
 </style>

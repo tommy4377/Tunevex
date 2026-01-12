@@ -29,7 +29,10 @@
                 t.id === "debloat_gaming" ||
                 t.id === "debloat_widgets" ||
                 t.id === "debloat_teams_chat_taskbar" ||
-                t.id === "debloat_prevent_reinstall"),
+                t.id === "debloat_prevent_reinstall" ||
+                t.id === "debloat_remove_edge_full" ||
+                t.id === "debloat_remove_store" ||
+                t.id === "debloat_disable_defender"),
     );
 
     $: featuresTweaks = allTweaks.filter(

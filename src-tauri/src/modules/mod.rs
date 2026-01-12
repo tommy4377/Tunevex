@@ -15,4 +15,5 @@ pub mod startup;
 pub mod storage;
 pub mod system;
 pub mod types;
+pub mod ui_classic;
 pub mod utils;

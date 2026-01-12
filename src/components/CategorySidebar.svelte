@@ -29,6 +29,7 @@
         { id: "GpuOptimization", label: "GPU", icon: Palette },
         { id: "GameOptimizations", label: "Gaming", icon: Gamepad },
         { id: "System", label: "System", icon: Settings },
+        { id: "InterfaceUx", label: "UI Classic", icon: Monitor },
         { id: "StartupServices", label: "Startup", icon: PlayCircle },
         { id: "MouseInput", label: "Input", icon: MousePointer },
         { id: "DisplayMonitor", label: "Display", icon: Monitor },

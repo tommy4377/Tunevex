@@ -15,6 +15,7 @@ use crate::modules::security::get_security_tweaks;
 use crate::modules::storage::get_storage_tweaks;
 // use crate::modules::startup::get_startup_tweaks;
 use crate::modules::system::get_system_tweaks;
+use crate::modules::ui_classic::get_ui_classic_tweaks;
 use std::sync::Mutex;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -33,6 +34,7 @@ pub fn run() {
     all_tweaks.extend(get_input_tweaks());
     // all_tweaks.extend(get_hardware_tweaks()); // Removed
     all_tweaks.extend(get_storage_tweaks());
+    all_tweaks.extend(get_ui_classic_tweaks()); // UI Classic tweaks
 
     // Load initial state
     let state_path = crate::modules::utils::dirs::get_state_path()
