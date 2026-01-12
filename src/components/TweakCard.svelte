@@ -1,10 +1,31 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
+    import { invoke } from "@tauri-apps/api/core";
+    import { listen } from "@tauri-apps/api/event";
     import type { Tweak } from "$lib/types";
 
     export let tweak: Tweak;
 
     const dispatch = createEventDispatcher();
+    let isApplying = false;
+
+    async function handleToggle() {
+        if (isApplying) return;
+        isApplying = true;
+        try {
+            if (tweak.enabled) {
+                await invoke("undo_tweak", { id: tweak.id });
+            } else {
+                await invoke("apply_tweak", { id: tweak.id });
+            }
+            dispatch("toggle");
+        } catch (e) {
+            console.error("Failed to toggle tweak:", e);
+            // Optionally dispatch error event
+        } finally {
+            isApplying = false;
+        }
+    }
 
     function getWarningColor(level: string) {
         switch (level) {
@@ -35,6 +56,10 @@
 
     <p class="description">{tweak.description}</p>
 
+    {#if isApplying}
+        <div class="loading-bar animate-pulse" />
+    {/if}
+
     <div class="footer">
         {#if tweak.requires_restart}
             <span class="restart-badge">🔄 Restart</span>
@@ -42,9 +67,15 @@
         <button
             class="apply-btn"
             class:applied={tweak.enabled}
-            on:click={() => dispatch("toggle")}
+            class:loading={isApplying}
+            on:click={handleToggle}
+            disabled={isApplying}
         >
-            {tweak.enabled ? "Enabled" : "Disabled"}
+            {#if isApplying}
+                Applying...
+            {:else}
+                {tweak.enabled ? "Enabled" : "Disabled"}
+            {/if}
         </button>
     </div>
 </div>
@@ -105,5 +136,27 @@
     .apply-btn.applied:hover {
         background: var(--accent-hover);
         filter: none;
+    }
+    .apply-btn.loading {
+        opacity: 0.7;
+        cursor: wait;
+    }
+
+    .loading-bar {
+        height: 2px;
+        width: 100%;
+        background: var(--accent-color);
+        margin-top: 8px;
+        border-radius: 2px;
+        opacity: 0.8;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .animate-pulse {
+        animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
 </style>

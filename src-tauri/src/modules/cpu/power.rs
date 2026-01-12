@@ -5,7 +5,7 @@
 //! - CPU Idle scripts
 //! - Various power optimization sources
 
-use crate::modules::types::{Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
 
 /// Returns all CPU power management tweaks
 pub fn get_power_tweaks() -> Vec<Tweak> {
@@ -227,31 +227,56 @@ Write-Host "Atlas Power Scheme created and activated!" -ForegroundColor Green
         Tweak {
             id: "cpu_usb3_link_power".to_string(),
             category: TweakCategory::CpuPerformance,
-            name: "Disable USB 3 Link Power Management".to_string(),
-            description: "Disables USB 3.0 link power management for lower latency.".to_string(),
+            name: "🔌 Disable USB 3 Link Power Management".to_string(),
+            description: "Sets USB 3 Link Power Management to maximum performance. Prevents USB device latency spikes and disconnections.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$result = powercfg /q scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 d4e98f31-5ffe-4ce1-be31-1b38b384c009
+if ($result -match "0x00000003") {
+    Write-Output "True"
+} else {
+    Write-Output "False"
+}
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
-# Restore default USB link power
-powercfg /setacvalueindex scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 d4e98f31-5ffe-4ce1-be31-1b38b384c009 3
+# Restore default (Moderate Power Savings = 1)
+powercfg /setacvalueindex scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 d4e98f31-5ffe-4ce1-be31-1b38b384c009 1
+powercfg /setdcvalueindex scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 d4e98f31-5ffe-4ce1-be31-1b38b384c009 1
 powercfg /setactive scheme_current
+Write-Host "USB 3 Link Power restored to moderate" -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            check: None,
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
+# USB 3 Link Power Management values:
+# 0 = Maximum Power Savings (WRONG for performance!)
+# 1 = Moderate Power Savings (default)
+# 2 = Minimum Power Savings
+# 3 = Maximum Performance (CORRECT!)
+
+# Set USB 3 Link Power to Maximum Performance (3)
+powercfg /setacvalueindex scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 d4e98f31-5ffe-4ce1-be31-1b38b384c009 3
+powercfg /setdcvalueindex scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 d4e98f31-5ffe-4ce1-be31-1b38b384c009 3
+
+# Also disable USB Selective Suspend
+powercfg /setacvalueindex scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0
+powercfg /setdcvalueindex scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0
+
 # USB Hub Selective Suspend Timeout - 0ms
 powercfg /setacvalueindex scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 0853a681-27c8-4100-a2fd-82013e970683 0
-# USB selective suspend - Disabled
-powercfg /setacvalueindex scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0
-# USB 3 Link Power Management - Off
-powercfg /setacvalueindex scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 d4e98f31-5ffe-4ce1-be31-1b38b384c009 0
+powercfg /setdcvalueindex scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 0853a681-27c8-4100-a2fd-82013e970683 0
+
 powercfg /setactive scheme_current
+Write-Host "USB 3 Link Power set to Maximum Performance" -ForegroundColor Green
 "#.to_string(),
                 }
             ]

@@ -16,11 +16,27 @@ pub fn get_network_msi_tweaks() -> Vec<Tweak> {
             enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
-$vendors = @('VEN_10EC', 'VEN_8086')  # Realtek, Intel
-$devices = Get-PnpDevice -Class Net -Status OK -EA SilentlyContinue | Where-Object {
-    $vendors | ForEach-Object { $_.InstanceId -match $_ } | Where-Object { $_ }
+$devices = @()
+# Method 1: Get-NetAdapter
+$adapters = Get-NetAdapter -Physical -ErrorAction SilentlyContinue
+if ($adapters) {
+    foreach ($a in $adapters) {
+        $dev = Get-PnpDevice -InstanceId $a.PnPDeviceID -ErrorAction SilentlyContinue
+        if ($dev -and $dev.InstanceId -match "PCI") { $devices += $dev }
+    }
+}
+# Method 2: Fallback WMI
+if ($devices.Count -eq 0) {
+    $wmi = Get-WmiObject Win32_NetworkAdapter -ErrorAction SilentlyContinue | Where-Object { $_.PhysicalAdapter -eq $true -and $_.PNPDeviceID -match "PCI" }
+    if ($wmi) {
+        foreach ($w in $wmi) {
+            $dev = Get-PnpDevice -InstanceId $w.PNPDeviceID -ErrorAction SilentlyContinue
+            if ($dev) { $devices += $dev }
+        }
+    }
 }
 if (-not $devices) { return 'NoDevice' }
+
 $allEnabled = $true
 foreach ($dev in $devices) {
     $path = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.InstanceId)\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties"
@@ -35,10 +51,26 @@ $allEnabled
                 TweakOperation::Powershell {
                     script: r#"
 Write-Host "Reverting NIC MSI Mode..." -ForegroundColor Yellow
-$vendors = @('VEN_10EC', 'VEN_8086')
-$devices = Get-PnpDevice -Class Net -Status OK -EA SilentlyContinue | Where-Object {
-    $vendors | ForEach-Object { $_.InstanceId -match $_ } | Where-Object { $_ }
+$devices = @()
+# Method 1: Get-NetAdapter
+$adapters = Get-NetAdapter -Physical -ErrorAction SilentlyContinue
+if ($adapters) {
+    foreach ($a in $adapters) {
+        $dev = Get-PnpDevice -InstanceId $a.PnPDeviceID -ErrorAction SilentlyContinue
+        if ($dev -and $dev.InstanceId -match "PCI") { $devices += $dev }
+    }
 }
+# Method 2: Fallback WMI
+if ($devices.Count -eq 0) {
+    $wmi = Get-WmiObject Win32_NetworkAdapter -ErrorAction SilentlyContinue | Where-Object { $_.PhysicalAdapter -eq $true -and $_.PNPDeviceID -match "PCI" }
+    if ($wmi) {
+        foreach ($w in $wmi) {
+            $dev = Get-PnpDevice -InstanceId $w.PNPDeviceID -ErrorAction SilentlyContinue
+            if ($dev) { $devices += $dev }
+        }
+    }
+}
+
 foreach ($dev in $devices) {
     $msiPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.InstanceId)\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties"
     Remove-ItemProperty -Path $msiPath -Name 'MSISupported' -EA SilentlyContinue
@@ -54,11 +86,27 @@ Write-Host "NIC MSI Mode reverted!" -ForegroundColor Green
                 TweakOperation::Powershell {
                     script: r#"
 Write-Host "Enabling MSI Mode on NIC (High Priority)..." -ForegroundColor Yellow
-$vendors = @('VEN_10EC', 'VEN_8086')  # Realtek, Intel
-$devices = Get-PnpDevice -Class Net -Status OK -EA SilentlyContinue | Where-Object {
-    $vendors | ForEach-Object { $_.InstanceId -match $_ } | Where-Object { $_ }
+$devices = @()
+# Method 1: Get-NetAdapter
+$adapters = Get-NetAdapter -Physical -ErrorAction SilentlyContinue
+if ($adapters) {
+    foreach ($a in $adapters) {
+        $dev = Get-PnpDevice -InstanceId $a.PnPDeviceID -ErrorAction SilentlyContinue
+        if ($dev -and $dev.InstanceId -match "PCI") { $devices += $dev }
+    }
 }
-if (-not $devices) { Write-Host "No supported NIC found" -ForegroundColor Red; exit 1 }
+# Method 2: Fallback WMI
+if ($devices.Count -eq 0) {
+    $wmi = Get-WmiObject Win32_NetworkAdapter -ErrorAction SilentlyContinue | Where-Object { $_.PhysicalAdapter -eq $true -and $_.PNPDeviceID -match "PCI" }
+    if ($wmi) {
+        foreach ($w in $wmi) {
+            $dev = Get-PnpDevice -InstanceId $w.PNPDeviceID -ErrorAction SilentlyContinue
+            if ($dev) { $devices += $dev }
+        }
+    }
+}
+
+if (-not $devices) { Write-Host "No supported PCI NIC found" -ForegroundColor Red; exit 1 }
 $count = 0
 foreach ($dev in $devices) {
     $basePath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.InstanceId)\Device Parameters\Interrupt Management"
@@ -90,11 +138,27 @@ Write-Host "MSI enabled on $count NIC(s) with High Priority!" -ForegroundColor G
             enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
-$vendors = @('VEN_10EC', 'VEN_8086')
-$devices = Get-PnpDevice -Class Net -Status OK -EA SilentlyContinue | Where-Object {
-    $vendors | ForEach-Object { $_.InstanceId -match $_ } | Where-Object { $_ }
+$devices = @()
+# Method 1: Get-NetAdapter
+$adapters = Get-NetAdapter -Physical -ErrorAction SilentlyContinue
+if ($adapters) {
+    foreach ($a in $adapters) {
+        $dev = Get-PnpDevice -InstanceId $a.PnPDeviceID -ErrorAction SilentlyContinue
+        if ($dev -and $dev.InstanceId -match "PCI") { $devices += $dev }
+    }
+}
+# Method 2: Fallback WMI
+if ($devices.Count -eq 0) {
+    $wmi = Get-WmiObject Win32_NetworkAdapter -ErrorAction SilentlyContinue | Where-Object { $_.PhysicalAdapter -eq $true -and $_.PNPDeviceID -match "PCI" }
+    if ($wmi) {
+        foreach ($w in $wmi) {
+            $dev = Get-PnpDevice -InstanceId $w.PNPDeviceID -ErrorAction SilentlyContinue
+            if ($dev) { $devices += $dev }
+        }
+    }
 }
 if (-not $devices) { return 'NoDevice' }
+
 $allEnabled = $true
 foreach ($dev in $devices) {
     $path = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.InstanceId)\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties"
@@ -109,10 +173,26 @@ $allEnabled
                 TweakOperation::Powershell {
                     script: r#"
 Write-Host "Reverting NIC MSI Mode..." -ForegroundColor Yellow
-$vendors = @('VEN_10EC', 'VEN_8086')
-$devices = Get-PnpDevice -Class Net -Status OK -EA SilentlyContinue | Where-Object {
-    $vendors | ForEach-Object { $_.InstanceId -match $_ } | Where-Object { $_ }
+$devices = @()
+# Method 1: Get-NetAdapter
+$adapters = Get-NetAdapter -Physical -ErrorAction SilentlyContinue
+if ($adapters) {
+    foreach ($a in $adapters) {
+        $dev = Get-PnpDevice -InstanceId $a.PnPDeviceID -ErrorAction SilentlyContinue
+        if ($dev -and $dev.InstanceId -match "PCI") { $devices += $dev }
+    }
 }
+# Method 2: Fallback WMI
+if ($devices.Count -eq 0) {
+    $wmi = Get-WmiObject Win32_NetworkAdapter -ErrorAction SilentlyContinue | Where-Object { $_.PhysicalAdapter -eq $true -and $_.PNPDeviceID -match "PCI" }
+    if ($wmi) {
+        foreach ($w in $wmi) {
+            $dev = Get-PnpDevice -InstanceId $w.PNPDeviceID -ErrorAction SilentlyContinue
+            if ($dev) { $devices += $dev }
+        }
+    }
+}
+
 foreach ($dev in $devices) {
     $msiPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.InstanceId)\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties"
     Remove-ItemProperty -Path $msiPath -Name 'MSISupported' -EA SilentlyContinue
@@ -128,11 +208,27 @@ Write-Host "NIC MSI Mode reverted!" -ForegroundColor Green
                 TweakOperation::Powershell {
                     script: r#"
 Write-Host "Enabling MSI Mode on NIC (Normal Priority)..." -ForegroundColor Yellow
-$vendors = @('VEN_10EC', 'VEN_8086')
-$devices = Get-PnpDevice -Class Net -Status OK -EA SilentlyContinue | Where-Object {
-    $vendors | ForEach-Object { $_.InstanceId -match $_ } | Where-Object { $_ }
+$devices = @()
+# Method 1: Get-NetAdapter
+$adapters = Get-NetAdapter -Physical -ErrorAction SilentlyContinue
+if ($adapters) {
+    foreach ($a in $adapters) {
+        $dev = Get-PnpDevice -InstanceId $a.PnPDeviceID -ErrorAction SilentlyContinue
+        if ($dev -and $dev.InstanceId -match "PCI") { $devices += $dev }
+    }
 }
-if (-not $devices) { Write-Host "No supported NIC found" -ForegroundColor Red; exit 1 }
+# Method 2: Fallback WMI
+if ($devices.Count -eq 0) {
+    $wmi = Get-WmiObject Win32_NetworkAdapter -ErrorAction SilentlyContinue | Where-Object { $_.PhysicalAdapter -eq $true -and $_.PNPDeviceID -match "PCI" }
+    if ($wmi) {
+        foreach ($w in $wmi) {
+            $dev = Get-PnpDevice -InstanceId $w.PNPDeviceID -ErrorAction SilentlyContinue
+            if ($dev) { $devices += $dev }
+        }
+    }
+}
+
+if (-not $devices) { Write-Host "No supported PCI NIC found" -ForegroundColor Red; exit 1 }
 $count = 0
 foreach ($dev in $devices) {
     $basePath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.InstanceId)\Device Parameters\Interrupt Management"

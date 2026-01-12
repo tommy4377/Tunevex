@@ -3,7 +3,7 @@
 //! Controls for Windows Defender real-time protection, cloud features,
 //! sample submission, and exclusions.
 
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
 
 pub fn get_defender_tweaks() -> Vec<Tweak> {
     vec![

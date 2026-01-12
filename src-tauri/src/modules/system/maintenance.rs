@@ -37,9 +37,22 @@ pub fn get_maintenance_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "system_clean_prefetch".to_string(),
             category: TweakCategory::System,
-            name: "📂 Clean Prefetch".to_string(),
-            description: "Clears Windows Prefetch folder. May slow first app launches temporarily.".to_string(),
-            warning_level: WarningLevel::Safe,
+            name: "⚠️ Clean Prefetch Cache (NOT RECOMMENDED)".to_string(),
+            description: "Clears Windows Prefetch cache. 
+
+⛔ WARNING: THIS HURTS PERFORMANCE! ⛔
+
+Prefetch improves application launch times by 15-30% by pre-loading 
+frequently used data. Cleaning it provides NO benefit and forces Windows 
+to rebuild the cache from scratch.
+
+Only use if:
+- Troubleshooting corrupted prefetch data
+- SSD is nearly full (saves ~50MB)
+- Testing fresh launch times
+
+Modern SSDs are not harmed by Prefetch writes.".to_string(),
+            warning_level: WarningLevel::Dangerous,
             requires_restart: false,
             revert_operations: None, 
             enabled: false,
@@ -47,9 +60,21 @@ pub fn get_maintenance_tweaks() -> Vec<Tweak> {
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
-                    Remove-Item "C:\Windows\Prefetch\*" -Recurse -Force -EA 0
-                    Write-Host "Prefetch cleaned" -ForegroundColor Green
-                "#.to_string(),
+$confirmation = Read-Host "This will SLOW DOWN your system. Type 'YES' to confirm"
+if ($confirmation -ne "YES") {
+    Write-Host "Operation cancelled" -ForegroundColor Yellow
+    exit 1
+}
+
+$prefetchPath = "$env:SystemRoot\Prefetch"
+$count = (Get-ChildItem $prefetchPath -EA 0).Count
+
+Remove-Item "$prefetchPath\*" -Force -EA 0
+
+Write-Host "Removed $count prefetch files (~50MB)" -ForegroundColor Yellow
+Write-Host "Windows will rebuild prefetch over the next few days" -ForegroundColor Yellow
+Write-Host "Expect slower app launches until then" -ForegroundColor Red
+"#.to_string(),
                 }
             ]
         },

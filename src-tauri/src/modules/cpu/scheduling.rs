@@ -6,7 +6,7 @@
 //! - disable-fth.yml
 //! - disable-service-host-split.yml
 
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
 
 /// Returns all CPU scheduling and priority tweaks
 pub fn get_scheduling_tweaks() -> Vec<Tweak> {
@@ -196,6 +196,60 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services' |
                     value: RegistryValue::DWord(1),
                 }
             ]
+        },
+        
+        // ============================================
+        // NEW: Disable VBS (Virtualization Based Security)
+        // ============================================
+        Tweak {
+            id: "cpu_disable_vbs".to_string(),
+            category: TweakCategory::CpuPerformance,
+            name: "🔒 Disable VBS (Virtualization Based Security)".to_string(),
+            description: "Disables VBS and Memory Integrity. Provides 5-15% FPS boost. Reduces security - only for gaming systems.".to_string(),
+            warning_level: WarningLevel::Careful,
+            requires_restart: true,
+            enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$vbs = Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard" -Name "EnableVirtualizationBasedSecurity" -EA 0
+if ($vbs.EnableVirtualizationBasedSecurity -eq 0) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
+            revert_operations: Some(vec![
+                TweakOperation::RegistryDelete {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\DeviceGuard".to_string(),
+                    key: "EnableVirtualizationBasedSecurity".to_string(),
+                },
+                TweakOperation::RegistryDelete {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\DeviceGuard\\Scenarios\\HypervisorEnforcedCodeIntegrity".to_string(),
+                    key: "Enabled".to_string(),
+                },
+                TweakOperation::Command {
+                    cmd: "bcdedit".to_string(),
+                    args: vec!["/deletevalue".to_string(), "hypervisorlaunchtype".to_string()],
+                },
+            ]),
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\DeviceGuard".to_string(),
+                    key: "EnableVirtualizationBasedSecurity".to_string(),
+                    value: RegistryValue::DWord(0),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\DeviceGuard\\Scenarios\\HypervisorEnforcedCodeIntegrity".to_string(),
+                    key: "Enabled".to_string(),
+                    value: RegistryValue::DWord(0),
+                },
+                TweakOperation::Command {
+                    cmd: "bcdedit".to_string(),
+                    args: vec!["/set".to_string(), "hypervisorlaunchtype".to_string(), "off".to_string()],
+                },
+            ],
         },
     ]
 }

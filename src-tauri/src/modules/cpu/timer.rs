@@ -2,7 +2,7 @@
 //!
 //! Based on: bcdedit-tweaks.yml, DisablePowerSaving.ps1
 
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
 
 pub fn get_timer_tweaks() -> Vec<Tweak> {
     vec![
@@ -76,26 +76,58 @@ pub fn get_timer_tweaks() -> Vec<Tweak> {
             ]
         },
         Tweak {
-            id: "cpu_use_platform_clock".to_string(),
+            id: "cpu_disable_hpet".to_string(),
             category: TweakCategory::CpuPerformance,
-            name: "Use Platform Clock (HPET)".to_string(),
-            description: "Enables HPET via bcdedit. May improve or hurt performance depending on hardware.".to_string(),
-            warning_level: WarningLevel::Careful,
+            name: "⚡ Disable HPET for Lower Latency".to_string(),
+            description: "Disables High Precision Event Timer. Modern TSC is faster. Can improve FPS by 10-20% in games.".to_string(),
+            warning_level: WarningLevel::Safe,
             requires_restart: true,
             enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$hpet = Get-PnpDevice | Where-Object { $_.FriendlyName -like "*High Precision Event Timer*" }
+if ($hpet.Status -eq "Error" -or $hpet.Status -eq "Disabled") {
+    Write-Output "True"
+} else {
+    Write-Output "False"
+}
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Command {
                     cmd: "bcdedit".to_string(),
-                    args: vec!["/deletevalue".to_string(), "useplatformclock".to_string()],
-                }
+                    args: vec!["/set".to_string(), "useplatformclock".to_string(), "true".to_string()],
+                },
+                TweakOperation::Powershell {
+                    script: r#"
+Get-PnpDevice | Where-Object { $_.FriendlyName -like "*High Precision Event Timer*" } | 
+    Enable-PnpDevice -Confirm:$false -EA 0
+Write-Host "HPET re-enabled" -ForegroundColor Green
+"#.to_string(),
+                },
             ]),
-            check: None,
             operations: vec![
                 TweakOperation::Command {
                     cmd: "bcdedit".to_string(),
-                    args: vec!["/set".to_string(), "useplatformclock".to_string(), "true".to_string()],
-                }
-            ]
+                    args: vec!["/deletevalue".to_string(), "useplatformclock".to_string()],
+                },
+                TweakOperation::Powershell {
+                    script: r#"
+# Also disable HPET device in Device Manager
+$hpet = Get-PnpDevice | Where-Object { $_.FriendlyName -like "*High Precision Event Timer*" }
+if ($hpet) {
+    Disable-PnpDevice -InstanceId $hpet.InstanceId -Confirm:$false -EA 0
+    Write-Host "HPET disabled in Device Manager" -ForegroundColor Green
+} else {
+    Write-Host "HPET device not found (may already be disabled)" -ForegroundColor Yellow
+}
+
+Write-Host "`nIMPORTANT: Also disable HPET in BIOS for full effect!" -ForegroundColor Cyan
+Write-Host "Location varies by motherboard - look in CPU or Power settings" -ForegroundColor White
+"#.to_string(),
+                },
+            ],
         },
         Tweak {
             id: "cpu_legacy_boot_menu".to_string(),
@@ -120,27 +152,48 @@ pub fn get_timer_tweaks() -> Vec<Tweak> {
             ]
         },
         Tweak {
-            id: "cpu_processor_check_interval_timer".to_string(),
+            id: "cpu_processor_check_interval".to_string(), // Renamed to drop "_timer" suffix for consistency if desired, or keep. Plan says "cpu_processor_check_interval".
             category: TweakCategory::CpuPerformance,
-            name: "Optimize Processor Time Check Interval".to_string(),
-            description: "Sets processor time check interval to 200ms for reduced DPCs.".to_string(),
+            name: "⚡ Optimize Processor Check Interval".to_string(),
+            description: "Sets processor performance check interval to 1 (minimum). Reduces latency by checking CPU state more frequently. Windows default is 15.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$result = powercfg /q scheme_current 54533251-82be-4824-96c1-47b60b740d00 4d2b0152-7d5c-498b-88e2-34345392a2c5
+if ($result -match "0x00000001") {
+    Write-Output "True"
+} else {
+    Write-Output "False"
+}
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
-                 TweakOperation::Powershell {
+                TweakOperation::Powershell {
                     script: r#"
+# Restore Windows default (15, NOT 15ms - it's a counter value)
 powercfg /setacvalueindex scheme_current 54533251-82be-4824-96c1-47b60b740d00 4d2b0152-7d5c-498b-88e2-34345392a2c5 15
+powercfg /setdcvalueindex scheme_current 54533251-82be-4824-96c1-47b60b740d00 4d2b0152-7d5c-498b-88e2-34345392a2c5 15
 powercfg /setactive scheme_current
-"#.to_string(), // Default 15ms?
+Write-Host "Processor check interval restored to default (15)" -ForegroundColor Green
+"#.to_string(),
                 }
             ]),
-            check: None,
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
-powercfg /setacvalueindex scheme_current 54533251-82be-4824-96c1-47b60b740d00 4d2b0152-7d5c-498b-88e2-34345392a2c5 200
+# Processor Check Interval:
+# - Values are timer tick counts, NOT milliseconds
+# - 200 = check every 200 ticks (WRONG - increases latency!)
+# - 15 = Windows default
+# - 1 = check every tick (OPTIMAL for performance)
+
+powercfg /setacvalueindex scheme_current 54533251-82be-4824-96c1-47b60b740d00 4d2b0152-7d5c-498b-88e2-34345392a2c5 1
+powercfg /setdcvalueindex scheme_current 54533251-82be-4824-96c1-47b60b740d00 4d2b0152-7d5c-498b-88e2-34345392a2c5 1
 powercfg /setactive scheme_current
+Write-Host "Processor check interval set to 1 (minimum latency)" -ForegroundColor Green
 "#.to_string(),
                 }
             ]

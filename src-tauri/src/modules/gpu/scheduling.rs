@@ -60,5 +60,41 @@ pub fn get_scheduling_tweaks() -> Vec<Tweak> {
                 }
             ]
         },
+        Tweak {
+            id: "gpu_increase_tdr_delay".to_string(),
+            category: TweakCategory::GpuOptimization,
+            name: "⏱️ Increase GPU Timeout Delay".to_string(),
+            description: "Increases GPU timeout from 2s to 8s. Prevents 'Display driver stopped responding' during heavy loads.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: true,
+            enabled: false,
+            check: None,
+            revert_operations: Some(vec![
+                TweakOperation::RegistryDelete {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers".to_string(),
+                    key: "TdrDelay".to_string(),
+                },
+                TweakOperation::RegistryDelete {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers".to_string(),
+                    key: "TdrLevel".to_string(),
+                },
+            ]),
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers".to_string(),
+                    key: "TdrDelay".to_string(),
+                    value: RegistryValue::DWord(8),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers".to_string(),
+                    key: "TdrLevel".to_string(),
+                    value: RegistryValue::DWord(3), // Recover on timeout
+                },
+            ],
+        },
     ]
 }

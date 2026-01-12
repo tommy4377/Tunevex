@@ -46,6 +46,8 @@ pub fn toggle_item(id: String, enable: bool) -> Result<(), String> {
         return tasks::toggle_task(&id, enable);
     } else if id.starts_with("SVC:") || id.starts_with("SERVICE:") {
         return services::toggle_service(&id, enable);
+    } else if id.starts_with("BOOT:") || id.starts_with("IFEO:") || id.starts_with("APPINIT:") {
+        return boot::toggle_boot_item(&id, enable);
     } else if id.starts_with("EXP:") || id.starts_with("EXPLORER:") {
         return Err("Toggling Explorer items not supported yet".to_string());
     }

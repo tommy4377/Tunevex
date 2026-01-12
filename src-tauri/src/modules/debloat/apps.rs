@@ -2,6 +2,64 @@
 
 use crate::modules::types::{Tweak, TweakCategory, TweakOperation, WarningLevel};
 
+fn create_bloatware_removal_script(apps: &[&str]) -> String {
+    let app_list = apps.iter()
+        .map(|a| format!("'{}'", a))
+        .collect::<Vec<_>>()
+        .join(", ");
+    
+    format!(r#"
+$ErrorActionPreference = "SilentlyContinue"
+$apps = @({})
+$removed = 0
+$failed = 0
+$notFound = 0
+
+Write-Host "Starting bloatware removal..." -ForegroundColor Cyan
+
+foreach ($appPattern in $apps) {{
+    Write-Host "Processing: $appPattern" -ForegroundColor White
+    
+    # Try to remove installed package
+    $packages = Get-AppxPackage -AllUsers | Where-Object {{ $_.Name -like "*$appPattern*" }}
+    
+    if ($packages) {{
+        foreach ($pkg in $packages) {{
+            try {{
+                Remove-AppxPackage -Package $pkg.PackageFullName -AllUsers -ErrorAction Stop
+                $removed++
+                Write-Host "  ✓ Removed: $($pkg.Name)" -ForegroundColor Green
+            }} catch {{
+                $failed++
+                Write-Host "  ✗ Failed: $($pkg.Name) - $($_.Exception.Message)" -ForegroundColor Red
+            }}
+        }}
+    }} else {{
+        $notFound++
+    }}
+    
+    # Also remove provisioned package (prevents reinstall for new users)
+    $provisioned = Get-AppxProvisionedPackage -Online | Where-Object {{ $_.DisplayName -like "*$appPattern*" }}
+    
+    if ($provisioned) {{
+        foreach ($prov in $provisioned) {{
+            try {{
+                Remove-AppxProvisionedPackage -Online -PackageName $prov.PackageName -ErrorAction Stop | Out-Null
+                Write-Host "  ✓ Deprovisioned: $($prov.DisplayName)" -ForegroundColor Green
+            }} catch {{
+                Write-Host "  ✗ Deprovision failed: $($prov.DisplayName)" -ForegroundColor Yellow
+            }}
+        }}
+    }}
+}}
+
+Write-Host "`n=== Summary ===" -ForegroundColor Cyan
+Write-Host "Removed: $removed" -ForegroundColor Green
+Write-Host "Failed: $failed" -ForegroundColor $(if ($failed -gt 0) {{ "Red" }} else {{ "Green" }})
+Write-Host "Not found: $notFound" -ForegroundColor Yellow
+"#, app_list)
+}
+
 pub fn get_tweaks() -> Vec<Tweak> {
     vec![
         // ============================================
@@ -25,34 +83,23 @@ Write-Host "Microsoft apps must be reinstalled from Microsoft Store manually." -
             check: None,
             operations: vec![
                 TweakOperation::Powershell {
-                    script: r#"
-$apps = @(
-    "Clipchamp.Clipchamp","Microsoft.3DBuilder","Microsoft.549981C3F5F10",
-    "Microsoft.Windows.Ai.Copilot.Provider","Microsoft.WindowsBackup","Microsoft.Paint",
-    "Microsoft.BingFinance","Microsoft.BingFoodAndDrink","Microsoft.BingHealthAndFitness",
-    "Microsoft.BingNews","Microsoft.BingSports","Microsoft.BingTranslator",
-    "Microsoft.BingTravel","Microsoft.BingWeather","Microsoft.GetHelp","Microsoft.Getstarted",
-    "Microsoft.Messaging","Microsoft.Microsoft3DViewer","Microsoft.MicrosoftJournal",
-    "Microsoft.MicrosoftOfficeHub","Microsoft.MicrosoftPowerBIForWindows",
-    "Microsoft.MicrosoftSolitaireCollection","Microsoft.MicrosoftStickyNotes",
-    "Microsoft.MixedReality.Portal","Microsoft.NetworkSpeedTest","Microsoft.News",
-    "Microsoft.Office.OneNote","Microsoft.Office.Sway","Microsoft.OneConnect",
-    "Microsoft.PowerAutomateDesktop","Microsoft.Print3D","Microsoft.SkypeApp",
-    "Microsoft.Todos","Microsoft.Windows.DevHome","Microsoft.WindowsAlarms",
-    "Microsoft.WindowsFeedbackHub","Microsoft.WindowsMaps","Microsoft.WindowsSoundRecorder",
-    "Microsoft.XboxApp","Microsoft.ZuneMusic","Microsoft.ZuneVideo","MicrosoftCorporationII.MicrosoftFamily",
-    "MicrosoftCorporationII.QuickAssist","MicrosoftTeams","MSTeams"
-)
-Write-Host "Removing common Microsoft bloatware..." -ForegroundColor Cyan
-$removed = 0
-foreach ($app in $apps) {
-    $pkg = Get-AppxPackage -Name "*$app*" -AllUsers -EA 0
-    if ($pkg) { $pkg | Remove-AppxPackage -AllUsers -EA 0; $removed++ }
-    Get-AppxProvisionedPackage -Online -EA 0 | Where-Object { $_.PackageName -like "*$app*" } | 
-        Remove-ProvisionedAppxPackage -Online -AllUsers -EA 0 | Out-Null
-}
-Write-Host "Removed $removed apps" -ForegroundColor Green
-"#.to_string(),
+                    script: create_bloatware_removal_script(&[
+                        "Clipchamp.Clipchamp","Microsoft.3DBuilder","Microsoft.549981C3F5F10",
+                        "Microsoft.Windows.Ai.Copilot.Provider","Microsoft.WindowsBackup","Microsoft.Paint",
+                        "Microsoft.BingFinance","Microsoft.BingFoodAndDrink","Microsoft.BingHealthAndFitness",
+                        "Microsoft.BingNews","Microsoft.BingSports","Microsoft.BingTranslator",
+                        "Microsoft.BingTravel","Microsoft.BingWeather","Microsoft.GetHelp","Microsoft.Getstarted",
+                        "Microsoft.Messaging","Microsoft.Microsoft3DViewer","Microsoft.MicrosoftJournal",
+                        "Microsoft.MicrosoftOfficeHub","Microsoft.MicrosoftPowerBIForWindows",
+                        "Microsoft.MicrosoftSolitaireCollection","Microsoft.MicrosoftStickyNotes",
+                        "Microsoft.MixedReality.Portal","Microsoft.NetworkSpeedTest","Microsoft.News",
+                        "Microsoft.Office.OneNote","Microsoft.Office.Sway","Microsoft.OneConnect",
+                        "Microsoft.PowerAutomateDesktop","Microsoft.Print3D","Microsoft.SkypeApp",
+                        "Microsoft.Todos","Microsoft.Windows.DevHome","Microsoft.WindowsAlarms",
+                        "Microsoft.WindowsFeedbackHub","Microsoft.WindowsMaps","Microsoft.WindowsSoundRecorder",
+                        "Microsoft.XboxApp","Microsoft.ZuneMusic","Microsoft.ZuneVideo","MicrosoftCorporationII.MicrosoftFamily",
+                        "MicrosoftCorporationII.QuickAssist","MicrosoftTeams","MSTeams"
+                    ]),
                 }
             ]
         },
@@ -71,15 +118,10 @@ Write-Host "Removed $removed apps" -ForegroundColor Green
             check: None,
             operations: vec![
                 TweakOperation::Powershell {
-                    script: r#"
-$apps = @("microsoft.windowscommunicationsapps", "Microsoft.People")
-foreach ($app in $apps) {
-    Get-AppxPackage -Name "*$app*" -AllUsers -EA 0 | Remove-AppxPackage -AllUsers -EA 0
-    Get-AppxProvisionedPackage -Online -EA 0 | Where-Object { $_.PackageName -like "*$app*" } | 
-        Remove-ProvisionedAppxPackage -Online -AllUsers -EA 0 | Out-Null
-}
-Write-Host "Mail, Calendar & People removed" -ForegroundColor Green
-"#.to_string(),
+                    script: create_bloatware_removal_script(&[
+                        "microsoft.windowscommunicationsapps",
+                        "Microsoft.People"
+                    ]),
                 }
             ]
         },
@@ -98,12 +140,9 @@ Write-Host "Mail, Calendar & People removed" -ForegroundColor Green
             check: None,
             operations: vec![
                 TweakOperation::Powershell {
-                    script: r#"
-Get-AppxPackage -Name "*Microsoft.OutlookForWindows*" -AllUsers -EA 0 | Remove-AppxPackage -AllUsers -EA 0
-Get-AppxProvisionedPackage -Online -EA 0 | Where-Object { $_.PackageName -like "*OutlookForWindows*" } | 
-    Remove-ProvisionedAppxPackage -Online -AllUsers -EA 0 | Out-Null
-Write-Host "New Outlook removed" -ForegroundColor Green
-"#.to_string(),
+                    script: create_bloatware_removal_script(&[
+                        "Microsoft.OutlookForWindows"
+                    ]),
                 }
             ]
         },
@@ -122,15 +161,10 @@ Write-Host "New Outlook removed" -ForegroundColor Green
             check: None,
             operations: vec![
                 TweakOperation::Powershell {
-                    script: r#"
-$apps = @("Microsoft.YourPhone", "MicrosoftWindows.CrossDevice")
-foreach ($app in $apps) {
-    Get-AppxPackage -Name "*$app*" -AllUsers -EA 0 | Remove-AppxPackage -AllUsers -EA 0
-    Get-AppxProvisionedPackage -Online -EA 0 | Where-Object { $_.PackageName -like "*$app*" } | 
-        Remove-ProvisionedAppxPackage -Online -AllUsers -EA 0 | Out-Null
-}
-Write-Host "Phone Link removed" -ForegroundColor Green
-"#.to_string(),
+                    script: create_bloatware_removal_script(&[
+                        "Microsoft.YourPhone",
+                        "MicrosoftWindows.CrossDevice"
+                    ]),
                 }
             ]
         },
@@ -200,31 +234,20 @@ Write-Host "OneDrive removed" -ForegroundColor Green
             check: None,
             operations: vec![
                 TweakOperation::Powershell {
-                    script: r#"
-$apps = @(
-    "CorsairiCUE","ACGMediaPlayer","ActiproSoftwareLLC","AdobeSystemsIncorporated.AdobePhotoshopExpress",
-    "Amazon.com.Amazon","AmazonVideo.PrimeVideo","Asphalt8Airborne","AutodeskSketchBook",
-    "CaesarsSlotsFreeCasino","COOKINGFEVER","CyberLinkMediaSuiteEssentials",
-    "DisneyMagicKingdoms","Disney","DrawboardPDF","Duolingo-LearnLanguagesforFree",
-    "EclipseManager","Facebook","FarmVille2CountryEscape","fitbit","Flipboard",
-    "HiddenCity","HULULLC.HULUPLUS","iHeartRadio","Instagram",
-    "king.com.BubbleWitch3Saga","king.com.CandyCrushSaga","king.com.CandyCrushSodaSaga",
-    "LinkedInforWindows","MarchofEmpires","Netflix","NYTCrossword","OneCalendar",
-    "PandoraMediaInc","PhototasticCollage","PicsArt-PhotoStudio","Plex",
-    "PolarrPhotoEditorAcademicEdition","Royal Revolt","Shazam","Sidia.LiveWallpaper",
-    "SlingTV","Spotify","TikTok","TuneInRadio","Twitter","Viber","WinZipUniversal",
-    "Wunderlist","XING"
-)
-Write-Host "Removing third-party bloatware..." -ForegroundColor Cyan
-$removed = 0
-foreach ($app in $apps) {
-    $pkg = Get-AppxPackage -Name "*$app*" -AllUsers -EA 0
-    if ($pkg) { $pkg | Remove-AppxPackage -AllUsers -EA 0; $removed++ }
-    Get-AppxProvisionedPackage -Online -EA 0 | Where-Object { $_.PackageName -like "*$app*" } | 
-        Remove-ProvisionedAppxPackage -Online -AllUsers -EA 0 | Out-Null
-}
-Write-Host "Removed $removed third-party apps" -ForegroundColor Green
-"#.to_string(),
+                    script: create_bloatware_removal_script(&[
+                        "CorsairiCUE","ACGMediaPlayer","ActiproSoftwareLLC","AdobeSystemsIncorporated.AdobePhotoshopExpress",
+                        "Amazon.com.Amazon","AmazonVideo.PrimeVideo","Asphalt8Airborne","AutodeskSketchBook",
+                        "CaesarsSlotsFreeCasino","COOKINGFEVER","CyberLinkMediaSuiteEssentials",
+                        "DisneyMagicKingdoms","Disney","DrawboardPDF","Duolingo-LearnLanguagesforFree",
+                        "EclipseManager","Facebook","FarmVille2CountryEscape","fitbit","Flipboard",
+                        "HiddenCity","HULULLC.HULUPLUS","iHeartRadio","Instagram",
+                        "king.com.BubbleWitch3Saga","king.com.CandyCrushSaga","king.com.CandyCrushSodaSaga",
+                        "LinkedInforWindows","MarchofEmpires","Netflix","NYTCrossword","OneCalendar",
+                        "PandoraMediaInc","PhototasticCollage","PicsArt-PhotoStudio","Plex",
+                        "PolarrPhotoEditorAcademicEdition","Royal Revolt","Shazam","Sidia.LiveWallpaper",
+                        "SlingTV","Spotify","TikTok","TuneInRadio","Twitter","Viber","WinZipUniversal",
+                        "Wunderlist","XING"
+                    ]),
                 }
             ]
         },
@@ -246,27 +269,16 @@ Write-Host "Removed $removed third-party apps" -ForegroundColor Green
             check: None,
             operations: vec![
                 TweakOperation::Powershell {
-                    script: r#"
-$apps = @(
-    "AD2F1837.HPAIExperienceCenter","AD2F1837.HPConnectedMusic",
-    "AD2F1837.HPConnectedPhotopoweredbySnapfish","AD2F1837.HPDesktopSupportUtilities",
-    "AD2F1837.HPEasyClean","AD2F1837.HPFileViewer","AD2F1837.HPJumpStarts",
-    "AD2F1837.HPPCHardwareDiagnosticsWindows","AD2F1837.HPPowerManager",
-    "AD2F1837.HPPrinterControl","AD2F1837.HPPrivacySettings","AD2F1837.HPQuickDrop",
-    "AD2F1837.HPQuickTouch","AD2F1837.HPRegistration","AD2F1837.HPSupportAssistant",
-    "AD2F1837.HPSureShieldAI","AD2F1837.HPSystemInformation","AD2F1837.HPWelcome",
-    "AD2F1837.HPWorkWell","AD2F1837.myHP"
-)
-Write-Host "Removing HP bloatware..." -ForegroundColor Cyan
-$removed = 0
-foreach ($app in $apps) {
-    $pkg = Get-AppxPackage -Name "*$app*" -AllUsers -EA 0
-    if ($pkg) { $pkg | Remove-AppxPackage -AllUsers -EA 0; $removed++ }
-    Get-AppxProvisionedPackage -Online -EA 0 | Where-Object { $_.PackageName -like "*$app*" } | 
-        Remove-ProvisionedAppxPackage -Online -AllUsers -EA 0 | Out-Null
-}
-Write-Host "Removed $removed HP apps" -ForegroundColor Green
-"#.to_string(),
+                    script: create_bloatware_removal_script(&[
+                        "AD2F1837.HPAIExperienceCenter","AD2F1837.HPConnectedMusic",
+                        "AD2F1837.HPConnectedPhotopoweredbySnapfish","AD2F1837.HPDesktopSupportUtilities",
+                        "AD2F1837.HPEasyClean","AD2F1837.HPFileViewer","AD2F1837.HPJumpStarts",
+                        "AD2F1837.HPPCHardwareDiagnosticsWindows","AD2F1837.HPPowerManager",
+                        "AD2F1837.HPPrinterControl","AD2F1837.HPPrivacySettings","AD2F1837.HPQuickDrop",
+                        "AD2F1837.HPQuickTouch","AD2F1837.HPRegistration","AD2F1837.HPSupportAssistant",
+                        "AD2F1837.HPSureShieldAI","AD2F1837.HPSystemInformation","AD2F1837.HPWelcome",
+                        "AD2F1837.HPWorkWell","AD2F1837.myHP"
+                    ]),
                 }
             ]
         },
@@ -285,20 +297,11 @@ Write-Host "Removed $removed HP apps" -ForegroundColor Green
             check: None,
             operations: vec![
                 TweakOperation::Powershell {
-                    script: r#"
-$apps = @(
-    "DellInc.DellSupportAssistforPCs","DellInc.DellDigitalDelivery",
-    "DellInc.DellCommandUpdate","DellInc.DellPowerManager",
-    "DellInc.PartnerPromo","DellInc.DellCustomerConnect"
-)
-Write-Host "Removing Dell bloatware..." -ForegroundColor Cyan
-$removed = 0
-foreach ($app in $apps) {
-    $pkg = Get-AppxPackage -Name "*$app*" -AllUsers -EA 0
-    if ($pkg) { $pkg | Remove-AppxPackage -AllUsers -EA 0; $removed++ }
-}
-Write-Host "Removed $removed Dell apps" -ForegroundColor Green
-"#.to_string(),
+                    script: create_bloatware_removal_script(&[
+                        "DellInc.DellSupportAssistforPCs","DellInc.DellDigitalDelivery",
+                        "DellInc.DellCommandUpdate","DellInc.DellPowerManager",
+                        "DellInc.PartnerPromo","DellInc.DellCustomerConnect"
+                    ]),
                 }
             ]
         },
@@ -317,20 +320,11 @@ Write-Host "Removed $removed Dell apps" -ForegroundColor Green
             check: None,
             operations: vec![
                 TweakOperation::Powershell {
-                    script: r#"
-$apps = @(
-    "E046963F.LenovoCompanion","E046963F.LenovoSettings",
-    "E0469640.LenovoUtility","LenovoCorporation.LenovoID",
-    "LenovoCorporation.LenovoVantage","LenovoCorporation.LenovoSettings"
-)
-Write-Host "Removing Lenovo bloatware..." -ForegroundColor Cyan
-$removed = 0
-foreach ($app in $apps) {
-    $pkg = Get-AppxPackage -Name "*$app*" -AllUsers -EA 0
-    if ($pkg) { $pkg | Remove-AppxPackage -AllUsers -EA 0; $removed++ }
-}
-Write-Host "Removed $removed Lenovo apps" -ForegroundColor Green
-"#.to_string(),
+                    script: create_bloatware_removal_script(&[
+                        "E046963F.LenovoCompanion","E046963F.LenovoSettings",
+                        "E0469640.LenovoUtility","LenovoCorporation.LenovoID",
+                        "LenovoCorporation.LenovoVantage","LenovoCorporation.LenovoSettings"
+                    ]),
                 }
             ]
         },
@@ -349,19 +343,10 @@ Write-Host "Removed $removed Lenovo apps" -ForegroundColor Green
             check: None,
             operations: vec![
                 TweakOperation::Powershell {
-                    script: r#"
-$apps = @(
-    "B9ECED6F.ArmouryCrate","B9ECED6F.ASUSROGLiveService",
-    "ASUSTeK COMPUTER INC.MyASUS","B9ECED6F.arabormonicux"
-)
-Write-Host "Removing ASUS bloatware..." -ForegroundColor Cyan
-$removed = 0
-foreach ($app in $apps) {
-    $pkg = Get-AppxPackage -Name "*$app*" -AllUsers -EA 0
-    if ($pkg) { $pkg | Remove-AppxPackage -AllUsers -EA 0; $removed++ }
-}
-Write-Host "Removed $removed ASUS apps" -ForegroundColor Green
-"#.to_string(),
+                    script: create_bloatware_removal_script(&[
+                        "B9ECED6F.ArmouryCrate","B9ECED6F.ASUSROGLiveService",
+                        "ASUSTeK COMPUTER INC.MyASUS","B9ECED6F.arabormonicux"
+                    ]),
                 }
             ]
         },
@@ -583,20 +568,10 @@ Write-Host "Teams Chat removed from taskbar" -ForegroundColor Green
             check: None,
             operations: vec![
                 TweakOperation::Powershell {
-                    script: r#"
-$apps = @(
-    "Microsoft.GamingApp","Microsoft.XboxGameOverlay","Microsoft.XboxGamingOverlay",
-    "Microsoft.XboxIdentityProvider","Microsoft.XboxSpeechToTextOverlay"
-)
-Write-Host "Removing Xbox gaming apps..." -ForegroundColor Yellow
-Write-Host "WARNING: This may break some games!" -ForegroundColor Red
-foreach ($app in $apps) {
-    Get-AppxPackage -Name "*$app*" -AllUsers -EA 0 | Remove-AppxPackage -AllUsers -EA 0
-    Get-AppxProvisionedPackage -Online -EA 0 | Where-Object { $_.PackageName -like "*$app*" } | 
-        Remove-ProvisionedAppxPackage -Online -AllUsers -EA 0 | Out-Null
-}
-Write-Host "Xbox apps removed" -ForegroundColor Green
-"#.to_string(),
+                    script: create_bloatware_removal_script(&[
+                        "Microsoft.GamingApp","Microsoft.XboxGameOverlay","Microsoft.XboxGamingOverlay",
+                        "Microsoft.XboxIdentityProvider","Microsoft.XboxSpeechToTextOverlay"
+                    ]),
                 }
             ]
         },
@@ -670,34 +645,27 @@ Write-Host "AppX reinstallation prevention enabled" -ForegroundColor Green
             id: "debloat_remove_edge_full".to_string(),
             category: TweakCategory::DebloatTelemetry,
             name: "🗑️ Remove Microsoft Edge (Full)".to_string(),
-            description: "DANGEROUS: Completely removes Microsoft Edge browser. Requires reboot. Can be reinstalled via: winget install Microsoft.Edge".to_string(),
+            description: "DANGEROUS: Completely removes Microsoft Edge browser. WARNING: May break WebView2 apps (Teams, Outlook). Use Firefox or Chrome as alternative.".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: true,
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
-Write-Host "Reinstalling Microsoft Edge..." -ForegroundColor Yellow
-# Try winget first
-$winget = Get-Command winget -EA 0
-if ($winget) {
-    winget install --id Microsoft.Edge --accept-source-agreements --accept-package-agreements
-} else {
-    # Fallback: Download Edge installer
-    $url = "https://go.microsoft.com/fwlink/?linkid=2108834&Channel=Stable&language=en"
-    $installer = "$env:TEMP\MicrosoftEdgeSetup.exe"
-    Invoke-WebRequest -Uri $url -OutFile $installer
-    Start-Process -FilePath $installer -ArgumentList "/silent /install" -Wait
-    Remove-Item $installer -Force -EA 0
-}
-Write-Host "Edge reinstall initiated" -ForegroundColor Green
+Write-Host "Edge cannot be automatically reinstalled." -ForegroundColor Yellow
+Write-Host "To reinstall Edge:" -ForegroundColor Cyan
+Write-Host "1. Download from: https://www.microsoft.com/edge" -ForegroundColor White
+Write-Host "2. Or run: winget install Microsoft.Edge" -ForegroundColor White
 "#.to_string(),
                 }
             ]),
             enabled: false,
             check: Some(crate::modules::types::TweakCheck::Powershell {
                 script: r#"
-$edge = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" -EA 0 | Where-Object { $_.DisplayName -like "*Microsoft Edge*" }
-if ($edge) { "False" } else { "True" }
+if (Test-Path "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe") {
+    Write-Output "False"
+} else {
+    Write-Output "True"
+}
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),
@@ -706,47 +674,79 @@ if ($edge) { "False" } else { "True" }
                     script: r#"
 Write-Host "Removing Microsoft Edge..." -ForegroundColor Yellow
 
-# Stop Edge processes
-Get-Process -Name "*edge*" -EA 0 | Stop-Process -Force -EA 0
+# Step 1: Check Windows version
+$build = [int](Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").CurrentBuildNumber
+Write-Host "Windows Build: $build" -ForegroundColor Cyan
 
-# Remove Edge AppX packages
-Get-AppxPackage -AllUsers *MicrosoftEdge* | Remove-AppxPackage -AllUsers -EA 0
-Get-AppxProvisionedPackage -Online | Where-Object { $_.PackageName -like "*MicrosoftEdge*" } | Remove-AppxProvisionedPackage -Online -EA 0
-
-# Mark as deprovisioned to prevent reinstall
-$store = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore"
-$pkgs = Get-AppxPackage -AllUsers *MicrosoftEdge* -EA 0
-foreach ($pkg in $pkgs) {
-    New-Item "$store\Deprovisioned\$($pkg.PackageFamilyName)" -Force | Out-Null
-    New-Item "$store\EndOfLife\S-1-5-18\$($pkg.PackageFullName)" -Force | Out-Null
+# Step 2: Remove NoRemove flag (REQUIRED first step)
+$uninstallPath = "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft Edge"
+if (Test-Path $uninstallPath) {
+    Set-ItemProperty -Path $uninstallPath -Name "NoRemove" -Value 0 -Force -EA 0
+    Write-Host "[1/6] Removed uninstall protection" -ForegroundColor Green
 }
 
-# Remove Edge from Program Files
-$edgePaths = @(
-    "${env:ProgramFiles(x86)}\Microsoft\Edge",
-    "${env:ProgramFiles(x86)}\Microsoft\EdgeCore",
-    "${env:ProgramFiles(x86)}\Microsoft\EdgeUpdate",
-    "$env:ProgramData\Microsoft\EdgeUpdate"
-)
-foreach ($path in $edgePaths) {
-    if (Test-Path $path) {
-        takeown /f $path /r /d y 2>&1 | Out-Null
-        icacls $path /grant "$env:USERNAME:F" /t /c 2>&1 | Out-Null
-        Remove-Item $path -Recurse -Force -EA 0
+# Step 3: Find Edge version and uninstaller
+$EdgePath = "C:\Program Files (x86)\Microsoft\Edge\Application"
+if (Test-Path $EdgePath) {
+    $EdgeVersion = Get-ChildItem $EdgePath -Directory | 
+        Where-Object { $_.Name -match '^\d+\.\d+' } | 
+        Sort-Object { [version]($_.Name -replace '\..*$', '') } -Descending | 
+        Select-Object -First 1 -ExpandProperty Name
+    
+    if ($EdgeVersion) {
+        $UninstallCmd = "$EdgePath\$EdgeVersion\Installer\setup.exe"
+        
+        if (Test-Path $UninstallCmd) {
+            Write-Host "[2/6] Uninstalling Edge version $EdgeVersion..." -ForegroundColor Yellow
+            
+            $process = Start-Process -FilePath $UninstallCmd `
+                -ArgumentList "--uninstall --system-level --verbose-logging --force-uninstall" `
+                -Wait -PassThru -NoNewWindow
+            
+            if ($process.ExitCode -eq 0) {
+                Write-Host "[3/6] Edge uninstalled successfully" -ForegroundColor Green
+            } else {
+                Write-Host "[3/6] Edge uninstall returned code: $($process.ExitCode)" -ForegroundColor Yellow
+            }
+        }
     }
+} else {
+    Write-Host "[2/6] Edge not found in standard location" -ForegroundColor Yellow
 }
 
-# Remove scheduled tasks
-Get-ScheduledTask | Where-Object { $_.TaskName -like "*Edge*" } | Unregister-ScheduledTask -Confirm:$false -EA 0
-
-# Remove services
-$services = @("edgeupdate", "edgeupdatem", "MicrosoftEdgeElevationService")
-foreach ($svc in $services) {
-    Stop-Service -Name $svc -Force -EA 0
-    sc.exe delete $svc 2>&1 | Out-Null
+# Step 4: Remove Edge WebView (optional but thorough)
+$WebViewPath = "C:\Program Files (x86)\Microsoft\EdgeWebView"
+if (Test-Path $WebViewPath) {
+    Write-Host "[4/6] Removing Edge WebView..." -ForegroundColor Yellow
+    Remove-Item -Path $WebViewPath -Recurse -Force -EA 0
 }
 
-Write-Host "Edge removal complete. Please reboot." -ForegroundColor Green
+# Step 5: Prevent Edge reinstallation via Group Policy
+$policyPaths = @(
+    "HKLM:\SOFTWARE\Policies\Microsoft\EdgeUpdate",
+    "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
+)
+foreach ($path in $policyPaths) {
+    if (!(Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+}
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\EdgeUpdate" -Name "DoNotUpdateToEdgeWithChromium" -Value 1 -Type DWord -Force
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\EdgeUpdate" -Name "CreateDesktopShortcutDefault" -Value 0 -Type DWord -Force
+Write-Host "[5/6] Blocked Edge reinstallation" -ForegroundColor Green
+
+# Step 6: Disable Edge Update scheduled tasks
+$tasks = Get-ScheduledTask | Where-Object { $_.TaskName -like "*MicrosoftEdge*" -or $_.TaskName -like "*Edge*Update*" }
+foreach ($task in $tasks) {
+    Disable-ScheduledTask -TaskName $task.TaskName -EA 0 | Out-Null
+}
+Write-Host "[6/6] Disabled Edge update tasks" -ForegroundColor Green
+
+# Step 7: Stop and disable Edge Update service
+Stop-Service -Name "edgeupdate" -Force -EA 0
+Stop-Service -Name "edgeupdatem" -Force -EA 0
+Set-Service -Name "edgeupdate" -StartupType Disabled -EA 0
+Set-Service -Name "edgeupdatem" -StartupType Disabled -EA 0
+
+Write-Host "`nEdge removal complete! Restart recommended." -ForegroundColor Green
 "#.to_string(),
                 }
             ]
