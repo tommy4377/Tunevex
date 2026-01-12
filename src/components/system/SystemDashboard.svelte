@@ -189,8 +189,8 @@
 
     .dashboard-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 24px;
+        grid-template-columns: repeat(auto-fill, 320px);
+        gap: 16px;
         margin-top: 20px;
         overflow-y: auto;
         flex: 1;

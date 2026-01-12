@@ -29,6 +29,20 @@
         }
     }
 
+    async function applySafeTweaks() {
+        for (const tweak of tweaks.filter((t) => t.warning_level === "Safe")) {
+            if (!tweak.enabled) {
+                try {
+                    await invoke("apply_tweak", { id: tweak.id });
+                    tweak.enabled = true;
+                } catch (e) {
+                    console.error(`Failed to apply tweak ${tweak.id}:`, e);
+                }
+            }
+        }
+        tweaks = tweaks;
+    }
+
     async function applyDns(provider: string) {
         const item = benchmarkResults.find((r) => r.provider === provider);
         if (!item) return;
@@ -130,7 +144,19 @@
         <!-- Added TweakList for DNS Tweaks like TTL -->
         {#if tweaks.length > 0}
             <div class="dns-tweaks-area">
-                <h3>Advanced DNS Settings</h3>
+                <div class="section-header">
+                    <div class="header-text">
+                        <h3>Advanced DNS Settings</h3>
+                        <p>Additional DNS configuration.</p>
+                    </div>
+                    <button
+                        class="optimize-btn safe"
+                        on:click={() => applySafeTweaks()}
+                    >
+                        ✅ Apply Safe Tweaks
+                    </button>
+                    <!-- Script needs to go in main script block -->
+                </div>
                 <TweakList {tweaks} showHeader={false} />
             </div>
         {/if}
@@ -144,11 +170,37 @@
         padding-top: 24px;
     }
 
-    .dns-tweaks-area h3 {
-        margin: 0 0 16px 0;
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+    }
+
+    .header-text h3 {
+        margin: 0 0 4px 0;
         font-size: 16px;
         color: var(--text-color);
         font-weight: 600;
+    }
+    .header-text p {
+        margin: 0;
+        font-size: 13px;
+        color: var(--text-muted);
+    }
+
+    .optimize-btn.safe {
+        background: #10b981;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-weight: 500;
+        cursor: pointer;
+        font-size: 13px;
+    }
+    .optimize-btn.safe:hover {
+        background: #059669;
     }
     .dns-section {
         flex: 1;

@@ -58,6 +58,19 @@
         }
     }
 
+    function getWarningColor(level: string) {
+        switch (level) {
+            case "Safe":
+                return "#22c55e";
+            case "Careful":
+                return "#f59e0b";
+            case "Dangerous":
+                return "#ef4444";
+            default:
+                return "#64748b";
+        }
+    }
+
     async function toggleTweak(tweak: Tweak) {
         // In a real app we'd fetch current state.
         // For MVP, we just toggle local state and call backend.
@@ -94,11 +107,14 @@
                 <div class="info">
                     <div class="top-row">
                         <span class="name">{tweak.name}</span>
-                        {#if tweak.warning_level === "Dangerous"}
-                            <span class="badge danger">Dangerous</span>
-                        {:else if tweak.warning_level === "Careful"}
-                            <span class="badge warning">Careful</span>
-                        {/if}
+                        <span
+                            class="badge"
+                            style="background: {getWarningColor(
+                                tweak.warning_level,
+                            )}20; color: {getWarningColor(tweak.warning_level)}"
+                        >
+                            {tweak.warning_level}
+                        </span>
                     </div>
                     <p class="description">{tweak.description}</p>
                 </div>

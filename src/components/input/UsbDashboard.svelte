@@ -71,6 +71,12 @@
         align-items: flex-start;
     }
 
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, 320px);
+        gap: 16px;
+    }
+
     .header-text h2 {
         font-size: 20px;
         margin: 0 0 8px 0;

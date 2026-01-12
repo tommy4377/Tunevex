@@ -20,15 +20,34 @@
             console.error("Failed to toggle tweak:", e);
         }
     }
+
+    async function applySafeTweaks() {
+        for (const tweak of tweaks.filter((t) => t.warning_level === "Safe")) {
+            if (!tweak.enabled) {
+                try {
+                    await invoke("apply_tweak", { id: tweak.id });
+                    tweak.enabled = true;
+                } catch (e) {
+                    console.error(`Failed to apply tweak ${tweak.id}:`, e);
+                }
+            }
+        }
+        tweaks = tweaks;
+    }
 </script>
 
 <div class="msi-section" in:fade>
     <div class="header">
-        <h2>⚡ Network MSI Mode</h2>
-        <p>
-            Enable Message Signaled Interrupts (MSI) for lower latency and
-            better stability.
-        </p>
+        <div class="header-text">
+            <h2>⚡ Network MSI Mode</h2>
+            <p>
+                Enable Message Signaled Interrupts (MSI) for lower latency and
+                better stability.
+            </p>
+        </div>
+        <button class="optimize-btn safe" on:click={() => applySafeTweaks()}>
+            ✅ Apply Safe Tweaks
+        </button>
     </div>
 
     <div class="info-banner">
@@ -57,19 +76,36 @@
 
     .header {
         margin-bottom: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
     }
 
-    h2 {
+    .header-text h2 {
         font-size: 24px;
         font-weight: 600;
         margin: 0 0 8px 0;
         color: var(--text-color);
     }
 
-    p {
+    .header-text p {
         color: var(--text-muted);
         margin: 0;
         font-size: 14px;
+    }
+
+    .optimize-btn.safe {
+        background: #10b981;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-weight: 500;
+        cursor: pointer;
+        font-size: 13px;
+    }
+    .optimize-btn.safe:hover {
+        background: #059669;
     }
 
     .info-banner {
@@ -88,7 +124,7 @@
 
     .grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        grid-template-columns: repeat(auto-fill, 320px);
         gap: 16px;
     }
 
