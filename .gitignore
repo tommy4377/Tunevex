@@ -1,0 +1,26 @@
+# Build Artifacts
+target/
+src-tauri/target/
+node_modules/
+.svelte-kit/
+build/
+dist/
+.DS_Store
+
+# Logs and Temp
+*.log
+*.tmp
+*.txt
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Context & Planning Artifacts (Excluded)
+implementation_plan.md
+task.md
+walkthrough.md
+active_context.md
+prompt.md
+.gemini/

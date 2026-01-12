@@ -1,0 +1,55 @@
+[package]
+name = "tommytweaker"
+version = "0.1.0"
+description = "Ultimate Gaming Optimizer"
+authors = ["TommyTweaker"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "tommytweaker_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+winreg = "0.52"
+anyhow = "1.0"
+log = "0.4"
+env_logger = "0.10"
+hickory-resolver = "0.24"
+
+rdev = "0.5"
+walkdir = "2.4"
+globset = "0.4"
+tokio = { version = "1", features = ["full"] }
+
+[dependencies.windows]
+version = "0.61"
+features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    "Win32_UI_Controls",
+    "Win32_Storage_FileSystem",
+    "Win32_System_IO",
+    "Win32_System_Ioctl", 
+    "Win32_System_Console",
+    "Win32_Security",
+]
+
+[profile.release]
+codegen-units = 1 # Maximum optimization, slower compile
+lto = true        # Link-Time Optimization
+opt-level = "s"   # Optimize for size (very close to '3' in speed, much smaller)
+panic = "abort"   # Remove stack unwinding for smaller binary
+strip = true      # Strip symbols
