@@ -15,6 +15,8 @@
     let progressCurrent = 0;
     let progressTotal = 0; // We might need to estimate this
     let showProgress = false;
+    let currentFile = ""; // Current file being processed
+    let bytesAnalyzed = 0; // Bytes processed so far
 
     // Dropdown items
     const algorithms = [
@@ -42,6 +44,8 @@
     let folderStatsMap: Record<string, FolderStats> = {};
     let unlistenProgress: () => void;
     let unlistenStatus: () => void;
+    let unlistenFile: () => void;
+    let unlistenBytes: () => void;
 
     function handleClickOutside(event: MouseEvent) {
         const target = event.target as HTMLElement;
@@ -68,12 +72,22 @@
         unlistenStatus = await listen<string>("compactor-status", (event) => {
             statusMsg = event.payload;
         });
+
+        unlistenFile = await listen<string>("compactor-file", (event) => {
+            currentFile = event.payload;
+        });
+
+        unlistenBytes = await listen<number>("compactor-bytes", (event) => {
+            bytesAnalyzed = event.payload;
+        });
     });
 
     onDestroy(() => {
         document.removeEventListener("click", handleClickOutside);
         if (unlistenProgress) unlistenProgress();
         if (unlistenStatus) unlistenStatus();
+        if (unlistenFile) unlistenFile();
+        if (unlistenBytes) unlistenBytes();
     });
 
     async function refreshFolders() {
@@ -309,6 +323,42 @@
             class:success={statusType === "success"}
         >
             {statusMsg}
+        </div>
+    {/if}
+
+    {#if (isScanning || isCompressing) && progressTotal > 0}
+        <div class="live-progress">
+            <div class="progress-header">
+                <span class="progress-label">
+                    {isScanning ? "Scanning..." : "Compressing..."}
+                </span>
+                <span class="progress-count">
+                    {progressCurrent} / {progressTotal} files
+                </span>
+            </div>
+            <div class="progress-bar-track">
+                <div
+                    class="progress-bar-fill"
+                    style="width: {Math.min(
+                        100,
+                        (progressCurrent / progressTotal) * 100,
+                    )}%"
+                ></div>
+            </div>
+            <div class="progress-stats">
+                {#if currentFile}
+                    <div class="current-file" title={currentFile}>
+                        📄 {currentFile.length > 50
+                            ? "..." + currentFile.slice(-47)
+                            : currentFile}
+                    </div>
+                {/if}
+                {#if bytesAnalyzed > 0}
+                    <div class="bytes-analyzed">
+                        💾 {formatBytes(bytesAnalyzed)} analyzed
+                    </div>
+                {/if}
+            </div>
         </div>
     {/if}
 
@@ -816,5 +866,74 @@
             opacity: 1;
             transform: translateY(0);
         }
+    }
+
+    /* Live Progress Section */
+    .live-progress {
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        border-radius: 12px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .progress-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .progress-label {
+        font-weight: 600;
+        font-size: 14px;
+        color: var(--accent-color);
+    }
+
+    .progress-count {
+        font-size: 13px;
+        color: var(--text-muted);
+        font-family: monospace;
+    }
+
+    .progress-bar-track {
+        height: 8px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent-color), #60a5fa);
+        border-radius: 10px;
+        transition: width 0.3s ease;
+    }
+
+    .current-file {
+        font-size: 12px;
+        color: var(--text-muted);
+        font-family: monospace;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        opacity: 0.8;
+    }
+
+    .progress-stats {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .bytes-analyzed {
+        font-size: 12px;
+        color: var(--accent-color);
+        font-family: monospace;
+        font-weight: 500;
+        white-space: nowrap;
     }
 </style>

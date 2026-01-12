@@ -69,7 +69,7 @@ body {
   position: relative;
   overflow: hidden;
   border-radius: var(--radius);
-  /* Restored for native look */
+  border: 1px solid var(--border-color);
 }
 
 .flex {

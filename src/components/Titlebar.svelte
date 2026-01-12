@@ -63,6 +63,7 @@
     align-items: center;
     position: relative;
     z-index: 9999;
+    border-radius: var(--radius, 12px) var(--radius, 12px) 0 0;
   }
 
   .drag-region {

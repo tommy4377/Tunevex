@@ -196,6 +196,7 @@
         flex: 1;
         padding: 24px;
         padding-top: 4px;
+        align-content: start;
     }
 
     .card {

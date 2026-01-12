@@ -36,6 +36,7 @@ pub async fn compress_folder(
     
     // We should re-scan/walk and compress each file.
     let mut count = 0;
+    let mut bytes_processed: u64 = 0;
     // Estimate total? Hard to know without double scan. 
     // We will just emit processed count.
     
@@ -43,11 +44,20 @@ pub async fn compress_folder(
     
     for (i, entry) in walker.filter_map(|e| e.ok()).enumerate() {
         if entry.file_type().is_file() {
+            // Emit current file being processed
+            if let Some(path_str) = entry.path().to_str() {
+                let _ = app.emit("compactor-file", path_str.to_string());
+            }
+            // Get file size before compression
+            let file_size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+            
             if let Ok(_) = compress_file(entry.path(), algo) {
                 count += 1;
-                // Emit event every 10 files or so to avoid flooding
+                bytes_processed += file_size;
+                // Emit progress every 5 files to avoid flooding
                 if count % 5 == 0 {
-                     let _ = app.emit("compactor-progress", i);
+                     let _ = app.emit("compactor-progress", count);
+                     let _ = app.emit("compactor-bytes", bytes_processed);
                 }
             }
         }
@@ -79,10 +89,14 @@ pub async fn decompress_folder(
 
     for (i, entry) in walker.filter_map(|e| e.ok()).enumerate() {
         if entry.file_type().is_file() {
+            // Emit current file being processed
+            if let Some(path_str) = entry.path().to_str() {
+                let _ = app.emit("compactor-file", path_str.to_string());
+            }
             if let Ok(_) = decompress_file(entry.path()) {
                 count += 1;
                  if count % 5 == 0 {
-                     let _ = app.emit("compactor-progress", i);
+                     let _ = app.emit("compactor-progress", count);
                 }
             }
         }

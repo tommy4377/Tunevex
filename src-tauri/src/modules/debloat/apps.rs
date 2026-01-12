@@ -662,5 +662,258 @@ Write-Host "AppX reinstallation prevention enabled" -ForegroundColor Green
                 }
             ]
         },
+        
+        // ============================================
+        // DANGEROUS: Full Microsoft Edge Removal
+        // ============================================
+        Tweak {
+            id: "debloat_remove_edge_full".to_string(),
+            category: TweakCategory::DebloatTelemetry,
+            name: "🗑️ Remove Microsoft Edge (Full)".to_string(),
+            description: "DANGEROUS: Completely removes Microsoft Edge browser. Requires reboot. Can be reinstalled via: winget install Microsoft.Edge".to_string(),
+            warning_level: WarningLevel::Dangerous,
+            requires_restart: true,
+            revert_operations: Some(vec![
+                TweakOperation::Powershell {
+                    script: r#"
+Write-Host "Reinstalling Microsoft Edge..." -ForegroundColor Yellow
+# Try winget first
+$winget = Get-Command winget -EA 0
+if ($winget) {
+    winget install --id Microsoft.Edge --accept-source-agreements --accept-package-agreements
+} else {
+    # Fallback: Download Edge installer
+    $url = "https://go.microsoft.com/fwlink/?linkid=2108834&Channel=Stable&language=en"
+    $installer = "$env:TEMP\MicrosoftEdgeSetup.exe"
+    Invoke-WebRequest -Uri $url -OutFile $installer
+    Start-Process -FilePath $installer -ArgumentList "/silent /install" -Wait
+    Remove-Item $installer -Force -EA 0
+}
+Write-Host "Edge reinstall initiated" -ForegroundColor Green
+"#.to_string(),
+                }
+            ]),
+            enabled: false,
+            check: Some(crate::modules::types::TweakCheck::Powershell {
+                script: r#"
+$edge = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" -EA 0 | Where-Object { $_.DisplayName -like "*Microsoft Edge*" }
+if ($edge) { "False" } else { "True" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
+            operations: vec![
+                TweakOperation::Powershell {
+                    script: r#"
+Write-Host "Removing Microsoft Edge..." -ForegroundColor Yellow
+
+# Stop Edge processes
+Get-Process -Name "*edge*" -EA 0 | Stop-Process -Force -EA 0
+
+# Remove Edge AppX packages
+Get-AppxPackage -AllUsers *MicrosoftEdge* | Remove-AppxPackage -AllUsers -EA 0
+Get-AppxProvisionedPackage -Online | Where-Object { $_.PackageName -like "*MicrosoftEdge*" } | Remove-AppxProvisionedPackage -Online -EA 0
+
+# Mark as deprovisioned to prevent reinstall
+$store = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore"
+$pkgs = Get-AppxPackage -AllUsers *MicrosoftEdge* -EA 0
+foreach ($pkg in $pkgs) {
+    New-Item "$store\Deprovisioned\$($pkg.PackageFamilyName)" -Force | Out-Null
+    New-Item "$store\EndOfLife\S-1-5-18\$($pkg.PackageFullName)" -Force | Out-Null
+}
+
+# Remove Edge from Program Files
+$edgePaths = @(
+    "${env:ProgramFiles(x86)}\Microsoft\Edge",
+    "${env:ProgramFiles(x86)}\Microsoft\EdgeCore",
+    "${env:ProgramFiles(x86)}\Microsoft\EdgeUpdate",
+    "$env:ProgramData\Microsoft\EdgeUpdate"
+)
+foreach ($path in $edgePaths) {
+    if (Test-Path $path) {
+        takeown /f $path /r /d y 2>&1 | Out-Null
+        icacls $path /grant "$env:USERNAME:F" /t /c 2>&1 | Out-Null
+        Remove-Item $path -Recurse -Force -EA 0
+    }
+}
+
+# Remove scheduled tasks
+Get-ScheduledTask | Where-Object { $_.TaskName -like "*Edge*" } | Unregister-ScheduledTask -Confirm:$false -EA 0
+
+# Remove services
+$services = @("edgeupdate", "edgeupdatem", "MicrosoftEdgeElevationService")
+foreach ($svc in $services) {
+    Stop-Service -Name $svc -Force -EA 0
+    sc.exe delete $svc 2>&1 | Out-Null
+}
+
+Write-Host "Edge removal complete. Please reboot." -ForegroundColor Green
+"#.to_string(),
+                }
+            ]
+        },
+        
+        // ============================================
+        // DANGEROUS: Disable Windows Defender
+        // ============================================
+        Tweak {
+            id: "debloat_disable_defender".to_string(),
+            category: TweakCategory::DebloatTelemetry,
+            name: "🛡️ Disable Windows Defender".to_string(),
+            description: "DANGEROUS: Disables Windows Defender real-time protection and services via registry policies. Does NOT remove files. Requires reboot.".to_string(),
+            warning_level: WarningLevel::Dangerous,
+            requires_restart: true,
+            revert_operations: Some(vec![
+                TweakOperation::Powershell {
+                    script: r#"
+Write-Host "Re-enabling Windows Defender..." -ForegroundColor Yellow
+
+# Remove policy overrides
+$policies = @(
+    "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender",
+    "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection",
+    "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Spynet"
+)
+foreach ($path in $policies) {
+    if (Test-Path $path) { Remove-Item $path -Recurse -Force -EA 0 }
+}
+
+# Re-enable services
+$services = @("WinDefend", "WdNisSvc", "SecurityHealthService")
+foreach ($svc in $services) {
+    Set-Service -Name $svc -StartupType Automatic -EA 0
+    Start-Service -Name $svc -EA 0
+}
+
+# Enable real-time protection
+Set-MpPreference -DisableRealtimeMonitoring $false -EA 0
+
+Write-Host "Defender re-enabled. Please reboot." -ForegroundColor Green
+"#.to_string(),
+                }
+            ]),
+            enabled: false,
+            check: Some(crate::modules::types::TweakCheck::Powershell {
+                script: r#"
+$disabled = Get-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" -Name "DisableAntiSpyware" -EA 0
+if ($disabled -and $disabled.DisableAntiSpyware -eq 1) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
+            operations: vec![
+                TweakOperation::Powershell {
+                    script: r#"
+Write-Host "Disabling Windows Defender..." -ForegroundColor Yellow
+
+# Set main policy
+$path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender"
+if (!(Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+Set-ItemProperty -Path $path -Name "DisableAntiSpyware" -Value 1 -Type DWord -Force
+Set-ItemProperty -Path $path -Name "DisableAntiVirus" -Value 1 -Type DWord -Force
+Set-ItemProperty -Path $path -Name "ServiceKeepAlive" -Value 0 -Type DWord -Force
+
+# Disable real-time protection
+$rtPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection"
+if (!(Test-Path $rtPath)) { New-Item -Path $rtPath -Force | Out-Null }
+Set-ItemProperty -Path $rtPath -Name "DisableRealtimeMonitoring" -Value 1 -Type DWord -Force
+Set-ItemProperty -Path $rtPath -Name "DisableBehaviorMonitoring" -Value 1 -Type DWord -Force
+Set-ItemProperty -Path $rtPath -Name "DisableOnAccessProtection" -Value 1 -Type DWord -Force
+Set-ItemProperty -Path $rtPath -Name "DisableIOAVProtection" -Value 1 -Type DWord -Force
+Set-ItemProperty -Path $rtPath -Name "DisableScanOnRealtimeEnable" -Value 1 -Type DWord -Force
+
+# Disable SpyNet/MAPS
+$spyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Spynet"
+if (!(Test-Path $spyPath)) { New-Item -Path $spyPath -Force | Out-Null }
+Set-ItemProperty -Path $spyPath -Name "SpynetReporting" -Value 0 -Type DWord -Force
+Set-ItemProperty -Path $spyPath -Name "SubmitSamplesConsent" -Value 2 -Type DWord -Force
+
+# Disable services
+$services = @("WinDefend", "WdNisSvc", "SecurityHealthService")
+foreach ($svc in $services) {
+    Stop-Service -Name $svc -Force -EA 0
+    Set-Service -Name $svc -StartupType Disabled -EA 0
+}
+
+# Try to disable via MpPreference
+Set-MpPreference -DisableRealtimeMonitoring $true -EA 0
+
+Write-Host "Defender disabled. Please reboot." -ForegroundColor Green
+"#.to_string(),
+                }
+            ]
+        },
+        
+        // ============================================
+        // CAREFUL: Remove Microsoft Store
+        // ============================================
+        Tweak {
+            id: "debloat_remove_store".to_string(),
+            category: TweakCategory::DebloatTelemetry,
+            name: "🏪 Remove Microsoft Store".to_string(),
+            description: "Removes Microsoft Store app. Can be reinstalled via PowerShell: Get-AppxPackage -allusers Microsoft.WindowsStore | Foreach {Add-AppxPackage -DisableDevelopmentMode -Register \"$($_. InstallLocation)\\AppXManifest.xml\"}".to_string(),
+            warning_level: WarningLevel::Careful,
+            requires_restart: false,
+            revert_operations: Some(vec![
+                TweakOperation::Powershell {
+                    script: r#"
+Write-Host "Reinstalling Microsoft Store..." -ForegroundColor Yellow
+
+# Remove deprovisioned marker
+$store = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore"
+Remove-Item "$store\Deprovisioned\Microsoft.WindowsStore*" -Recurse -Force -EA 0
+Remove-Item "$store\EndOfLife\*\Microsoft.WindowsStore*" -Recurse -Force -EA 0
+
+# Reset store via wsreset
+Start-Process wsreset -Wait -EA 0
+
+# Try to reinstall from existing package
+$pkg = Get-AppxPackage -AllUsers Microsoft.WindowsStore -EA 0
+if ($pkg) {
+    Add-AppxPackage -Register "$($pkg.InstallLocation)\AppXManifest.xml" -DisableDevelopmentMode -EA 0
+} else {
+    # Fallback: download and install
+    wsreset -i
+}
+
+Write-Host "Store reinstall initiated" -ForegroundColor Green
+"#.to_string(),
+                }
+            ]),
+            enabled: false,
+            check: Some(crate::modules::types::TweakCheck::Powershell {
+                script: r#"
+$store = Get-AppxPackage -AllUsers Microsoft.WindowsStore -EA 0
+if ($store) { "False" } else { "True" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
+            operations: vec![
+                TweakOperation::Powershell {
+                    script: r#"
+Write-Host "Removing Microsoft Store..." -ForegroundColor Yellow
+
+# Get all store packages
+$pkgs = Get-AppxPackage -AllUsers *WindowsStore* -EA 0
+
+foreach ($pkg in $pkgs) {
+    # Mark as deprovisioned
+    $store = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore"
+    New-Item "$store\Deprovisioned\$($pkg.PackageFamilyName)" -Force | Out-Null
+    New-Item "$store\EndOfLife\S-1-5-18\$($pkg.PackageFullName)" -Force | Out-Null
+    
+    # Set non-removable policy to 0
+    dism /Online /Set-NonRemovableAppPolicy /PackageFamily:$($pkg.PackageFamilyName) /NonRemovable:0 2>&1 | Out-Null
+    
+    # Remove package
+    Remove-AppxPackage -Package $pkg.PackageFullName -AllUsers -EA 0
+}
+
+# Remove provisioned packages
+Get-AppxProvisionedPackage -Online | Where-Object { $_.PackageName -like "*WindowsStore*" } | Remove-AppxProvisionedPackage -Online -EA 0
+
+Write-Host "Store removal complete" -ForegroundColor Green
+"#.to_string(),
+                }
+            ]
+        },
     ]
 }
