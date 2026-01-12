@@ -28,6 +28,8 @@ anyhow = "1.0"
 log = "0.4"
 env_logger = "0.10"
 hickory-resolver = "0.24"
+rust-embed = "8.5.0"
+
 
 rdev = "0.5"
 walkdir = "2.4"
