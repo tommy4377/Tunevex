@@ -5,7 +5,7 @@ use crate::modules::utils::dirs::get_state_path;
 use crate::modules::storage::state::CompactorState;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use tauri::{State, Emitter, AppHandle, Manager};
+use tauri::{State, Emitter, AppHandle};
 // use std::path::PathBuf;
 
 #[tauri::command]
@@ -121,7 +121,7 @@ pub async fn decompress_folder(
     
     let walker = walkdir::WalkDir::new(&path).into_iter();
 
-    for (i, entry) in walker.filter_map(|e| e.ok()).enumerate() {
+    for entry in walker.filter_map(|e| e.ok()) {
         if entry.file_type().is_file() {
             // Emit current file being processed
             if let Some(path_str) = entry.path().to_str() {
