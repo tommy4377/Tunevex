@@ -156,31 +156,15 @@
         } catch (e) {
             // Check if it was cancelled
             if (e.toString().includes("Cancelled")) {
-                 statusMsg = "Scan Cancelled";
+                statusMsg = "Scan Cancelled";
             } else {
-                 statusMsg = "Scan Error: " + e;
-                 statusType = "error";
+                statusMsg = "Scan Error: " + e;
+                statusType = "error";
             }
         } finally {
             isScanning = false;
         }
     }
-// ... (inside template)
-                <button
-                    class="btn-secondary"
-                    on:click={isScanning ? cancelOperation : scan}
-                    disabled={isCompressing}
-                >
-                    {isScanning ? "🛑 Stop" : "Scan"}
-                </button>
-// ...
-                <button
-                    class="btn-primary"
-                    on:click={isCompressing ? cancelOperation : compress}
-                    disabled={!path || isScanning}
-                >
-                    {isCompressing ? "🛑 Stop" : "Compress Now"}
-                </button>
 
     async function compress() {
         if (!path) return;
