@@ -7,7 +7,8 @@ use crate::modules::debloat::get_debloat_tweaks;
 use crate::modules::display::get_display_tweaks;
 use crate::modules::gaming::get_gaming_tweaks;
 use crate::modules::gpu::get_gpu_tweaks;
-use crate::modules::hardware::get_hardware_tweaks;
+// use crate::modules::hardware::get_hardware_tweaks; // Removed
+use crate::modules::input::get_input_tweaks;
 use crate::modules::network::get_network_tweaks;
 use crate::modules::privacy::get_privacy_tweaks;
 use crate::modules::security::get_security_tweaks;
@@ -29,7 +30,8 @@ pub fn run() {
     // all_tweaks.extend(get_startup_tweaks()); // Startup is now a separate manager
     all_tweaks.extend(get_gaming_tweaks());
     all_tweaks.extend(get_gpu_tweaks());
-    all_tweaks.extend(get_hardware_tweaks());
+    all_tweaks.extend(get_input_tweaks());
+    // all_tweaks.extend(get_hardware_tweaks()); // Removed
     all_tweaks.extend(get_storage_tweaks());
 
     // Load initial state

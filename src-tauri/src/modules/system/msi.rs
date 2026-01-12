@@ -1,4 +1,4 @@
-use crate::modules::types::{Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{Tweak, TweakCategory, TweakOperation, WarningLevel};
 
 /// Returns System MSI tweaks
 pub fn get_system_msi_tweaks() -> Vec<Tweak> {
