@@ -2,7 +2,9 @@
 //!
 //! Controls for crash reporting, memory dumps, and WER service.
 
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, 
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+};
 
 pub fn get_error_reporting_tweaks() -> Vec<Tweak> {
     vec![
@@ -28,8 +30,13 @@ pub fn get_error_reporting_tweaks() -> Vec<Tweak> {
                     key: "Disabled".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Error Reporting".to_string(),
+                key: "Disabled".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -66,8 +73,13 @@ pub fn get_error_reporting_tweaks() -> Vec<Tweak> {
                     key: "DontShowUI".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting".to_string(),
+                key: "DontSendAdditionalData".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -91,8 +103,15 @@ pub fn get_error_reporting_tweaks() -> Vec<Tweak> {
             description: "Stops the Windows Error Reporting Service from running.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$svc = Get-Service -Name "WerSvc" -EA 0
+if ($svc.StartType -eq 'Disabled') { "True" } else { "False" }
+"#
+                .to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![TweakOperation::Powershell {
                 script: r#"
 Set-Service WerSvc -StartupType Manual -ErrorAction SilentlyContinue
@@ -122,8 +141,13 @@ Write-Host "Windows Error Reporting Service disabled" -ForegroundColor Green
                 path: "SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting".to_string(),
                 key: "DontShowUI".to_string(),
             }]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting".to_string(),
+                key: "DontShowUI".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![TweakOperation::RegistrySet {
                 root_key: "HKCU".to_string(),
                 path: "SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting".to_string(),
@@ -145,8 +169,13 @@ Write-Host "Windows Error Reporting Service disabled" -ForegroundColor Green
                 key: "DoReport".to_string(),
                 value: RegistryValue::DWord(1),
             }]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\PCHealth\\ErrorReporting".to_string(),
+                key: "DoReport".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![TweakOperation::RegistrySet {
                 root_key: "HKLM".to_string(),
                 path: "SOFTWARE\\Policies\\Microsoft\\PCHealth\\ErrorReporting".to_string(),

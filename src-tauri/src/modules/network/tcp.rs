@@ -1,4 +1,4 @@
-use crate::modules::types::{
+use crate::modules::types::{TweakType, 
     RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
 };
 
@@ -11,13 +11,19 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
             description: "Sets TcpAckFrequency=1 to reduce ACK delay via registry. Improves responsiveness.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
 
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces".to_string(),
-                key: "TcpAckFrequency".to_string(),
-                expected_value: RegistryValue::DWord(1),
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$k = Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces' -EA 0
+$e = $true
+foreach ($i in $k) {
+  $v = Get-ItemProperty -Path $i.PSPath -Name 'TcpAckFrequency' -EA 0
+  if ($v.TcpAckFrequency -ne 1) { $e = $false; break }
+}
+$e
+"#.to_string(),
+                expected_output: "True".to_string(),
             }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
@@ -45,12 +51,18 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
             description: "Sets TCPNoDelay=1 via registry. disables packet buffering for lower latency.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
-            enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces".to_string(),
-                key: "TCPNoDelay".to_string(),
-                expected_value: RegistryValue::DWord(1),
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$k = Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces' -EA 0
+$e = $true
+foreach ($i in $k) {
+  $v = Get-ItemProperty -Path $i.PSPath -Name 'TCPNoDelay' -EA 0
+  if ($v.TCPNoDelay -ne 1) { $e = $false; break }
+}
+$e
+"#.to_string(),
+                expected_output: "True".to_string(),
             }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
@@ -84,7 +96,7 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                     path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
                     key: "DefaultTTL".to_string(),
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
@@ -113,7 +125,7 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                     path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
                     key: "Tcp1323Opts".to_string(),
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
@@ -142,7 +154,7 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                     path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
                     key: "MaxUserPort".to_string(),
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
@@ -171,7 +183,7 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                     path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
                     key: "TcpTimedWaitDelay".to_string(),
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
@@ -200,7 +212,7 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                     cmd: "netsh".to_string(),
                     args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "autotuninglevel=normal".into()], // Re-apply normal as revert (idempotent, but safe)
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: "(Get-NetTCPSetting -SettingName Internet).AutoTuningLevelLocal".to_string(),
                 expected_output: "Normal".to_string(),
@@ -224,7 +236,7 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                     cmd: "netsh".to_string(),
                     args: vec!["int".into(), "tcp".into(), "set".into(), "supplemental".into(), "template=internet".into(), "congestionprovider=cubic".into()],
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: "(Get-NetTCPSetting -SettingName Internet).CongestionProvider".to_string(),
                 expected_output: "CUBIC".to_string(),
@@ -248,7 +260,7 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                     cmd: "netsh".to_string(),
                     args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "ecncapability=disabled".into()],
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
              check: Some(TweakCheck::Powershell {
                 script: "(Get-NetTCPSetting -SettingName Internet).EcnCapability".to_string(),
                 expected_output: "Enabled".to_string(),
@@ -273,7 +285,7 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                     path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
                     key: "GlobalMaxTcpWindowSize".to_string(),
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
@@ -302,7 +314,7 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                     path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
                     key: "EnablePMTUDiscovery".to_string(),
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
@@ -331,7 +343,7 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                     path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
                     key: "EnablePMTUBHDetect".to_string(),
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
@@ -360,7 +372,7 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                     path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
                     key: "SackOpts".to_string(),
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
@@ -383,12 +395,18 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
             description: "Sets TcpDelAckTicks=0 to send acknowledgements immediately.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
-            enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces".to_string(),
-                key: "TcpDelAckTicks".to_string(),
-                expected_value: RegistryValue::DWord(0),
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$k = Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces' -EA 0
+$e = $true
+foreach ($i in $k) {
+  $v = Get-ItemProperty -Path $i.PSPath -Name 'TcpDelAckTicks' -EA 0
+  if ($v.TcpDelAckTicks -ne 0) { $e = $false; break }
+}
+$e
+"#.to_string(),
+                expected_output: "True".to_string(),
             }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
@@ -421,7 +439,7 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                     cmd: "netsh".to_string(),
                     args: vec!["int".into(), "tcp".into(), "set".into(), "supplemental".into(), "template=internet".into(), "congestionprovider=cubic".into()],
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: "(Get-NetTCPSetting -SettingName Internet).CongestionProvider".to_string(),
                 expected_output: "BBR".to_string(),
@@ -446,7 +464,7 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                     path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
                     key: "NetworkThrottlingIndex".to_string(),
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
@@ -475,7 +493,7 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                     path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
                     key: "SystemResponsiveness".to_string(),
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
@@ -488,6 +506,41 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                     path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
                     key: "SystemResponsiveness".to_string(),
                     value: RegistryValue::DWord(0),
+                }
+            ]
+        },
+
+        // ============================================
+        // C.16: TCP Initial RTO
+        // ============================================
+        Tweak {
+            id: "net_tcp_initial_rto".to_string(),
+            category: TweakCategory::Network,
+            name: "⏱️ Reduce TCP Initial Retransmission Timeout".to_string(),
+            description: "Reduces TCP Initial RTO to 2 seconds (minimum) for faster connection retries.
+
+Default is 3 seconds. Reducing to 2 seconds means faster recovery from initial connection failures.
+
+Useful for gaming and real-time applications.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if ((Get-NetTCPSetting -SettingName Internet).InitialRtoMs -eq 2000) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
+            revert_operations: Some(vec![
+                TweakOperation::Command {
+                    cmd: "netsh".to_string(),
+                    args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "initialRto=3000".into()],
+                }
+            ]),
+            operations: vec![
+                TweakOperation::Command {
+                    cmd: "netsh".to_string(),
+                    args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "initialRto=2000".into()],
                 }
             ]
         },

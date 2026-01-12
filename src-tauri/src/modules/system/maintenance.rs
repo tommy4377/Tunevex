@@ -1,4 +1,4 @@
-use crate::modules::types::{Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, RegistryValue, Tweak, TweakCheck, TweakCategory, TweakOperation, WarningLevel};
 
 pub fn get_maintenance_tweaks() -> Vec<Tweak> {
     vec![
@@ -10,7 +10,7 @@ pub fn get_maintenance_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: None, 
-            enabled: false,
+            tweak_type: TweakType::Action, enabled: false,
             check: None,
             operations: vec![
                 TweakOperation::Powershell {
@@ -55,7 +55,7 @@ Modern SSDs are not harmed by Prefetch writes.".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: false,
             revert_operations: None, 
-            enabled: false,
+            tweak_type: TweakType::Action, enabled: false,
             check: None,
             operations: vec![
                 TweakOperation::Powershell {
@@ -86,7 +86,7 @@ Write-Host "Expect slower app launches until then" -ForegroundColor Red
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: None, 
-            enabled: false,
+            tweak_type: TweakType::Action, enabled: false,
             check: None,
             operations: vec![
                 TweakOperation::Powershell {
@@ -96,6 +96,54 @@ Write-Host "Expect slower app launches until then" -ForegroundColor Red
                 "#.to_string(),
                 }
             ]
+        },
+
+        // Disable Fast Startup (Hybrid Shutdown)
+        Tweak {
+            id: "system_disable_fast_startup".to_string(),
+            category: TweakCategory::System,
+            name: "⚡ Disable Fast Startup".to_string(),
+            description: "Disables Windows Fast Startup (hybrid shutdown). Performs full shutdown instead of hibernate-based shutdown.
+
+Benefits:
+- Fixes driver/hardware issues that persist across 'shutdowns'
+- Prevents hibernation file from consuming disk space
+- Ensures clean boot state
+- Required for dual-boot systems
+
+Note: Boot time may increase by 2-5 seconds.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power".to_string(),
+                key: "HiberbootEnabled".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
+            revert_operations: Some(vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power".to_string(),
+                    key: "HiberbootEnabled".to_string(),
+                    value: crate::modules::types::RegistryValue::DWord(1),
+                },
+            ]),
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power".to_string(),
+                    key: "HiberbootEnabled".to_string(),
+                    value: crate::modules::types::RegistryValue::DWord(0),
+                },
+                TweakOperation::Powershell {
+                    script: r#"
+Write-Host "Fast Startup disabled" -ForegroundColor Green
+Write-Host "Windows will now perform full shutdowns" -ForegroundColor Cyan
+"#.to_string(),
+                }
+            ],
         },
     ]
 }

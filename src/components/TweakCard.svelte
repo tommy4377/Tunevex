@@ -73,6 +73,8 @@
         >
             {#if isApplying}
                 Applying...
+            {:else if tweak.tweak_type === "Action"}
+                Run
             {:else}
                 {tweak.enabled ? "Enabled" : "Disabled"}
             {/if}
@@ -152,8 +154,13 @@
     }
 
     @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
+        0%,
+        100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.5;
+        }
     }
 
     .animate-pulse {

@@ -1,4 +1,4 @@
-use crate::modules::types::{Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
 
 /// Returns System MSI tweaks
 pub fn get_system_msi_tweaks() -> Vec<Tweak> {
@@ -13,8 +13,22 @@ pub fn get_system_msi_tweaks() -> Vec<Tweak> {
             description: "Enables MSI with Priority 0 on all supported PCI devices. Safest option for broad compatibility.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
-            enabled: false,
-            check: None, // Complex to check all devices
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$classes = @('Display', 'SCSIAdapter', 'Net', 'USB', 'HDC')
+$allEnabled = $true
+foreach ($class in $classes) {
+    $devices = Get-PnpDevice -Class $class -Status OK -ErrorAction SilentlyContinue
+    foreach ($dev in $devices) {
+        $val = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.InstanceId)\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties" -Name "MSISupported" -ErrorAction SilentlyContinue
+        if (!$val -or $val.MSISupported -ne 1) { $allEnabled = $false }
+    }
+}
+if ($allEnabled) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"

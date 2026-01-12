@@ -1,6 +1,6 @@
 //! Microsoft Edge debloat tweaks
 
-use crate::modules::types::{Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakOperation, WarningLevel, TweakCheck, RegistryValue};
 
 pub fn get_tweaks() -> Vec<Tweak> {
     vec![
@@ -22,8 +22,13 @@ Write-Host "Edge sidebar features enabled" -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(),
+                key: "HubsSidebarEnabled".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -55,8 +60,13 @@ Write-Host "Edge first run enabled" -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(),
+                key: "HideFirstRunExperience".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -87,8 +97,13 @@ Write-Host "Edge sync enabled" -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(),
+                key: "SyncDisabled".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -120,8 +135,13 @@ Write-Host "Edge telemetry enabled" -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(),
+                key: "MetricsReportingEnabled".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -153,8 +173,13 @@ Write-Host "Edge auto-start settings restored" -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if (!(Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" -Name "*Edge*" -ErrorAction SilentlyContinue)) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"

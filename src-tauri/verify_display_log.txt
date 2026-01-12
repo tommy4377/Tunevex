@@ -1,0 +1,62 @@
+==================================================
+TESTING: Max Refresh Rate
+==================================================
+[APPLY PHASE]
+Struct Size: 156 (Should be ~156 for ANSI)
+❌ Apply Failed: EnumDisplaySettings failed with code: 87
+[REVERT PHASE]
+Skipped.
+✅ Revert Success
+
+==================================================
+TESTING: Timer Resolution
+==================================================
+[APPLY PHASE]
+Scheduled Task Created
+0
+Current Timer Res: 156250
+✅ Apply Success
+[REVERT PHASE]
+Scheduled Task Removed
+✅ Revert Success
+
+==================================================
+TESTING: Enable VRR
+==================================================
+[APPLY PHASE]
+Registry VRR Key Set
+✅ Apply Success
+[REVERT PHASE]
+Registry Cleaned
+✅ Revert Success
+
+==================================================
+TESTING: DPI 100%
+==================================================
+[APPLY PHASE]
+DPI LogPixels set
+✅ Apply Success
+[REVERT PHASE]
+DPI Cleaned
+✅ Revert Success
+
+==================================================
+TESTING: 8-bit Color
+==================================================
+[APPLY PHASE]
+Check logic depends on Test 1
+✅ Apply Success
+[REVERT PHASE]
+Skipped
+✅ Revert Success
+
+==================================================
+TESTING: GPU Scaling
+==================================================
+[APPLY PHASE]
+No NVIDIA (Safe)
+✅ Apply Success
+[REVERT PHASE]
+Skipped
+✅ Revert Success
+

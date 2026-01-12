@@ -1,4 +1,4 @@
-use crate::modules::types::{Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakOperation, WarningLevel};
 
 pub fn get_task_tweaks() -> Vec<Tweak> {
     vec![
@@ -25,8 +25,14 @@ pub fn get_task_tweaks() -> Vec<Tweak> {
                 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$t = Get-ScheduledTask -TaskName "Microsoft Compatibility Appraiser" -ErrorAction SilentlyContinue
+if ($t.State -eq 'Disabled') { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -61,8 +67,14 @@ pub fn get_task_tweaks() -> Vec<Tweak> {
                 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$t = Get-ScheduledTask -TaskName "LocalUserSyncDataAvailable" -ErrorAction SilentlyContinue
+if ($t.State -eq 'Disabled') { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"

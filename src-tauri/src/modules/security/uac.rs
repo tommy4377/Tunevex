@@ -2,7 +2,9 @@
 //!
 //! Controls for UAC prompts, elevation, and admin approval mode.
 
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, 
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+};
 
 pub fn get_uac_tweaks() -> Vec<Tweak> {
     vec![
@@ -28,8 +30,13 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System".to_string(),
+                key: "ConsentPromptBehaviorAdmin".to_string(),
+                expected_value: RegistryValue::DWord(5),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -62,8 +69,13 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System".to_string(),
+                key: "PromptOnSecureDesktop".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -90,8 +102,13 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System".to_string(),
+                key: "EnableLUA".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -124,8 +141,13 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(5),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System".to_string(),
+                key: "ConsentPromptBehaviorAdmin".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -158,8 +180,13 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System".to_string(),
+                key: "EnableInstallerDetection".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),

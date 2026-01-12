@@ -2,7 +2,9 @@
 //!
 //! Network security hardening, SAM enumeration blocking, remote assistance disable.
 
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, 
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+};
 
 pub fn get_hardening_tweaks() -> Vec<Tweak> {
     vec![
@@ -21,8 +23,13 @@ pub fn get_hardening_tweaks() -> Vec<Tweak> {
                     key: "RestrictAnonymousSAM".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Control\\Lsa".to_string(),
+                key: "RestrictAnonymousSAM".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -41,8 +48,13 @@ pub fn get_hardening_tweaks() -> Vec<Tweak> {
             description: "Disables Windows Remote Assistance feature and blocks related firewall rules.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Control\\Remote Assistance".to_string(),
+                key: "fAllowToGetHelp".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -72,66 +84,6 @@ Write-Host "Remote Assistance disabled" -ForegroundColor Green
             ],
         },
 
-        // Disable NetBIOS over TCP/IP
-        Tweak {
-            id: "sec_disable_netbios".to_string(),
-            category: TweakCategory::SecurityPrivacy,
-            name: "🔒 Disable NetBIOS over TCP/IP".to_string(),
-            description: "Disables legacy NetBIOS name resolution. Reduces attack surface.".to_string(),
-            warning_level: WarningLevel::Careful,
-            requires_restart: false,
-            enabled: false,
-            check: None,
-            revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$adapters = Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.TcpipNetbiosOptions -ne $null }
-foreach ($adapter in $adapters) {
-    $adapter.SetTcpipNetbios(0) # 0 = DHCP (Default)
-}
-"#.to_string(),
-                }
-            ]),
-            operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$adapters = Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.TcpipNetbiosOptions -ne $null }
-foreach ($adapter in $adapters) {
-    $adapter.SetTcpipNetbios(2) # 2 = Disable NetBIOS
-}
-Write-Host "NetBIOS disabled on all adapters" -ForegroundColor Green
-"#.to_string(),
-                }
-            ],
-        },
-
-        // Disable LLMNR
-        Tweak {
-            id: "sec_disable_llmnr".to_string(),
-            category: TweakCategory::SecurityPrivacy,
-            name: "🔒 Disable LLMNR".to_string(),
-            description: "Disables Link-Local Multicast Name Resolution. Prevents LLMNR poisoning attacks.".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: false,
-            revert_operations: Some(vec![
-                TweakOperation::RegistryDelete {
-                    root_key: "HKLM".to_string(),
-                    path: "SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient".to_string(),
-                    key: "EnableMulticast".to_string(),
-                },
-            ]),
-            enabled: false,
-            check: None,
-            operations: vec![
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient".to_string(),
-                    key: "EnableMulticast".to_string(),
-                    value: RegistryValue::DWord(0),
-                },
-            ],
-        },
-
         // Disable SMBv1
         Tweak {
             id: "sec_disable_smbv1".to_string(),
@@ -140,8 +92,14 @@ Write-Host "NetBIOS disabled on all adapters" -ForegroundColor Green
             description: "Disables vulnerable SMBv1 protocol. Protects against WannaCry-style attacks.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$smb1 = Get-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -EA 0
+if ($smb1.State -eq 'Disabled') { 'True' } else { 'False' }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -183,8 +141,13 @@ Write-Host "SMBv1 disabled" -ForegroundColor Green
                     value: RegistryValue::DWord(0),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters".to_string(),
+                key: "RequireSecuritySignature".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -216,8 +179,13 @@ Write-Host "SMBv1 disabled" -ForegroundColor Green
                     key: "DODownloadMode".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows\\DeliveryOptimization".to_string(),
+                key: "DODownloadMode".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -244,8 +212,13 @@ Write-Host "SMBv1 disabled" -ForegroundColor Green
                     value: RegistryValue::DWord(3),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Services\\WaaSMedicSvc".to_string(),
+                key: "Start".to_string(),
+                expected_value: RegistryValue::DWord(4),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -272,8 +245,13 @@ Write-Host "SMBv1 disabled" -ForegroundColor Green
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System".to_string(),
+                key: "EnableVirtualization".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -299,8 +277,13 @@ Write-Host "SMBv1 disabled" -ForegroundColor Green
                     key: "MaintenanceDisabled".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Schedule\\Maintenance".to_string(),
+                key: "MaintenanceDisabled".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),

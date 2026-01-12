@@ -1,4 +1,4 @@
-use crate::modules::types::{Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
 
 pub fn get_xbox_tweaks() -> Vec<Tweak> {
     vec![
@@ -18,8 +18,15 @@ pub fn get_xbox_tweaks() -> Vec<Tweak> {
                 "#
                 .to_string(),
             }]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$svc = Get-Service -Name "XboxGipSvc" -EA 0
+if ($svc.StartType -eq 'Disabled') { "True" } else { "False" }
+"#
+                .to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![TweakOperation::Powershell {
                 script: r#"
                     $services = @("XboxGipSvc", "XblAuthManager", "XboxNetApiSvc", "XblGameSave")
@@ -46,8 +53,15 @@ pub fn get_xbox_tweaks() -> Vec<Tweak> {
                 "#
                 .to_string(),
             }]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$task = Get-ScheduledTask -TaskName "XblGameSaveTask" -TaskPath "\Microsoft\XblGameSave\" -EA 0
+if ($task.State -eq 'Disabled') { "True" } else { "False" }
+"#
+                .to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![TweakOperation::Powershell {
                 script: r#"
                     schtasks /Change /TN '\Microsoft\XblGameSave\XblGameSaveTask' /Disable 2>$null

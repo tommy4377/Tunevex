@@ -1,4 +1,6 @@
-use crate::modules::types::{Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, 
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+};
 
 pub fn get_monitor_tweaks() -> Vec<Tweak> {
     vec![
@@ -23,7 +25,7 @@ fn tweak_max_refresh_rate() -> Tweak {
             Write-Host "Or use Windows Display Settings to select your preferred refresh rate." -ForegroundColor Cyan
         "#.to_string(),
         }]),
-        enabled: false,
+        tweak_type: TweakType::Toggle, enabled: false,
         check: None,
         operations: vec![TweakOperation::Powershell {
             script: r#"
@@ -163,8 +165,13 @@ fn tweak_dpi_100() -> Tweak {
             Write-Host "Sign out and sign in for changes to take effect" -ForegroundColor Yellow
         "#.to_string(),
         }]),
-        enabled: false,
-        check: None,
+        tweak_type: TweakType::Toggle, enabled: false,
+        check: Some(TweakCheck::Registry {
+            root_key: "HKCU".to_string(),
+            path: "Control Panel\\Desktop".to_string(),
+            key: "LogPixels".to_string(),
+            expected_value: RegistryValue::DWord(96),
+        }),
         operations: vec![TweakOperation::Powershell {
             script: r#"
 Write-Host "Setting DPI scaling to 100%..." -ForegroundColor Cyan
@@ -203,8 +210,13 @@ fn tweak_8bit_color() -> Tweak {
             Write-Host "Settings > Display > Advanced display > Choose a bit depth > 10-bit" -ForegroundColor Cyan
         "#.to_string(),
         }]),
-        enabled: false,
-        check: None,
+        tweak_type: TweakType::Toggle, enabled: false,
+        check: Some(TweakCheck::Powershell {
+            script: r#"
+if ((Get-CimInstance -ClassName Win32_VideoController -ErrorAction SilentlyContinue).CurrentBitsPerPixel -eq 32) { "True" } else { "False" }
+"#.to_string(),
+            expected_output: "True".to_string(),
+        }),
         operations: vec![TweakOperation::Powershell {
             script: r#"
 Write-Host "Setting color depth to 8-bit (32bpp)..." -ForegroundColor Cyan

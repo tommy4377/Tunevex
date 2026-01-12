@@ -18,6 +18,7 @@ fn scan_registry() -> Vec<StartupItem> {
 
     // (Root, Path, DisplayPrefix, HiveName for ID)
     let locations = vec![
+        // Standard Run/RunOnce locations
         (
             CK,
             "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
@@ -46,6 +47,39 @@ fn scan_registry() -> Vec<StartupItem> {
             LK,
             "SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Run",
             "HKLM\\Wow6432Node\\Run",
+            "HKLM",
+        ),
+        // RunOnceEx - runs during Safe Mode too
+        (
+            LK,
+            "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnceEx",
+            "HKLM\\RunOnceEx",
+            "HKLM",
+        ),
+        (
+            CK,
+            "Software\\Microsoft\\Windows\\CurrentVersion\\RunOnceEx",
+            "HKCU\\RunOnceEx",
+            "HKCU",
+        ),
+        // Group Policy Run/RunOnce - often used by malware
+        (
+            LK,
+            "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\\Run",
+            "HKLM\\Policies\\Run",
+            "HKLM",
+        ),
+        (
+            CK,
+            "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\\Run",
+            "HKCU\\Policies\\Run",
+            "HKCU",
+        ),
+        // Windows NT legacy locations - still active
+        (
+            LK,
+            "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon",
+            "HKLM\\Winlogon",
             "HKLM",
         ),
     ];

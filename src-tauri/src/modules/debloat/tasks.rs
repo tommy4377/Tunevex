@@ -1,4 +1,4 @@
-use crate::modules::types::{Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
 
 pub fn get_task_tweaks() -> Vec<Tweak> {
     vec![Tweak {
@@ -26,8 +26,13 @@ pub fn get_task_tweaks() -> Vec<Tweak> {
                 "#
             .to_string(),
         }]),
-        enabled: false,
-        check: None,
+        tweak_type: TweakType::Toggle, enabled: false,
+        check: Some(TweakCheck::Powershell {
+            script: r#"
+if ((Get-ScheduledTask -TaskName "MapsToastTask" -ErrorAction SilentlyContinue).State -match 'Disabled') { "True" } else { "False" }
+"#.to_string(),
+            expected_output: "True".to_string(),
+        }),
         operations: vec![TweakOperation::Powershell {
             script: r#"
                     $tasks = @(

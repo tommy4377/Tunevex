@@ -1,4 +1,4 @@
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
 
 /// System & Group Policies
 pub fn get_tweaks() -> Vec<Tweak> {
@@ -18,8 +18,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     key: "DisablePrivacyExperience".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows\\OOBE".to_string(),
+                key: "DisablePrivacyExperience".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -45,8 +50,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     key: "NoConnectedUser".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System".to_string(),
+                key: "NoConnectedUser".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -72,8 +82,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     key: "RSoPLogging".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows\\System".to_string(),
+                key: "RSoPLogging".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -99,8 +114,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     key: "Value".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\PolicyManager\\default\\System\\AllowExperimentation".to_string(),
+                key: "Value".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -127,8 +147,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1), // Default usually 1 (Enforce) or 0 (Off) depending on setup
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Control\\CI\\Policy".to_string(),
+                key: "VerifiedAndReputablePolicyState".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),

@@ -95,6 +95,13 @@ pub enum TweakCheck {
     },
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub enum TweakType {
+    #[default]
+    Toggle, // Switch (On/Off)
+    Action, // Button (Run Immediately)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Tweak {
     pub id: String,
@@ -102,6 +109,8 @@ pub struct Tweak {
     pub name: String,
     pub description: String,
     pub warning_level: WarningLevel,
+    #[serde(default)]
+    pub tweak_type: TweakType, // Defaults to Toggle
     pub operations: Vec<TweakOperation>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub revert_operations: Option<Vec<TweakOperation>>, // Operations to undo the tweak (optional)
@@ -129,6 +138,7 @@ impl Tweak {
             name: name.into(),
             description: description.into(),
             warning_level,
+            tweak_type: TweakType::Toggle,
             operations,
             revert_operations: None,
             check,

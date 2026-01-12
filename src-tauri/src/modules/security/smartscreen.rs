@@ -2,7 +2,9 @@
 //!
 //! Controls for Windows SmartScreen filter for apps, Edge, and Store.
 
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, 
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+};
 
 pub fn get_smartscreen_tweaks() -> Vec<Tweak> {
     vec![
@@ -27,8 +29,13 @@ pub fn get_smartscreen_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::String("On".to_string()),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer".to_string(),
+                key: "SmartScreenEnabled".to_string(),
+                expected_value: RegistryValue::String("Off".to_string()),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -61,8 +68,13 @@ pub fn get_smartscreen_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "SOFTWARE\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\CurrentVersion\\AppContainer\\Storage\\microsoft.microsoftedge_8wekyb3d8bbwe\\MicrosoftEdge\\PhishingFilter".to_string(),
+                key: "EnabledV9".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -89,8 +101,13 @@ pub fn get_smartscreen_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppHost".to_string(),
+                key: "EnableWebContentEvaluation".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -116,8 +133,13 @@ pub fn get_smartscreen_tweaks() -> Vec<Tweak> {
                     key: "ConfigureAppInstallControlEnabled".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows Defender\\SmartScreen".to_string(),
+                key: "ConfigureAppInstallControlEnabled".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -143,8 +165,13 @@ pub fn get_smartscreen_tweaks() -> Vec<Tweak> {
                     key: "SaveZoneInformation".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Attachments".to_string(),
+                key: "SaveZoneInformation".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),

@@ -2,7 +2,7 @@
 //! Implements UxTheme patching, classic Start Menu, Win7 themes, and all visual customizations
 //! All logic runs internally without requiring external tools
 
-use crate::modules::types::{Tweak, TweakCategory, TweakOperation, WarningLevel, TweakCheck, RegistryValue};
+use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakOperation, WarningLevel, TweakCheck, RegistryValue};
 
 pub fn get_tweaks() -> Vec<Tweak> {
     vec![
@@ -44,7 +44,7 @@ Write-Host "UxTheme patch reverted. Restart required." -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $sig = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes" -Name "DisableSignatureCheck" -ErrorAction SilentlyContinue
@@ -154,7 +154,7 @@ Write-Host "Default taskbar restored." -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKCU".to_string(),
                 path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced".to_string(),
@@ -215,7 +215,7 @@ Write-Host "Taskbar moved to bottom." -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StuckRects3"
@@ -259,7 +259,7 @@ Write-Host "Taskbar alignment reset to left." -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKCU".to_string(),
                 path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced".to_string(),
@@ -307,7 +307,7 @@ Write-Host "Default Start button restored." -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 if (Test-Path "$env:LOCALAPPDATA\TommyTweaker\Orbs\Windows7.orb") { "True" } else { "False" }
@@ -374,7 +374,7 @@ Write-Host "Clover orb removed." -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 if (Test-Path "$env:LOCALAPPDATA\TommyTweaker\Orbs\clover.svg") { "True" } else { "False" }
@@ -435,7 +435,7 @@ Write-Host "Default Start Menu restored." -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $val = Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Start_ShowClassicMode" -ErrorAction SilentlyContinue
@@ -491,7 +491,7 @@ Write-Host "Modern context menus restored." -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 if (Test-Path "HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32") { "True" } else { "False" }
@@ -535,7 +535,7 @@ Write-Host "Light mode restored." -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKCU".to_string(),
                 path: r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize".to_string(),
@@ -579,7 +579,7 @@ Write-Host "Dark ribbon removed." -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 if (Test-Path "$env:LOCALAPPDATA\TommyTweaker\Ribbon\theme-dark") { "True" } else { "False" }
@@ -621,7 +621,7 @@ Write-Host "Light ribbon removed." -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 if (Test-Path "$env:LOCALAPPDATA\TommyTweaker\Ribbon\theme-light") { "True" } else { "False" }
@@ -673,7 +673,7 @@ Write-Host "Default theme applied." -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 if (Test-Path "$env:WINDIR\Resources\Themes\TommyTweaker\Windows7\Windows7.msstyles") { "True" } else { "False" }
@@ -749,7 +749,7 @@ Write-Host "Default theme applied." -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 if (Test-Path "$env:WINDIR\Resources\Themes\TommyTweaker\Plain8\Plain8.msstyles") { "True" } else { "False" }
@@ -817,8 +817,13 @@ Write-Host "Details pane reset." -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Modules\\GlobalSettings\\DetailsContainer".to_string(),
+                key: "DetailsContainerOrientation".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -853,7 +858,7 @@ Write-Host "Search restored." -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKCU".to_string(),
                 path: r"Software\Microsoft\Windows\CurrentVersion\Search".to_string(),
@@ -899,7 +904,7 @@ Write-Host "Modern tray restored." -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $val = Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "UseWin32TrayClockExperience" -ErrorAction SilentlyContinue
@@ -968,8 +973,13 @@ Write-Host "All Win7 tweaks reverted." -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced".to_string(),
+                key: "Start_ShowClassicMode".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -1017,6 +1027,160 @@ Start-Process "explorer.exe"
 
 Write-Host "`n✅ Full Windows 7 Experience applied!" -ForegroundColor Green
 Write-Host "For custom themes, also apply 'Enable Custom Themes (UxTheme Patch)'." -ForegroundColor Cyan
+"#.to_string(),
+                }
+            ]
+        },
+
+        // ============================================
+        // C.10: Square Window Corners (Windows 11)
+        // ============================================
+        Tweak {
+            id: "ui.square_corners".to_string(),
+            category: TweakCategory::InterfaceUx,
+            name: "◻️ Square Window Corners".to_string(),
+            description: "Disable Windows 11 rounded window corners for a classic square look.
+
+Uses DWM registry tweaks to restore sharp corners on all windows.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            revert_operations: Some(vec![
+                TweakOperation::Powershell {
+                    script: r#"
+Write-Host "Restoring rounded corners..." -ForegroundColor Yellow
+
+$dwmPath = "HKCU:\Software\Microsoft\Windows\DWM"
+Remove-ItemProperty -Path $dwmPath -Name "UseWindowFrameStagingBuffer" -ErrorAction SilentlyContinue
+
+$policies = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DWM"
+Remove-ItemProperty -Path $policies -Name "DisableRoundedCorners" -ErrorAction SilentlyContinue
+
+Write-Host "Rounded corners restored. Sign out or restart for full effect." -ForegroundColor Green
+"#.to_string(),
+                }
+            ]),
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: r"Software\Microsoft\Windows\DWM".to_string(),
+                key: "UseWindowFrameStagingBuffer".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
+            operations: vec![
+                TweakOperation::Powershell {
+                    script: r#"
+Write-Host "Enabling square window corners..." -ForegroundColor Yellow
+
+# Method 1: User-level DWM setting
+$dwmPath = "HKCU:\Software\Microsoft\Windows\DWM"
+if (!(Test-Path $dwmPath)) { New-Item -Path $dwmPath -Force | Out-Null }
+Set-ItemProperty -Path $dwmPath -Name "UseWindowFrameStagingBuffer" -Value 0 -Type DWord -Force
+
+# Method 2: Policy-level (requires admin, more reliable)
+$policies = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DWM"
+if (!(Test-Path $policies)) { New-Item -Path $policies -Force | Out-Null }
+Set-ItemProperty -Path $policies -Name "DisableRoundedCorners" -Value 1 -Type DWord -Force -ErrorAction SilentlyContinue
+
+Write-Host "Square corners enabled!" -ForegroundColor Green
+Write-Host "Sign out or restart for full effect." -ForegroundColor Cyan
+"#.to_string(),
+                }
+            ]
+        },
+
+        // ============================================
+        // B.14: Open-Shell Classic Start Menu
+        // ============================================
+        Tweak {
+            id: "ui.install_openshell".to_string(),
+            category: TweakCategory::InterfaceUx,
+            name: "📋 Install Open-Shell (Classic Start Menu)".to_string(),
+            description: "Installs Open-Shell for a proper Windows 7 style Start Menu on Windows 11.
+
+Features:
+- Classic cascading menus
+- Highly customizable skins
+- Fast search
+- Pin and organize programs
+
+This is the best solution for a true classic Start Menu experience.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            revert_operations: Some(vec![
+                TweakOperation::Powershell {
+                    script: r#"
+Write-Host "Uninstalling Open-Shell..." -ForegroundColor Yellow
+
+# Try winget first
+$wingetResult = winget uninstall --id "Open-Shell.Open-Shell-Menu" -e --silent 2>&1
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "Open-Shell uninstalled via winget" -ForegroundColor Green
+} else {
+    # Fallback: standard uninstaller
+    $uninstaller = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" | 
+        Where-Object { $_.DisplayName -like "*Open-Shell*" }
+    
+    if ($uninstaller -and $uninstaller.UninstallString) {
+        Start-Process "msiexec.exe" -ArgumentList "/x $($uninstaller.PSChildName) /quiet" -Wait
+        Write-Host "Open-Shell uninstalled" -ForegroundColor Green
+    } else {
+        Write-Host "Open-Shell not found or already uninstalled" -ForegroundColor Yellow
+    }
+}
+"#.to_string(),
+                }
+            ]),
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$installed = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" | 
+    Where-Object { $_.DisplayName -like "*Open-Shell*" }
+if ($installed) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
+            operations: vec![
+                TweakOperation::Powershell {
+                    script: r#"
+Write-Host "Installing Open-Shell Classic Start Menu..." -ForegroundColor Cyan
+
+# Check if winget is available
+$wingetAvailable = Get-Command winget -EA SilentlyContinue
+
+if ($wingetAvailable) {
+    Write-Host "Installing via winget..." -ForegroundColor Yellow
+    winget install --id "Open-Shell.Open-Shell-Menu" -e --silent --accept-package-agreements --accept-source-agreements
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Open-Shell installed successfully!" -ForegroundColor Green
+    } else {
+        Write-Host "Winget install failed. Trying direct download..." -ForegroundColor Yellow
+        # Fallback to direct download
+        $url = "https://github.com/Open-Shell/Open-Shell-Menu/releases/latest/download/OpenShellSetup.exe"
+        $dest = "$env:TEMP\OpenShellSetup.exe"
+        Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
+        Start-Process $dest -ArgumentList "/silent" -Wait
+    }
+} else {
+    Write-Host "Winget not available. Downloading directly..." -ForegroundColor Yellow
+    $url = "https://github.com/Open-Shell/Open-Shell-Menu/releases/latest/download/OpenShellSetup.exe"
+    $dest = "$env:TEMP\OpenShellSetup.exe"
+    Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
+    Start-Process $dest -ArgumentList "/silent" -Wait
+}
+
+# Configure Open-Shell for Windows 7 style
+$settingsPath = "HKCU:\Software\OpenShell\StartMenu\Settings"
+if (Test-Path $settingsPath) {
+    Write-Host "Configuring Windows 7 style..." -ForegroundColor Yellow
+    Set-ItemProperty -Path $settingsPath -Name "MenuStyle" -Value "Win7" -Force -EA 0
+    Set-ItemProperty -Path $settingsPath -Name "SkinC1" -Value "Windows Aero" -Force -EA 0
+}
+
+Write-Host "" -ForegroundColor Yellow
+Write-Host "Open-Shell installed!" -ForegroundColor Green
+Write-Host "Press the Windows key to see the classic Start Menu." -ForegroundColor Cyan
+Write-Host "Right-click the Start button > Open-Shell Menu Settings to customize." -ForegroundColor Cyan
 "#.to_string(),
                 }
             ]

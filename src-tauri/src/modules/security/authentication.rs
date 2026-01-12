@@ -2,7 +2,9 @@
 //!
 //! Controls for Windows Hello, lock screen, password policies, and auto-login.
 
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, 
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+};
 
 pub fn get_authentication_tweaks() -> Vec<Tweak> {
     vec![
@@ -26,8 +28,13 @@ pub fn get_authentication_tweaks() -> Vec<Tweak> {
                     key: "DisablePostLogonProvisioning".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\PassportForWork".to_string(),
+                key: "Enabled".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -57,8 +64,13 @@ pub fn get_authentication_tweaks() -> Vec<Tweak> {
                 path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Personalization".to_string(),
                 key: "NoLockScreen".to_string(),
             }]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Personalization".to_string(),
+                key: "NoLockScreen".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![TweakOperation::RegistrySet {
                 root_key: "HKLM".to_string(),
                 path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Personalization".to_string(),
@@ -79,8 +91,13 @@ pub fn get_authentication_tweaks() -> Vec<Tweak> {
                 path: "SOFTWARE\\Policies\\Microsoft\\Windows\\CredUI".to_string(),
                 key: "DisablePasswordReveal".to_string(),
             }]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows\\CredUI".to_string(),
+                key: "DisablePasswordReveal".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![TweakOperation::RegistrySet {
                 root_key: "HKLM".to_string(),
                 path: "SOFTWARE\\Policies\\Microsoft\\Windows\\CredUI".to_string(),
@@ -96,8 +113,15 @@ pub fn get_authentication_tweaks() -> Vec<Tweak> {
             description: "Skips password prompt when waking from sleep/hibernate.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$res = powercfg /q SCHEME_CURRENT SUB_NONE CONSOLELOCK
+if ($res -match "0x00000000") { "True" } else { "False" }
+"#
+                .to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![TweakOperation::Powershell {
                 script: r#"
 powercfg /SETACVALUEINDEX SCHEME_CURRENT SUB_NONE CONSOLELOCK 1
@@ -136,8 +160,13 @@ Write-Host "Sign-in after sleep disabled" -ForegroundColor Green
                     value: RegistryValue::String("0".to_string()),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon".to_string(),
+                key: "AutoAdminLogon".to_string(),
+                expected_value: RegistryValue::String("0".to_string()),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -166,8 +195,13 @@ Write-Host "Sign-in after sleep disabled" -ForegroundColor Green
                 key: "fDenyTSConnections".to_string(),
                 value: RegistryValue::DWord(0),
             }]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Control\\Terminal Server".to_string(),
+                key: "fDenyTSConnections".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![TweakOperation::RegistrySet {
                 root_key: "HKLM".to_string(),
                 path: "SYSTEM\\CurrentControlSet\\Control\\Terminal Server".to_string(),

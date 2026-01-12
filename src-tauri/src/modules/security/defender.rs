@@ -3,7 +3,9 @@
 //! Controls for Windows Defender real-time protection, cloud features,
 //! sample submission, and exclusions.
 
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, 
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+};
 
 pub fn get_defender_tweaks() -> Vec<Tweak> {
     vec![
@@ -37,8 +39,21 @@ pub fn get_defender_tweaks() -> Vec<Tweak> {
                     key: "DisableScanOnRealtimeEnable".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+# Check if real-time protection is disabled AND Tamper Protection is off
+$status = Get-MpComputerStatus -EA 0
+if ($status.IsTamperProtected) {
+    Write-Output "TamperProtectionEnabled"
+} elseif (-not $status.RealTimeProtectionEnabled) {
+    Write-Output "True"
+} else {
+    Write-Output "False"
+}
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -87,8 +102,13 @@ pub fn get_defender_tweaks() -> Vec<Tweak> {
                     key: "MpCloudBlockLevel".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Spynet".to_string(),
+                key: "SpynetReporting".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -120,8 +140,13 @@ pub fn get_defender_tweaks() -> Vec<Tweak> {
                     key: "SubmitSamplesConsent".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Spynet".to_string(),
+                key: "SubmitSamplesConsent".to_string(),
+                expected_value: RegistryValue::DWord(2),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -141,8 +166,14 @@ pub fn get_defender_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
 
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$pref = Get-MpPreference -EA 0
+if ($pref.ExclusionPath -contains "$env:USERPROFILE\.cargo") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -201,8 +232,13 @@ Write-Host "Developer exclusions added to Windows Defender" -ForegroundColor Gre
                     key: "PUAProtection".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows Defender".to_string(),
+                key: "PUAProtection".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -221,8 +257,21 @@ Write-Host "Developer exclusions added to Windows Defender" -ForegroundColor Gre
             description: "Completely disables Windows Defender antivirus. EXTREME RISK. NOTE: You MUST disable 'Tamper Protection' manually in Windows Security settings first.".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: true,
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+# Check if Defender is disabled AND Tamper Protection is off
+$status = Get-MpComputerStatus -EA 0
+if ($status.IsTamperProtected) {
+    Write-Output "TamperProtectionEnabled"
+} elseif ($status.AntivirusEnabled -eq $false -and $status.AntispywareEnabled -eq $false) {
+    Write-Output "True"
+} else {
+    Write-Output "False"
+}
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"

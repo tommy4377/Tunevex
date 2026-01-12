@@ -1,4 +1,4 @@
-use crate::modules::types::{Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
 
 /// Returns Network Adapter MSI tweaks
 pub fn get_network_msi_tweaks() -> Vec<Tweak> {
@@ -13,7 +13,7 @@ pub fn get_network_msi_tweaks() -> Vec<Tweak> {
             description: "Enables MSI with Priority 3 on Realtek/Intel network adapters. Reduces network latency.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $devices = @()
@@ -135,7 +135,7 @@ Write-Host "MSI enabled on $count NIC(s) with High Priority!" -ForegroundColor G
             description: "Enables MSI with Priority 1 on network adapters. Safer option for compatibility.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $devices = @()
@@ -242,6 +242,104 @@ foreach ($dev in $devices) {
     $count++
 }
 Write-Host "MSI enabled on $count NIC(s) with Normal Priority!" -ForegroundColor Green
+"#.to_string(),
+                }
+            ]
+        },
+
+        // ============================================
+        // B.16: Additional Vendor Support (Qualcomm/Broadcom/Marvell/Killer)
+        // ============================================
+        Tweak {
+            id: "net_msi_additional_vendors".to_string(),
+            category: TweakCategory::Network,
+            name: "🌐 Enable MSI on Additional NICs".to_string(),
+            description: "Enables MSI mode for additional network adapters:
+- Qualcomm Atheros (VEN_168C)
+- Broadcom (VEN_14E4)
+- Marvell (VEN_11AB)
+- Killer Networking (VEN_1969)
+- MediaTek (VEN_14C3)
+
+Uses Priority 2 for balanced latency and compatibility.".to_string(),
+            warning_level: WarningLevel::Careful,
+            requires_restart: true,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$vendors = @("VEN_168C", "VEN_14E4", "VEN_11AB", "VEN_1969", "VEN_14C3")
+$devices = Get-PnpDevice -Class Net -ErrorAction SilentlyContinue | Where-Object { 
+    $id = $_.InstanceId; ($vendors | Where-Object { $id -match $_ }) 
+}
+if ($devices) {
+    $allEnabled = $true
+    foreach ($dev in $devices) {
+        $val = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.InstanceId)\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties" -Name "MSISupported" -ErrorAction SilentlyContinue
+        if (!$val -or $val.MSISupported -ne 1) { $allEnabled = $false }
+    }
+    if ($allEnabled) { "True" } else { "False" }
+} else {
+    "False"
+}
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
+            revert_operations: Some(vec![
+                TweakOperation::Powershell {
+                    script: r#"
+Write-Host "Reverting additional NIC MSI settings..." -ForegroundColor Yellow
+$vendorIds = @("VEN_168C", "VEN_14E4", "VEN_11AB", "VEN_1969", "VEN_14C3")
+
+$devices = Get-PnpDevice -Class Net -ErrorAction SilentlyContinue | Where-Object {
+    $_.InstanceId -match "PCI" -and ($vendorIds | Where-Object { $_.InstanceId -match $_ })
+}
+
+foreach ($dev in $devices) {
+    $msiPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.InstanceId)\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties"
+    Remove-ItemProperty -Path $msiPath -Name 'MSISupported' -EA SilentlyContinue
+    Remove-ItemProperty -Path $msiPath -Name 'MessageNumberLimit' -EA SilentlyContinue
+    Remove-ItemProperty -Path $msiPath -Name 'Priority' -EA SilentlyContinue
+    Write-Host "  Reverted: $($dev.FriendlyName)" -ForegroundColor Green
+}
+Write-Host "Additional NIC MSI reverted" -ForegroundColor Green
+"#.to_string(),
+                }
+            ]),
+            operations: vec![
+                TweakOperation::Powershell {
+                    script: r#"
+Write-Host "Enabling MSI on additional network adapters..." -ForegroundColor Yellow
+
+# Vendor IDs: Qualcomm Atheros, Broadcom, Marvell, Killer, MediaTek
+$vendorIds = @("VEN_168C", "VEN_14E4", "VEN_11AB", "VEN_1969", "VEN_14C3")
+
+$devices = Get-PnpDevice -Class Net -ErrorAction SilentlyContinue | Where-Object {
+    $instanceId = $_.InstanceId
+    $_.Status -eq 'OK' -and $instanceId -match "PCI" -and ($vendorIds | ForEach-Object { $instanceId -match $_ }) -contains $true
+}
+
+if (-not $devices) {
+    Write-Host "No additional vendor NICs found (Qualcomm/Broadcom/Marvell/Killer/MediaTek)" -ForegroundColor Yellow
+    Write-Host "This is normal if you have Intel/Realtek NICs" -ForegroundColor Cyan
+    exit 0
+}
+
+$count = 0
+foreach ($dev in $devices) {
+    $basePath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.InstanceId)\Device Parameters\Interrupt Management"
+    $msiPath = "$basePath\MessageSignaledInterruptProperties"
+    
+    if (-not (Test-Path $basePath)) { New-Item -Path $basePath -Force | Out-Null }
+    if (-not (Test-Path $msiPath)) { New-Item -Path $msiPath -Force | Out-Null }
+    
+    Set-ItemProperty -Path $msiPath -Name 'MSISupported' -Value 1 -Type DWord -Force
+    Set-ItemProperty -Path $msiPath -Name 'MessageNumberLimit' -Value 1 -Type DWord -Force
+    Set-ItemProperty -Path $msiPath -Name 'Priority' -Value 2 -Type DWord -Force  # Priority 2 for balanced approach
+    
+    Write-Host "  Enabled: $($dev.FriendlyName)" -ForegroundColor Green
+    $count++
+}
+Write-Host "MSI enabled on $count additional NIC(s)" -ForegroundColor Green
 "#.to_string(),
                 }
             ]

@@ -1,4 +1,4 @@
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
 
 pub fn get_adapter_tweaks() -> Vec<Tweak> {
     vec![
@@ -9,7 +9,7 @@ pub fn get_adapter_tweaks() -> Vec<Tweak> {
             description: "Prevents network adapter from pausing transmission. Reduces latency jitter.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
@@ -50,7 +50,7 @@ Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
             description: "Disables hardware packet segmentation. Can fix stuttering.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
@@ -95,8 +95,18 @@ Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
             description: "Forces CPU to handle checksums. Can reduce micro-stuttering.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
-            enabled: false,
-            check: None, // Hard to check reliably across all drivers generically without complex script
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+$enabled = $true
+foreach ($a in $adapters) {
+    if ((Get-NetAdapterAdvancedProperty -Name $a.Name -DisplayName '*ChecksumOffload*' -ErrorAction SilentlyContinue).DisplayValue -match 'Enabled') { $enabled = $false; break }
+}
+$enabled
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -127,7 +137,7 @@ Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
             description: "Sets RSS profile to ClosestProcessor and enables RSS.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            revert_operations: None, enabled: false,
+            revert_operations: None, tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
@@ -158,7 +168,7 @@ Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
             description: "Disables RSC on all adapters.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
@@ -206,8 +216,19 @@ Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None, 
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+$enabled = $true
+foreach ($a in $adapters) {
+    $val = Get-NetAdapterAdvancedProperty -Name $a.Name -DisplayName 'Jumbo Packet' -ErrorAction SilentlyContinue
+    if ($val.DisplayValue -ne 'Disabled' -and $val.DisplayValue -ne '1514') { $enabled = $false; break }
+}
+$enabled
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }), 
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -232,8 +253,13 @@ Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
                     script: "Set-NetOffloadGlobalSetting -Chimney Enabled -ErrorAction SilentlyContinue".to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if ((Get-NetOffloadGlobalSetting).Chimney -eq 'Disabled') { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: "Set-NetOffloadGlobalSetting -Chimney Disabled -ErrorAction SilentlyContinue".to_string(),
@@ -247,8 +273,13 @@ Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
             description: "Forces CPU to handle network processing.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if ((Get-NetOffloadGlobalSetting).TaskOffload -eq 'Disabled') { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: "Set-NetOffloadGlobalSetting -TaskOffload Enabled -ErrorAction SilentlyContinue".to_string(),
@@ -267,8 +298,13 @@ Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
             description: "Prevents grouping of packets for reduced latency.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if ((Get-NetOffloadGlobalSetting).PacketCoalescingFilter -eq 'Disabled') { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: "Set-NetOffloadGlobalSetting -PacketCoalescingFilter Enabled -ErrorAction SilentlyContinue".to_string(),
@@ -287,8 +323,18 @@ Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
             description: "Prevents network adapter from entering low-power states.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+$enabled = $true
+foreach ($a in $adapters) {
+    if ((Get-NetAdapterPowerManagement -Name $a.Name).WakeOnMagicPacket -eq 'Enabled') { $enabled = $false; break }
+}
+$enabled
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -335,7 +381,7 @@ Get-NetAdapter | ForEach-Object {
                     path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters".to_string(),
                     key: "DisabledComponents".to_string(),
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters".to_string(),
@@ -367,8 +413,19 @@ Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
 }
 "#.to_string(),
                 }
-            ]), enabled: false,
-            check: None,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+$enabled = $true
+foreach ($a in $adapters) {
+    $val = Get-NetAdapterAdvancedProperty -Name $a.Name -DisplayName '*SpeedDuplex' -ErrorAction SilentlyContinue
+    if ($val.DisplayValue -notmatch 'Auto') { $enabled = $false; break }
+}
+$enabled
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -396,7 +453,7 @@ Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
 }
 "#.to_string(),
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
@@ -436,7 +493,7 @@ Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
                     path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Psched".to_string(),
                     key: "NonBestEffortLimit".to_string(),
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Psched".to_string(),

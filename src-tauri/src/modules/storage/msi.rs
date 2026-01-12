@@ -1,4 +1,4 @@
-use crate::modules::types::{Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
 
 /// Returns NVMe MSI Mode tweaks
 pub fn get_storage_msi_tweaks() -> Vec<Tweak> {
@@ -13,7 +13,7 @@ pub fn get_storage_msi_tweaks() -> Vec<Tweak> {
             description: "Enables MSI with Priority 3 on NVMe drives. Reduces storage latency.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $devices = Get-PnpDevice -Class SCSIAdapter -Status OK -EA SilentlyContinue | Where-Object { $_.FriendlyName -match 'NVMe' }

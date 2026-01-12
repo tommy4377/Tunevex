@@ -1,4 +1,4 @@
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
 
 /// Privacy Settings (activity, tracking, sync, permissions)
 pub fn get_tweaks() -> Vec<Tweak> {
@@ -28,8 +28,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     key: "UploadUserActivities".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows\\System".to_string(),
+                key: "EnableActivityFeed".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -73,8 +78,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     key: "NoInstrumentation".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer".to_string(),
+                key: "NoInstrumentation".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -111,8 +121,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     key: "DisableWindowsLocationProvider".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows\\LocationAndSensors".to_string(),
+                key: "DisableLocation".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -149,8 +164,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     key: "DisableSettingSyncUserOverride".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows\\SettingSync".to_string(),
+                key: "DisableSettingSync".to_string(),
+                expected_value: RegistryValue::DWord(2),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -182,8 +202,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     key: "HasAccepted".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "SOFTWARE\\Microsoft\\Speech_OneCore\\Settings\\OnlineSpeechPrivacy".to_string(),
+                key: "HasAccepted".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -222,8 +247,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::String("Allow".to_string()),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\appDiagnostics".to_string(),
+                key: "Value".to_string(),
+                expected_value: RegistryValue::String("Deny".to_string()),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -261,8 +291,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     key: "HttpAcceptLanguageOptOut".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "Control Panel\\International\\User Profile".to_string(),
+                key: "HttpAcceptLanguageOptOut".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -288,8 +323,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     key: "NoLockScreenCamera".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Personalization".to_string(),
+                key: "NoLockScreenCamera".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -326,8 +366,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "SOFTWARE\\Microsoft\\MediaPlayer\\Preferences".to_string(),
+                key: "UsageTracking".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -365,8 +410,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     key: "ScenarioExecutionEnabled".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WDI\\{9c5a40da-b965-4fc3-8781-88dd50a6299d}".to_string(),
+                key: "ScenarioExecutionEnabled".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -400,8 +450,13 @@ Write-Host "Bing search enabled" -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Search".to_string(),
+                key: "BingSearchEnabled".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -429,8 +484,7 @@ Write-Host "Bing search disabled" -ForegroundColor Green
             description: "Clears all Most Recently Used (MRU) lists for privacy.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            revert_operations: None,
-            enabled: false,
+            revert_operations: None, tweak_type: TweakType::Action, enabled: false,
             check: None,
             operations: vec![
                 TweakOperation::Powershell {

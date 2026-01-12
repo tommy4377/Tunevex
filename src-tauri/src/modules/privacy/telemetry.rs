@@ -1,4 +1,4 @@
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
 
 /// Windows Core Telemetry
 /// From: disallow-data-collection.yml, disable-diagnostic-tracing.yml, disable-ceip.yml
@@ -59,8 +59,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection".to_string(),
+                key: "AllowTelemetry".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 // AllowTelemetry in DataCollection (multiple locations)
                 TweakOperation::RegistrySet {
@@ -131,8 +136,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     key: "CEIPEnable".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\SQMClient\\Windows".to_string(),
+                key: "CEIPEnable".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -175,8 +185,13 @@ Set-Service -Name 'WerSvc' -StartupType Manual -EA 0
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Error Reporting".to_string(),
+                key: "Disabled".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -233,8 +248,13 @@ Set-Service -Name 'WerSvc' -StartupType Disabled -EA 0
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "SOFTWARE\\Microsoft\\InputPersonalization".to_string(),
+                key: "RestrictImplicitInkCollection".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -292,8 +312,14 @@ Write-Host "Telemetry scheduled tasks enabled" -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$t = Get-ScheduledTask -TaskName "Microsoft Compatibility Appraiser" -ErrorAction SilentlyContinue
+if ($t.State -eq 'Disabled') { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -352,7 +378,7 @@ foreach ($task in $tasks) {
 "#.to_string(),
                 }
             ]),
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(crate::modules::types::TweakCheck::Powershell {
                 script: r#"
 $s = Get-Service -Name 'NvTelemetryContainer' -ErrorAction SilentlyContinue

@@ -1,4 +1,4 @@
-use crate::modules::types::{Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
 
 /// Returns GPU MSI Mode tweaks
 pub fn get_gpu_msi_tweaks() -> Vec<Tweak> {
@@ -13,7 +13,7 @@ pub fn get_gpu_msi_tweaks() -> Vec<Tweak> {
             description: "Enables Message Signaled Interrupts (MSI) mode with High Priority for GPU.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $vendors = @('VEN_10DE', 'VEN_1002', 'VEN_8086')  # NVIDIA, AMD, Intel

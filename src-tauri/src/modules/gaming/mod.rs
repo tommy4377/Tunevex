@@ -6,7 +6,9 @@
 //! - Fullscreen Optimizations
 //! - MMCSS Priority for Games
 
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, 
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+};
 
 pub mod xbox;
 
@@ -44,8 +46,13 @@ pub fn get_gaming_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "SOFTWARE\\Microsoft\\GameBar".to_string(),
+                key: "ShowStartupPanel".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -101,8 +108,13 @@ pub fn get_gaming_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "System\\GameConfigStore".to_string(),
+                key: "GameDVR_Enabled".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -160,8 +172,13 @@ pub fn get_gaming_tweaks() -> Vec<Tweak> {
                     key: "AutoGameModeEnabled".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "SOFTWARE\\Microsoft\\GameBar".to_string(),
+                key: "AllowAutoGameMode".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -183,7 +200,21 @@ pub fn get_gaming_tweaks() -> Vec<Tweak> {
             id: "gaming_disable_fso".to_string(),
             category: TweakCategory::GameOptimizations,
             name: "🖥️ Disable Fullscreen Optimizations".to_string(),
-            description: "Globally disables fullscreen optimizations (FSO) for better exclusive fullscreen support and less input lag.".to_string(),
+            description: "Globally disables fullscreen optimizations (FSO).
+
+⚠️ MODERN ADVICE (2024+):
+FSO has improved significantly and is now RECOMMENDED for:
+- Variable Refresh Rate (VRR/G-Sync/FreeSync) monitors
+- HDR displays
+- Multi-monitor setups
+- Alt-Tab without black screens
+
+Consider disabling ONLY if:
+- You experience input lag in competitive games
+- Games stutter or have frame pacing issues with FSO on
+- You don't use VRR or HDR
+
+Disabling FSO may BREAK VRR and HDR functionality!".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
             revert_operations: Some(vec![
@@ -200,8 +231,13 @@ pub fn get_gaming_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(0),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "System\\GameConfigStore".to_string(),
+                key: "GameDVR_FSEBehaviorMode".to_string(),
+                expected_value: RegistryValue::DWord(2),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -239,7 +275,7 @@ pub fn get_gaming_tweaks() -> Vec<Tweak> {
                     root_key: "HKLM".to_string(),
                     path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games".to_string(),
                     key: "GPU Priority".to_string(),
-                    value: RegistryValue::DWord(8),
+                    value: RegistryValue::DWord(2), // Windows default is 2, not 8
                 },
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -254,8 +290,13 @@ pub fn get_gaming_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::String("Medium".to_string()),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games".to_string(),
+                key: "Priority".to_string(),
+                expected_value: RegistryValue::DWord(6),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -294,7 +335,7 @@ pub fn get_gaming_tweaks() -> Vec<Tweak> {
             description: "Disables Windows network throttling (10 packets/ms limit). Reduces online gaming latency by 10-30ms. Also sets SystemResponsiveness to 0 for maximum foreground priority.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
@@ -328,6 +369,122 @@ pub fn get_gaming_tweaks() -> Vec<Tweak> {
                     key: "SystemResponsiveness".to_string(),
                     value: RegistryValue::DWord(0), // 100% to foreground apps
                 },
+            ],
+        },
+
+        // ============================================
+        // Visual Effects Disable (B.20)
+        // ============================================
+        Tweak {
+            id: "gaming_disable_visual_effects".to_string(),
+            category: TweakCategory::GameOptimizations,
+            name: "🎨 Disable Visual Effects".to_string(),
+            description: "Disables Windows visual effects and animations for maximum performance.
+
+Disables:
+- Window animations
+- Taskbar animations
+- Smooth scrolling
+- Tooltip fade
+- Menu fade/slide effects
+
+Recommended for gaming systems where every frame counts.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\VisualEffects".to_string(),
+                key: "VisualFXSetting".to_string(),
+                expected_value: RegistryValue::DWord(2),
+            }),
+            revert_operations: Some(vec![
+                TweakOperation::Powershell {
+                    script: r#"
+# Restore default visual effects (Let Windows choose)
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Value 0 -Type DWord -Force -EA 0
+# Remove custom UserPreferencesMask to use defaults
+Remove-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "UserPreferencesMask" -EA 0
+Write-Host "Visual effects restored to Windows defaults" -ForegroundColor Green
+"#.to_string(),
+                }
+            ]),
+            operations: vec![
+                TweakOperation::Powershell {
+                    script: r#"
+# Set visual effects to "Best Performance"
+# VisualFXSetting: 0=Let Windows choose, 1=Best appearance, 2=Best performance, 3=Custom
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Value 2 -Type DWord -Force -EA 0
+
+# Disable individual animations
+$explorerAdvanced = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+Set-ItemProperty -Path $explorerAdvanced -Name "TaskbarAnimations" -Value 0 -Type DWord -Force -EA 0
+
+# Disable menu animations
+$desktop = "HKCU:\Control Panel\Desktop"
+Set-ItemProperty -Path $desktop -Name "MenuShowDelay" -Value "0" -Force -EA 0
+
+# Disable window animations
+$windowMetrics = "HKCU:\Control Panel\Desktop\WindowMetrics"
+Set-ItemProperty -Path $windowMetrics -Name "MinAnimate" -Value "0" -Force -EA 0
+
+# UserPreferencesMask for performance (disables most visual effects)
+# This is a binary value that controls many visual settings
+$perfMask = [byte[]](0x90,0x12,0x03,0x80,0x10,0x00,0x00,0x00)
+Set-ItemProperty -Path $desktop -Name "UserPreferencesMask" -Value $perfMask -Type Binary -Force -EA 0
+
+Write-Host "Visual effects disabled for best performance" -ForegroundColor Green
+Write-Host "You may need to restart Explorer or log off for all changes to apply" -ForegroundColor Yellow
+"#.to_string(),
+                }
+            ],
+        },
+
+        // ============================================
+        // MMCSS Disable Option (B.21)
+        // ============================================
+        Tweak {
+            id: "gaming_disable_mmcss".to_string(),
+            category: TweakCategory::GameOptimizations,
+            name: "⚠️ Disable MMCSS Service".to_string(),
+            description: "Disables Multimedia Class Scheduler Service (MMCSS).
+
+Some systems perform better without MMCSS interference:
+- Older CPUs with limited cores
+- Systems with aggressive custom power plans
+- Specific game engine issues
+
+WARNING: This may HURT performance on most modern systems.
+MMCSS normally helps by boosting audio/video thread priority.
+Only disable if you've tested and confirmed improvement.".to_string(),
+            warning_level: WarningLevel::Careful,
+            requires_restart: true,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$svc = Get-Service -Name "MMCSS" -EA 0
+if ($svc.StartType -eq 'Disabled') { 'True' } else { 'False' }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
+            revert_operations: Some(vec![
+                TweakOperation::Powershell {
+                    script: r#"
+Set-Service -Name "MMCSS" -StartupType Automatic -EA 0
+Start-Service -Name "MMCSS" -EA 0
+Write-Host "MMCSS service re-enabled" -ForegroundColor Green
+"#.to_string(),
+                }
+            ]),
+            operations: vec![
+                TweakOperation::Powershell {
+                    script: r#"
+Stop-Service -Name "MMCSS" -Force -EA 0
+Set-Service -Name "MMCSS" -StartupType Disabled -EA 0
+Write-Host "MMCSS service disabled" -ForegroundColor Yellow
+Write-Host "Restart required for changes to take effect" -ForegroundColor Cyan
+"#.to_string(),
+                }
             ],
         },
     ]);

@@ -5,7 +5,7 @@
 //! - CPU Idle scripts
 //! - Various power optimization sources
 
-use crate::modules::types::{Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
 
 /// Returns all CPU power management tweaks
 pub fn get_power_tweaks() -> Vec<Tweak> {
@@ -20,13 +20,19 @@ pub fn get_power_tweaks() -> Vec<Tweak> {
             description: "Enables Windows' hidden Ultimate Performance power plan for maximum performance.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: "powercfg -setactive 381b4222-f694-41f0-9685-ff5bb260df2e".to_string(), // Restore Balanced
                 }
             ]),
-            check: None,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$scheme = powercfg /getactivescheme
+if ($scheme -match "e9a42b02-d5df-448d-aa00-03f14749eb61") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -56,7 +62,7 @@ if ($LASTEXITCODE -eq 0) {
             description: "Prevents USB devices from powering down. Fixes mouse/keyboard lag issues.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -66,7 +72,13 @@ powercfg -setactive SCHEME_CURRENT
 "#.to_string(),
                 }
             ]),
-            check: None,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$res = powercfg /q SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bebba308a3 48e6b7a6-50f5-4782-a5d4-53bb8f07e226
+if ($res -match "0x00000000") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -89,7 +101,7 @@ powercfg -setactive SCHEME_CURRENT
             description: "Prevents PCIe devices (GPU, NVMe) from entering low-power states.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -99,7 +111,13 @@ powercfg -setactive SCHEME_CURRENT
 "#.to_string(),
                 }
             ]),
-            check: None,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$res = powercfg /q SCHEME_CURRENT 501a4d13-42af-4429-9fd1-a8218c268e20 ee12f906-d277-404b-b6da-e5fa1a576df5
+if ($res -match "0x00000000") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -122,7 +140,7 @@ powercfg -setactive SCHEME_CURRENT
             description: "Prevents Windows from parking CPU cores. Removes latency from unparking cores during gaming.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -134,7 +152,13 @@ powercfg -setactive SCHEME_CURRENT
 "#.to_string(),
                 }
             ]),
-            check: None,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$res = powercfg /q SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 0cc5b647-c1df-4637-891a-dec35c318583
+if ($res -match "0x00000064") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -164,7 +188,7 @@ powercfg -setactive SCHEME_CURRENT
             description: "Forces CPU to maximum speed always. NOT recommended with HyperThreading/SMT. Ensure good cooling!".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: false,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -173,7 +197,13 @@ powercfg /setactive scheme_current
 "#.to_string(),
                 }
             ]),
-            check: None,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$res = powercfg /q SCHEME_CURRENT sub_processor 5d76a2ca-e8c0-402f-a133-2158492d58ad
+if ($res -match "0x00000001") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -196,13 +226,19 @@ Write-Host "CPU Idle disabled - Task Manager will show 100% usage" -ForegroundCo
             description: "Creates custom Atlas Power Scheme based on Ultimate Performance with all power-saving disabled.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: "powercfg -setactive 381b4222-f694-41f0-9685-ff5bb260df2e".to_string(),
                 }
             ]),
-            check: None,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$scheme = powercfg /getactivescheme
+if ($scheme -match "11111111-1111-1111-1111-111111111111") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -231,7 +267,7 @@ Write-Host "Atlas Power Scheme created and activated!" -ForegroundColor Green
             description: "Sets USB 3 Link Power Management to maximum performance. Prevents USB device latency spikes and disconnections.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $result = powercfg /q scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 d4e98f31-5ffe-4ce1-be31-1b38b384c009
@@ -292,7 +328,7 @@ Write-Host "USB 3 Link Power set to Maximum Performance" -ForegroundColor Green
             description: "Disables CPU throttle states (T-states) for consistent performance.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -302,7 +338,13 @@ powercfg /setactive scheme_current
 "#.to_string(),
                 }
             ]),
-            check: None,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$res = powercfg /q SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 3b04d4fd-1cc7-4f23-ab1c-d1337819c4bb
+if ($res -match "0x00000000") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -324,7 +366,7 @@ powercfg /setactive scheme_current
             description: "Disables ACPI Processor Aggregator and other power-saving system devices.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -335,7 +377,13 @@ foreach ($device in $devices) {
 "#.to_string(),
                 }
             ]),
-            check: None,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$dev = Get-PnpDevice -Class System -FriendlyName "*ACPI Processor Aggregator*" -EA 0
+if ($dev.Status -ne "OK") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -359,13 +407,18 @@ foreach ($device in $devices) {
             description: "Comprehensive power-saving disable: NVMe idle, USB3 link power, throttle states, device D3, EEE. From Atlas.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: "powercfg -setactive 381b4222-f694-41f0-9685-ff5bb260df2e".to_string(), // Best effort: restore balanced
                 }
             ]),
-            check: None,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Control\\Storage".to_string(),
+                key: "StorageD3InModernStandby".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"

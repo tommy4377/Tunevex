@@ -2,7 +2,9 @@
 //!
 //! Based on: bcdedit-tweaks.yml, DisablePowerSaving.ps1
 
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, 
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+};
 
 pub fn get_timer_tweaks() -> Vec<Tweak> {
     vec![
@@ -13,7 +15,7 @@ pub fn get_timer_tweaks() -> Vec<Tweak> {
             description: "Allows apps to request higher timer resolution (0.5ms) for smoother frametimes.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::RegistryDelete {
                     root_key: "HKLM".to_string(),
@@ -21,7 +23,12 @@ pub fn get_timer_tweaks() -> Vec<Tweak> {
                     key: "GlobalTimerResolutionRequests".to_string(),
                 }
             ]),
-            check: None,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Kernel".to_string(),
+                key: "GlobalTimerResolutionRequests".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -38,14 +45,20 @@ pub fn get_timer_tweaks() -> Vec<Tweak> {
             description: "Forces enhanced TSC sync across CPU cores for better timing accuracy.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::Command {
                     cmd: "bcdedit".to_string(),
                     args: vec!["/deletevalue".to_string(), "tscsyncpolicy".to_string()],
                 }
             ]),
-            check: None,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$bcd = bcdedit /enum "{current}" | Select-String "tscsyncpolicy"
+if ($bcd -match "Enhanced") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Command {
                     cmd: "bcdedit".to_string(),
@@ -60,14 +73,20 @@ pub fn get_timer_tweaks() -> Vec<Tweak> {
             description: "Forces constant timer interrupts for consistent performance.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::Command {
                     cmd: "bcdedit".to_string(),
                     args: vec!["/deletevalue".to_string(), "disabledynamictick".to_string()],
                 }
             ]),
-            check: None,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$bcd = bcdedit /enum "{current}" | Select-String "disabledynamictick"
+if ($bcd -match "Yes") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Command {
                     cmd: "bcdedit".to_string(),
@@ -82,7 +101,7 @@ pub fn get_timer_tweaks() -> Vec<Tweak> {
             description: "Disables High Precision Event Timer. Modern TSC is faster. Can improve FPS by 10-20% in games.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $hpet = Get-PnpDevice | Where-Object { $_.FriendlyName -like "*High Precision Event Timer*" }
@@ -136,14 +155,20 @@ Write-Host "Location varies by motherboard - look in CPU or Power settings" -For
             description: "Sets legacy boot menu policy for faster boot times.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::Command {
                     cmd: "bcdedit".to_string(),
                     args: vec!["/set".to_string(), "bootmenupolicy".to_string(), "standard".to_string()],
                 }
             ]),
-            check: None,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$bcd = bcdedit /enum "{current}" | Select-String "bootmenupolicy"
+if ($bcd -match "Legacy") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Command {
                     cmd: "bcdedit".to_string(),
@@ -158,7 +183,7 @@ Write-Host "Location varies by motherboard - look in CPU or Power settings" -For
             description: "Sets processor performance check interval to 1 (minimum). Reduces latency by checking CPU state more frequently. Windows default is 15.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $result = powercfg /q scheme_current 54533251-82be-4824-96c1-47b60b740d00 4d2b0152-7d5c-498b-88e2-34345392a2c5

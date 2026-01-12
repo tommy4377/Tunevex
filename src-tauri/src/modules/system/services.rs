@@ -1,4 +1,4 @@
-use crate::modules::types::{Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
 
 pub fn get_service_tweaks() -> Vec<Tweak> {
     vec![
@@ -18,8 +18,13 @@ pub fn get_service_tweaks() -> Vec<Tweak> {
                 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if ((Get-Service WSearch -ErrorAction SilentlyContinue).StartType -match 'Disabled') { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -45,8 +50,13 @@ pub fn get_service_tweaks() -> Vec<Tweak> {
                 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if ((Get-Service BITS -ErrorAction SilentlyContinue).StartType -match 'Manual') { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -59,9 +69,22 @@ pub fn get_service_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "system_disable_superfetch".to_string(),
             category: TweakCategory::System,
-            name: "⚡ Disable SysMain (Superfetch)".to_string(),
-            description: "Disables SysMain/Superfetch prefetching. Recommended for SSDs to reduce write cycles.".to_string(),
-            warning_level: WarningLevel::Safe,
+            name: "⚠️ Disable SysMain (Superfetch)".to_string(),
+            description: "Disables SysMain/Superfetch service.
+
+⚠️ MODERN ADVICE (2024+):
+On modern systems with 8GB+ RAM and NVMe SSDs, SysMain often HELPS performance by:
+- Preloading frequently used apps into RAM
+- Using compression to fit more in memory
+- Intelligently caching based on usage patterns
+
+Consider disabling ONLY if:
+- System has less than 8GB RAM
+- Experiencing high disk usage from SysMain
+- Running on a slow HDD (rare in 2024)
+
+The old 2013 advice to 'always disable on SSDs' is outdated.".to_string(),
+            warning_level: WarningLevel::Careful,
             requires_restart: false,
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
@@ -72,8 +95,13 @@ pub fn get_service_tweaks() -> Vec<Tweak> {
                 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if ((Get-Service SysMain -ErrorAction SilentlyContinue).StartType -match 'Disabled') { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"

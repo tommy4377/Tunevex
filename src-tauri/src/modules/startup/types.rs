@@ -34,7 +34,8 @@ pub enum AutostartSource {
     FileSystem,
     TaskScheduler,
     Service,
-    ShellExtension, // Added for Explorer/Browser
+    ShellExtension, // Added for Explorer/Browser BHOs
+    Browser,        // Chrome/Edge extensions
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

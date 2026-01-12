@@ -1,4 +1,4 @@
-use crate::modules::types::{
+use crate::modules::types::{TweakType, 
     RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
 };
 
@@ -17,7 +17,7 @@ pub fn get_security_tweaks() -> Vec<Tweak> {
                     path: "SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient".to_string(),
                     key: "EnableMulticast".to_string(), // LLMNR
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient".to_string(),
@@ -44,7 +44,7 @@ pub fn get_security_tweaks() -> Vec<Tweak> {
                     path: "SYSTEM\\CurrentControlSet\\Services\\LanManServer\\Parameters".to_string(),
                     key: "RestrictNullSessAccess".to_string(),
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SYSTEM\\CurrentControlSet\\Services\\LanManServer\\Parameters".to_string(),
@@ -71,7 +71,7 @@ pub fn get_security_tweaks() -> Vec<Tweak> {
                     path: "SYSTEM\\CurrentControlSet\\Control\\Lsa".to_string(),
                     key: "RestrictAnonymous".to_string(),
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SYSTEM\\CurrentControlSet\\Control\\Lsa".to_string(),
@@ -99,7 +99,7 @@ pub fn get_security_tweaks() -> Vec<Tweak> {
                         .to_string(),
                     key: "DisableBandwidthThrottling".to_string(),
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters"
@@ -122,7 +122,7 @@ pub fn get_security_tweaks() -> Vec<Tweak> {
             description: "Disables NetBIOS on all adapters. Reduces legacy broadcast noise. Avoid on LANs using NetBIOS names.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $adapters = Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration | Where-Object { $_.TcpipNetbiosOptions -ne $null }

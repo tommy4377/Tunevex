@@ -2,7 +2,9 @@
 //!
 //! Controls for Windows Firewall profiles, notifications, and rules.
 
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, 
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+};
 
 pub fn get_firewall_tweaks() -> Vec<Tweak> {
     vec![
@@ -34,8 +36,13 @@ pub fn get_firewall_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(0),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\StandardProfile".to_string(),
+                key: "DisableNotifications".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -66,8 +73,14 @@ pub fn get_firewall_tweaks() -> Vec<Tweak> {
             description: "Completely disables Windows Firewall for all network profiles. DANGEROUS: System exposed to network attacks.".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: false,
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$profile = Get-NetFirewallProfile -Profile Private
+if ($profile.Enabled -eq "False") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -93,8 +106,14 @@ Write-Host "Windows Firewall disabled for all profiles" -ForegroundColor Yellow
             description: "Sets firewall to block all outbound connections unless explicitly allowed. Very restrictive.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$profile = Get-NetFirewallProfile -Profile Private
+if ($profile.DefaultOutboundAction -eq "Block") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -120,8 +139,14 @@ Write-Host "Firewall set to block outbound by default" -ForegroundColor Cyan
             description: "Disables Remote Desktop firewall rules to prevent remote access.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$rules = Get-NetFirewallRule -DisplayGroup "Remote Desktop" -Enabled True -ErrorAction SilentlyContinue
+if (-not $rules) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"

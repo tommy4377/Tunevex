@@ -1,4 +1,4 @@
-use crate::modules::types::{Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{Tweak, TweakCategory, TweakOperation, TweakType, WarningLevel};
 
 pub fn get_maintenance_tweaks() -> Vec<Tweak> {
     vec![
@@ -9,7 +9,7 @@ pub fn get_maintenance_tweaks() -> Vec<Tweak> {
             description: "Executes: Winsock reset, IP reset, Flush DNS. Use this to fix connectivity issues. (One-shot action)".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
-            revert_operations: None, enabled: false,
+            revert_operations: None, tweak_type: TweakType::Action, enabled: false,
             check: None,
             operations: vec![
                 TweakOperation::Command {

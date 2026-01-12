@@ -67,6 +67,9 @@ pub fn run() {
             crate::modules::packages::winget::install_package,
             crate::modules::packages::winget::uninstall_package,
             crate::modules::packages::winget::check_package_status,
+            crate::modules::packages::winget::install_packages_bulk,
+            crate::modules::packages::winget::search_packages,
+            crate::modules::packages::winget::get_popular_packages,
             crate::modules::system::restore::create_restore_point
         ])
         .setup(|app| {

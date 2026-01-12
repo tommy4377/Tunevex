@@ -1,4 +1,4 @@
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
 
 /// Application Telemetry (NVIDIA, Office, VS, Chrome, Firefox, etc.)
 pub fn get_tweaks() -> Vec<Tweak> {
@@ -45,8 +45,17 @@ Write-Host "NVIDIA telemetry re-enabled (files cannot be restored)" -ForegroundC
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(crate::modules::types::TweakCheck::Powershell {
+                script: r#"
+$s = Get-Service -Name 'NvTelemetryContainer' -ErrorAction SilentlyContinue
+$t = Get-ScheduledTask | Where-Object { $_.TaskName -like 'NvTm*' -and $_.State -eq 'Ready' }
+if (($s -and $s.StartType -ne 'Disabled') -or $t) { return 'False' }
+return 'True'
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -118,8 +127,14 @@ Write-Host "NVIDIA telemetry disabled" -ForegroundColor Green
                     key: "DisableTelemetry".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\office\\16.0\\common".to_string(),
+                key: "sendcustomerdata".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -189,8 +204,14 @@ Write-Host "Visual Studio telemetry re-enabled" -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\VisualStudio\\SQM".to_string(),
+                key: "OptIn".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -263,8 +284,20 @@ if (Test-Path $settingsPath) {
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$p = "$env:APPDATA\Code\User\settings.json"
+if (Test-Path $p) {
+    try {
+        $j = Get-Content $p -Raw | ConvertFrom-Json
+        if ($j.'telemetry.enableTelemetry' -eq $false -or $j.'telemetry.enableTelemetry' -eq 0) { "True" } else { "False" }
+    } catch { "False" }
+} else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -306,8 +339,14 @@ Write-Host ".NET CLI telemetry opt-out removed" -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if ([Environment]::GetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "Machine") -eq "1") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -334,8 +373,14 @@ Write-Host "PowerShell telemetry opt-out removed" -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if ([Environment]::GetEnvironmentVariable("POWERSHELL_TELEMETRY_OPTOUT", "Machine") -eq "1") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -371,8 +416,14 @@ Write-Host "PowerShell telemetry disabled" -ForegroundColor Green
                     key: "ChromeCleanupEnabled".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Google\\Chrome".to_string(),
+                key: "MetricsReportingEnabled".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -415,8 +466,14 @@ Write-Host "PowerShell telemetry disabled" -ForegroundColor Green
                     key: "DisableFirefoxStudies".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Mozilla\\Firefox".to_string(),
+                key: "DisableTelemetry".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -443,7 +500,7 @@ Write-Host "PowerShell telemetry disabled" -ForegroundColor Green
             description: "Globally disables background app execution to minimize resource usage.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -458,7 +515,12 @@ Write-Host "PowerShell telemetry disabled" -ForegroundColor Green
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            check: None,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications".to_string(),
+                key: "GlobalUserDisabled".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),

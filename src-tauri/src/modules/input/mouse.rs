@@ -1,4 +1,4 @@
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakOperation, WarningLevel, TweakCheck, RegistryValue};
 
 /// Mouse Optimization Tweaks
 pub fn get_mouse_tweaks() -> Vec<Tweak> {
@@ -31,8 +31,13 @@ pub fn get_mouse_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::String("10".to_string()),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "Control Panel\\Mouse".to_string(),
+                key: "MouseSpeed".to_string(),
+                expected_value: RegistryValue::String("0".to_string()),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -64,8 +69,13 @@ pub fn get_mouse_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: None, // Resetting to default IS the revert/fix
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "Control Panel\\Mouse".to_string(),
+                key: "MouseSensitivity".to_string(),
+                expected_value: RegistryValue::String("10".to_string()),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -92,8 +102,13 @@ pub fn get_mouse_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::String("400".to_string()),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "Control Panel\\Mouse".to_string(),
+                key: "MouseHoverTime".to_string(),
+                expected_value: RegistryValue::String("20".to_string()),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -120,8 +135,13 @@ pub fn get_mouse_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::String("0".to_string()), // 0 is actually disabled/default too
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "Control Panel\\Mouse".to_string(),
+                key: "MouseTrails".to_string(),
+                expected_value: RegistryValue::String("0".to_string()),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -148,8 +168,13 @@ pub fn get_mouse_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::String("0".to_string()),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "Control Panel\\Mouse".to_string(),
+                key: "SnapToDefaultButton".to_string(),
+                expected_value: RegistryValue::String("0".to_string()),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -194,8 +219,13 @@ pub fn get_mouse_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::String("400".to_string()),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "Control Panel\\Mouse".to_string(),
+                key: "MouseSpeed".to_string(),
+                expected_value: RegistryValue::String("0".to_string()),
+            }),
             operations: vec![
                 // Disable mouse acceleration
                 TweakOperation::RegistrySet {

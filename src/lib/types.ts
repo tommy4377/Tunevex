@@ -22,12 +22,15 @@ export type TweakCategory =
     | 'Programs'
     | 'Restore';
 
+export type TweakType = 'Toggle' | 'Action';
+
 export interface Tweak {
     id: string;
     category: TweakCategory;
     name: string;
     description: string;
     warning_level: WarningLevel;
+    tweak_type: TweakType;
     requires_restart: boolean;
     enabled?: boolean; // Frontend state
     check?: TweakCheck;

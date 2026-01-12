@@ -1,6 +1,6 @@
 //! App removal tweaks (Microsoft, Third-Party, OEM bloatware)
 
-use crate::modules::types::{Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakOperation, WarningLevel, TweakCheck, RegistryValue};
 
 fn create_bloatware_removal_script(apps: &[&str]) -> String {
     let app_list = apps.iter()
@@ -79,8 +79,13 @@ Write-Host "Microsoft apps must be reinstalled from Microsoft Store manually." -
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if (!(Get-AppxPackage -Name "*Solitaire*" -ErrorAction SilentlyContinue)) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: create_bloatware_removal_script(&[
@@ -114,8 +119,13 @@ Write-Host "Microsoft apps must be reinstalled from Microsoft Store manually." -
             revert_operations: Some(vec![
                 TweakOperation::Powershell { script: r#"Write-Host "Reinstall from Microsoft Store" -ForegroundColor Yellow"#.to_string() }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if (!(Get-AppxPackage -Name "*windowscommunicationsapps*" -ErrorAction SilentlyContinue)) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: create_bloatware_removal_script(&[
@@ -136,8 +146,13 @@ Write-Host "Microsoft apps must be reinstalled from Microsoft Store manually." -
             revert_operations: Some(vec![
                 TweakOperation::Powershell { script: r#"Write-Host "Reinstall from Microsoft Store" -ForegroundColor Yellow"#.to_string() }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if (!(Get-AppxPackage -Name "*OutlookForWindows*" -ErrorAction SilentlyContinue)) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: create_bloatware_removal_script(&[
@@ -157,8 +172,13 @@ Write-Host "Microsoft apps must be reinstalled from Microsoft Store manually." -
             revert_operations: Some(vec![
                 TweakOperation::Powershell { script: r#"Write-Host "Reinstall from Microsoft Store" -ForegroundColor Yellow"#.to_string() }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if (!(Get-AppxPackage -Name "*YourPhone*" -ErrorAction SilentlyContinue)) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: create_bloatware_removal_script(&[
@@ -184,8 +204,13 @@ Write-Host "https://www.microsoft.com/en-us/microsoft-365/onedrive/download" -Fo
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if (!(Test-Path "$env:LOCALAPPDATA\Microsoft\OneDrive\OneDrive.exe")) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -230,8 +255,13 @@ Write-Host "OneDrive removed" -ForegroundColor Green
             revert_operations: Some(vec![
                 TweakOperation::Powershell { script: r#"Write-Host "Reinstall from Microsoft Store" -ForegroundColor Yellow"#.to_string() }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if (!(Get-AppxPackage -Name "*Spotify*" -ErrorAction SilentlyContinue)) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: create_bloatware_removal_script(&[
@@ -265,8 +295,13 @@ Write-Host "OneDrive removed" -ForegroundColor Green
             revert_operations: Some(vec![
                 TweakOperation::Powershell { script: r#"Write-Host "HP apps can be reinstalled from HP website" -ForegroundColor Yellow"#.to_string() }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if (!(Get-AppxPackage -Name "*HPSupportAssistant*" -ErrorAction SilentlyContinue)) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: create_bloatware_removal_script(&[
@@ -293,8 +328,13 @@ Write-Host "OneDrive removed" -ForegroundColor Green
             revert_operations: Some(vec![
                 TweakOperation::Powershell { script: r#"Write-Host "Dell apps can be reinstalled from Dell website" -ForegroundColor Yellow"#.to_string() }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if (!(Get-AppxPackage -Name "*DellSupportAssistforPCs*" -ErrorAction SilentlyContinue)) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: create_bloatware_removal_script(&[
@@ -316,8 +356,13 @@ Write-Host "OneDrive removed" -ForegroundColor Green
             revert_operations: Some(vec![
                 TweakOperation::Powershell { script: r#"Write-Host "Lenovo apps can be reinstalled from Lenovo website" -ForegroundColor Yellow"#.to_string() }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if (!(Get-AppxPackage -Name "*LenovoVantage*" -ErrorAction SilentlyContinue)) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: create_bloatware_removal_script(&[
@@ -339,8 +384,13 @@ Write-Host "OneDrive removed" -ForegroundColor Green
             revert_operations: Some(vec![
                 TweakOperation::Powershell { script: r#"Write-Host "ASUS apps can be reinstalled from ASUS website" -ForegroundColor Yellow"#.to_string() }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if (!(Get-AppxPackage -Name "*ArmouryCrate*" -ErrorAction SilentlyContinue)) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: create_bloatware_removal_script(&[
@@ -362,8 +412,13 @@ Write-Host "OneDrive removed" -ForegroundColor Green
             revert_operations: Some(vec![
                 TweakOperation::Powershell { script: r#"Write-Host "Reinstall MSI apps from MSI website" -ForegroundColor Yellow"#.to_string() }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if (!(Get-AppxPackage -Name "*MSICenter*" -ErrorAction SilentlyContinue)) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -401,8 +456,13 @@ Write-Host "Removed $removed MSI apps" -ForegroundColor Green
             revert_operations: Some(vec![
                 TweakOperation::Powershell { script: r#"Write-Host "Reinstall Acer apps from Acer website" -ForegroundColor Yellow"#.to_string() }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if (!(Get-AppxPackage -Name "*AcerCareCenter*" -ErrorAction SilentlyContinue)) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -439,8 +499,13 @@ Write-Host "Removed $removed Acer apps" -ForegroundColor Green
             revert_operations: Some(vec![
                 TweakOperation::Powershell { script: r#"Write-Host "Reinstall Razer software from Razer website" -ForegroundColor Yellow"#.to_string() }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if (!(Test-Path "$env:ProgramFiles\Razer") -and !(Test-Path "${env:ProgramFiles(x86)}\Razer")) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -472,8 +537,13 @@ Write-Host "Removed $removed Razer apps" -ForegroundColor Green
             revert_operations: Some(vec![
                 TweakOperation::Powershell { script: r#"Write-Host "Reinstall McAfee from website if desired" -ForegroundColor Yellow"#.to_string() }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if (!(Get-Service -DisplayName "*McAfee*" -ErrorAction SilentlyContinue)) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -506,8 +576,13 @@ try {
             revert_operations: Some(vec![
                 TweakOperation::Powershell { script: r#"Write-Host "Reinstall Norton from website if desired" -ForegroundColor Yellow"#.to_string() }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if (!(Get-Service -DisplayName "*Norton*" -ErrorAction SilentlyContinue)) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -541,8 +616,13 @@ Write-Host "Teams Chat restored (may require re-login)" -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced".to_string(),
+                key: "TaskbarMn".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -564,8 +644,13 @@ Write-Host "Teams Chat removed from taskbar" -ForegroundColor Green
             revert_operations: Some(vec![
                 TweakOperation::Powershell { script: r#"Write-Host "Xbox apps must be reinstalled from Microsoft Store" -ForegroundColor Yellow"#.to_string() }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if (!(Get-AppxPackage -Name "*GamingApp*" -ErrorAction SilentlyContinue)) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: create_bloatware_removal_script(&[
@@ -592,8 +677,13 @@ Write-Host "Widgets enabled (reinstall from Store if needed)" -ForegroundColor G
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced".to_string(),
+                key: "TaskbarDa".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -625,8 +715,13 @@ Write-Host "AppX deprovisioning protection disabled" -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -658,7 +753,7 @@ Write-Host "2. Or run: winget install Microsoft.Edge" -ForegroundColor White
 "#.to_string(),
                 }
             ]),
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(crate::modules::types::TweakCheck::Powershell {
                 script: r#"
 if (Test-Path "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe") {
@@ -791,7 +886,7 @@ Write-Host "Defender re-enabled. Please reboot." -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(crate::modules::types::TweakCheck::Powershell {
                 script: r#"
 $disabled = Get-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" -Name "DisableAntiSpyware" -EA 0
@@ -878,7 +973,7 @@ Write-Host "Store reinstall initiated" -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
+            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(crate::modules::types::TweakCheck::Powershell {
                 script: r#"
 $store = Get-AppxPackage -AllUsers Microsoft.WindowsStore -EA 0
