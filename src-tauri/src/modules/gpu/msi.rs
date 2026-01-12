@@ -10,7 +10,7 @@ pub fn get_gpu_msi_tweaks() -> Vec<Tweak> {
             id: "gpu_msi_high".to_string(), // Renamed from hw_
             category: TweakCategory::GpuOptimization,
             name: "🎨 Enable MSI Mode on GPU (High Priority)".to_string(),
-            description: "Enables MSI with Priority 3 on NVIDIA/AMD/Intel GPUs. Reduces DPC latency and micro-stuttering.".to_string(),
+            description: "Enables Message Signaled Interrupts (MSI) mode with High Priority for GPU.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
             enabled: false,

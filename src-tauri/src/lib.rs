@@ -46,6 +46,9 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(Mutex::new(TweakContext { tweaks: all_tweaks }))
         .manage(Mutex::new(app_state))
+        .manage(Mutex::new(
+            crate::modules::storage::state::CompactorState::default(),
+        ))
         .invoke_handler(tauri::generate_handler![
             commands::check_is_admin,
             commands::get_tweaks,
@@ -58,6 +61,7 @@ pub fn run() {
             crate::modules::storage::commands::scan_storage,
             crate::modules::storage::commands::compress_folder,
             crate::modules::storage::commands::decompress_folder,
+            crate::modules::storage::commands::cancel_compactor,
             crate::modules::storage::commands::get_compressed_folders,
             crate::modules::storage::commands::get_folder_stats,
             crate::modules::packages::winget::install_package,
@@ -120,6 +124,11 @@ pub fn run() {
                     eprintln!("Error in global mouse hook: {:?}", error);
                 }
             });
+
+            // Deploy UI Classic assets
+            if let Err(e) = crate::modules::ui_classic::setup::deploy_assets(app) {
+                eprintln!("Failed to deploy UI assets: {}", e);
+            }
 
             Ok(())
         })

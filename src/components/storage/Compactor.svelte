@@ -130,6 +130,18 @@
         }
     }
 
+    async function cancelOperation() {
+        try {
+            await invoke("cancel_compactor");
+            isScanning = false;
+            isCompressing = false;
+            statusMsg = "Operation cancelled by user";
+            statusType = "info";
+        } catch (e) {
+            console.error("Failed to cancel:", e);
+        }
+    }
+
     async function scan() {
         if (!path) return;
         isScanning = true;
@@ -142,12 +154,33 @@
             // Set total for progress bar
             progressTotal = scanResult.file_count;
         } catch (e) {
-            statusMsg = "Scan Error: " + e;
-            statusType = "error";
+            // Check if it was cancelled
+            if (e.toString().includes("Cancelled")) {
+                 statusMsg = "Scan Cancelled";
+            } else {
+                 statusMsg = "Scan Error: " + e;
+                 statusType = "error";
+            }
         } finally {
             isScanning = false;
         }
     }
+// ... (inside template)
+                <button
+                    class="btn-secondary"
+                    on:click={isScanning ? cancelOperation : scan}
+                    disabled={isCompressing}
+                >
+                    {isScanning ? "🛑 Stop" : "Scan"}
+                </button>
+// ...
+                <button
+                    class="btn-primary"
+                    on:click={isCompressing ? cancelOperation : compress}
+                    disabled={!path || isScanning}
+                >
+                    {isCompressing ? "🛑 Stop" : "Compress Now"}
+                </button>
 
     async function compress() {
         if (!path) return;
@@ -159,9 +192,14 @@
                 path,
                 algoIdx: compressionAlgo,
             });
-            statusMsg = "Compression Complete: " + res;
-            statusType = "success";
-            await refreshFolders();
+            if (res === "Cancelled") {
+                statusMsg = "Compression Cancelled";
+                statusType = "info";
+            } else {
+                statusMsg = "Compression Complete: " + res;
+                statusType = "success";
+                await refreshFolders();
+            }
         } catch (e) {
             statusMsg = "Compression Error: " + e;
             statusType = "error";
@@ -253,10 +291,10 @@
                 </div>
                 <button
                     class="btn-secondary"
-                    on:click={scan}
-                    disabled={isScanning || isCompressing}
+                    on:click={isScanning ? cancelOperation : scan}
+                    disabled={isCompressing && !isScanning}
                 >
-                    {isScanning ? "Scanning..." : "Scan"}
+                    {isScanning ? "🛑 Stop" : "Scan"}
                 </button>
             </div>
         </div>
@@ -307,10 +345,10 @@
 
                 <button
                     class="btn-primary"
-                    on:click={compress}
-                    disabled={!path || isScanning || isCompressing}
+                    on:click={isCompressing ? cancelOperation : compress}
+                    disabled={!path || (isScanning && !isCompressing)}
                 >
-                    {isCompressing ? "Compressing..." : "Compress Now"}
+                    {isCompressing ? "🛑 Stop" : "Compress Now"}
                 </button>
             </div>
         </div>

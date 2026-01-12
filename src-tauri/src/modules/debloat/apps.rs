@@ -849,7 +849,7 @@ Write-Host "Defender disabled. Please reboot." -ForegroundColor Green
             id: "debloat_remove_store".to_string(),
             category: TweakCategory::DebloatTelemetry,
             name: "🏪 Remove Microsoft Store".to_string(),
-            description: "Removes Microsoft Store app. Can be reinstalled via PowerShell: Get-AppxPackage -allusers Microsoft.WindowsStore | Foreach {Add-AppxPackage -DisableDevelopmentMode -Register \"$($_. InstallLocation)\\AppXManifest.xml\"}".to_string(),
+            description: "Removes the Microsoft Store application. Use the restore checks or `Get-AppxPackage` to reinstall if needed.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
             revert_operations: Some(vec![
