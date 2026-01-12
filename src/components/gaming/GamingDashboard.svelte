@@ -180,7 +180,7 @@
 
     .dashboard-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 320px));
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
         gap: 20px;
         margin-top: 20px;
         overflow-y: auto;

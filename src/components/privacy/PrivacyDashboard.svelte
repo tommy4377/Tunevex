@@ -38,7 +38,8 @@
                 t.id === "priv_dotnet_telemetry" ||
                 t.id === "priv_powershell_telemetry" ||
                 t.id === "priv_chrome_telemetry" ||
-                t.id === "priv_firefox_telemetry"),
+                t.id === "priv_firefox_telemetry" ||
+                t.id === "priv_disable_background_apps"),
     );
 
     $: settingsTweaks = allTweaks.filter(
@@ -323,7 +324,7 @@
 
     .dashboard-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 320px));
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
         gap: 20px;
         margin-top: 16px;
         overflow-y: auto;

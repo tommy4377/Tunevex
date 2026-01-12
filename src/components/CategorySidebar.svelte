@@ -33,6 +33,8 @@
         { id: "MouseInput", label: "Input", icon: MousePointer },
         { id: "DisplayMonitor", label: "Display", icon: Monitor },
         { id: "FileSystem", label: "Storage", icon: HardDrive },
+        { id: "Programs", label: "Programs", icon: Zap },
+        { id: "Restore", label: "Restore", icon: Shield },
     ];
 
     function selectCategory(id: TweakCategory) {

@@ -16,7 +16,6 @@
         (t) =>
             t.category === "CpuPerformance" &&
             (t.id.includes("priority") ||
-                t.id.includes("mmcss") ||
                 t.id.includes("fth") ||
                 t.id.includes("svchost") ||
                 t.id.includes("page_combining") ||
@@ -43,9 +42,8 @@
                 t.id.includes("memory") ||
                 t.id.includes("cache") ||
                 t.id.includes("paging") ||
-                t.id.includes("superfetch") ||
-                t.id.includes("prefetch") ||
-                t.id.includes("background_apps")),
+                t.id.includes("paging") ||
+                t.id.includes("prefetch")),
     );
 
     $: timerTweaks = allTweaks.filter(
@@ -232,7 +230,7 @@
 
     .dashboard-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 320px));
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
         gap: 20px;
         margin-top: 20px;
         overflow-y: auto;

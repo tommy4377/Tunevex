@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { listen } from "@tauri-apps/api/event";
     import { onMount, onDestroy } from "svelte";
     import { invoke } from "@tauri-apps/api/core";
     import { open } from "@tauri-apps/plugin-dialog";
@@ -9,6 +10,11 @@
     let scanResult: any = null;
     let compressionAlgo = 1; // 1 = XPRESS8K default
     let isDropdownOpen = false;
+
+    // Progress State
+    let progressCurrent = 0;
+    let progressTotal = 0; // We might need to estimate this
+    let showProgress = false;
 
     // Dropdown items
     const algorithms = [
@@ -34,6 +40,8 @@
 
     let compressedFolders: string[] = [];
     let folderStatsMap: Record<string, FolderStats> = {};
+    let unlistenProgress: () => void;
+    let unlistenStatus: () => void;
 
     function handleClickOutside(event: MouseEvent) {
         const target = event.target as HTMLElement;
@@ -45,10 +53,27 @@
     onMount(async () => {
         document.addEventListener("click", handleClickOutside);
         await refreshFolders();
+
+        // Listeners
+        unlistenProgress = await listen<number>(
+            "compactor-progress",
+            (event) => {
+                progressCurrent = event.payload;
+                // Auto-scale total if we exceed it (since estimate might be off)
+                if (progressCurrent > progressTotal && progressTotal > 0)
+                    progressTotal = progressCurrent + 10;
+            },
+        );
+
+        unlistenStatus = await listen<string>("compactor-status", (event) => {
+            statusMsg = event.payload;
+        });
     });
 
     onDestroy(() => {
         document.removeEventListener("click", handleClickOutside);
+        if (unlistenProgress) unlistenProgress();
+        if (unlistenStatus) unlistenStatus();
     });
 
     async function refreshFolders() {
@@ -100,6 +125,8 @@
             scanResult = await invoke("scan_storage", { path });
             statusMsg = `Scan Complete: Found ${scanResult.file_count} files (${formatBytes(scanResult.total_size)})`;
             statusType = "success";
+            // Set total for progress bar
+            progressTotal = scanResult.file_count;
         } catch (e) {
             statusMsg = "Scan Error: " + e;
             statusType = "error";

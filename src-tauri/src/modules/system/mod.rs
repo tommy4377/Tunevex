@@ -1,6 +1,7 @@
 //! System & Visuals Tweaks Module
 pub mod maintenance;
 pub mod msi;
+pub mod restore;
 pub mod services;
 
 use crate::modules::types::Tweak;

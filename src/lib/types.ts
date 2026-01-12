@@ -18,7 +18,9 @@ export type TweakCategory =
     | 'Advanced'
     | 'Monitoring'
     | 'BackupRestore'
-    | 'Privacy';
+    | 'Privacy'
+    | 'Programs'
+    | 'Restore';
 
 export interface Tweak {
     id: string;

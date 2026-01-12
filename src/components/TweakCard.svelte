@@ -44,7 +44,7 @@
             class:applied={tweak.enabled}
             on:click={() => dispatch("toggle")}
         >
-            {tweak.enabled ? "Undo" : "Apply"}
+            {tweak.enabled ? "Enabled" : "Disabled"}
         </button>
     </div>
 </div>
@@ -77,27 +77,33 @@
     /* ... skipped ... */
 
     .apply-btn {
-        background: var(--accent-color);
-        color: white;
-        border: none;
+        min-width: 80px;
         padding: 8px 16px;
         border-radius: var(--radius-sm);
-        font-size: 12px;
-        font-weight: 500;
+        border: 1px solid var(--border-color);
+        background: transparent;
+        color: var(--text-muted);
         cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
         transition: all 0.2s;
         margin-left: auto;
     }
 
     .apply-btn:hover {
-        filter: brightness(1.1);
+        border-color: var(--text-muted);
+        color: var(--text-color);
+        filter: none;
     }
 
     .apply-btn.applied {
-        background: #ef4444; /* Red for undo/remove */
+        background: var(--accent-color);
+        border-color: var(--accent-color);
+        color: white;
     }
 
     .apply-btn.applied:hover {
-        background: #dc2626;
+        background: var(--accent-hover);
+        filter: none;
     }
 </style>

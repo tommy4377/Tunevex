@@ -57,7 +57,11 @@ pub fn run() {
             crate::modules::storage::commands::compress_folder,
             crate::modules::storage::commands::decompress_folder,
             crate::modules::storage::commands::get_compressed_folders,
-            crate::modules::storage::commands::get_folder_stats
+            crate::modules::storage::commands::get_folder_stats,
+            crate::modules::packages::winget::install_package,
+            crate::modules::packages::winget::uninstall_package,
+            crate::modules::packages::winget::check_package_status,
+            crate::modules::system::restore::create_restore_point
         ])
         .setup(|app| {
             #[cfg(target_os = "windows")]

@@ -432,5 +432,47 @@ Write-Host "PowerShell telemetry disabled" -ForegroundColor Green
                 },
             ]
         },
+        
+        // ============================================
+        // Background Apps
+        // ============================================
+        Tweak {
+            id: "priv_disable_background_apps".to_string(), // Renamed from cpu_
+            category: TweakCategory::Privacy,
+            name: "Disable Background Apps".to_string(),
+            description: "Globally disables background app execution to minimize resource usage.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            enabled: false,
+            revert_operations: Some(vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications".to_string(),
+                    key: "GlobalUserDisabled".to_string(),
+                    value: RegistryValue::DWord(0),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Search".to_string(),
+                    key: "BackgroundAppGlobalToggle".to_string(),
+                    value: RegistryValue::DWord(1),
+                },
+            ]),
+            check: None,
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications".to_string(),
+                    key: "GlobalUserDisabled".to_string(),
+                    value: RegistryValue::DWord(1),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Search".to_string(),
+                    key: "BackgroundAppGlobalToggle".to_string(),
+                    value: RegistryValue::DWord(0),
+                },
+            ]
+        },
     ]
 }

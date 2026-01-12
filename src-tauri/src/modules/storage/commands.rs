@@ -4,19 +4,23 @@ use crate::modules::utils::state::AppState;
 use crate::modules::utils::dirs::get_state_path;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
-use tauri::State;
+use tauri::{State, Emitter, AppHandle, Manager};
 // use std::path::PathBuf;
 
 #[tauri::command]
-pub async fn scan_storage(path: String) -> Result<ScanResult, String> {
-    // Simple scan trigger
+pub async fn scan_storage(app: AppHandle, path: String) -> Result<ScanResult, String> {
+    // Emit start event
+    let _ = app.emit("compactor-status", "Scanning...");
+    
     let cancel = Arc::new(AtomicBool::new(false));
     let result = scan_directory(&path, cancel).await;
+    
     Ok(result)
 }
 
 #[tauri::command]
 pub async fn compress_folder(
+    app: AppHandle,
     path: String,
     algo_idx: u8,
     state: State<'_, Mutex<AppState>>,
@@ -32,14 +36,24 @@ pub async fn compress_folder(
     
     // We should re-scan/walk and compress each file.
     let mut count = 0;
-
-    for entry in walkdir::WalkDir::new(&path).into_iter().filter_map(|e| e.ok()) {
+    // Estimate total? Hard to know without double scan. 
+    // We will just emit processed count.
+    
+    let walker = walkdir::WalkDir::new(&path).into_iter();
+    
+    for (i, entry) in walker.filter_map(|e| e.ok()).enumerate() {
         if entry.file_type().is_file() {
             if let Ok(_) = compress_file(entry.path(), algo) {
                 count += 1;
+                // Emit event every 10 files or so to avoid flooding
+                if count % 5 == 0 {
+                     let _ = app.emit("compactor-progress", i);
+                }
             }
         }
     }
+    // Final emit
+    let _ = app.emit("compactor-progress", count);
     
     // Persist state
     {
@@ -55,18 +69,25 @@ pub async fn compress_folder(
 
 #[tauri::command]
 pub async fn decompress_folder(
+    app: AppHandle,
     path: String,
     state: State<'_, Mutex<AppState>>,
 ) -> Result<String, String> {
     let mut count = 0;
     
-    for entry in walkdir::WalkDir::new(&path).into_iter().filter_map(|e| e.ok()) {
+    let walker = walkdir::WalkDir::new(&path).into_iter();
+
+    for (i, entry) in walker.filter_map(|e| e.ok()).enumerate() {
         if entry.file_type().is_file() {
             if let Ok(_) = decompress_file(entry.path()) {
                 count += 1;
+                 if count % 5 == 0 {
+                     let _ = app.emit("compactor-progress", i);
+                }
             }
         }
     }
+    let _ = app.emit("compactor-progress", count);
 
     // Update State
     {

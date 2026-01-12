@@ -7,6 +7,7 @@ pub mod gpu;
 pub mod input;
 pub mod interface;
 pub mod network;
+pub mod packages;
 pub mod privacy;
 pub mod registry;
 pub mod security;

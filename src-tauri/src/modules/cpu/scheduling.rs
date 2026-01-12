@@ -41,35 +41,7 @@ pub fn get_scheduling_tweaks() -> Vec<Tweak> {
             ]
         },
         
-        // ============================================
-        // From: config-mmcss.yml
-        // ============================================
-        Tweak {
-            id: "cpu_mmcss_responsiveness".to_string(),
-            category: TweakCategory::CpuPerformance,
-            name: "Configure MMCSS System Responsiveness".to_string(),
-            description: "Sets SystemResponsiveness to 10%, allocating more CPU to games instead of background tasks.".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: false,
-            enabled: false,
-            revert_operations: Some(vec![
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                    key: "SystemResponsiveness".to_string(),
-                    value: RegistryValue::DWord(20), // Default 20%
-                }
-            ]),
-            check: None,
-            operations: vec![
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                    key: "SystemResponsiveness".to_string(),
-                    value: RegistryValue::DWord(10),
-                }
-            ]
-        },
+
         
         // ============================================
         // From: disable-fth.yml
