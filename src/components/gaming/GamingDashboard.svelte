@@ -180,14 +180,13 @@
 
     .dashboard-grid {
         display: grid;
-        grid-template-columns: 320px;
-        gap: 24px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 320px));
+        gap: 20px;
         margin-top: 20px;
         overflow-y: auto;
         flex: 1;
         padding: 24px;
         padding-top: 4px;
-        justify-content: center; /* Center the grid if there's extra space, or left align. User said 'leave empty space', usually left align is safer for reading order, but center looks nicer. Let's try left align first as 'leave empty space' implies distinct gaps. auto-fill naturally leaves space. */
     }
 
     .card {

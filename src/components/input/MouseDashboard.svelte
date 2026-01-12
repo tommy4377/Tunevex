@@ -50,8 +50,8 @@
 
     .tweaks-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, 320px);
-        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 320px));
+        gap: 20px;
     }
 
     .section-header {
