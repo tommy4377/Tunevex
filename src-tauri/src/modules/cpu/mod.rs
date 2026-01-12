@@ -1,0 +1,33 @@
+//! CPU & Performance Tweaks Module
+//!
+//! Refactored into submodules:
+//! - scheduling.rs: Process Priority & MMCSS
+//! - power.rs: Power Plans & States
+//! - memory.rs: Memory & NTFS
+//! - timer.rs: Timer Resolution & TSC
+
+use crate::modules::types::Tweak;
+
+pub mod memory;
+pub mod power;
+pub mod scheduling;
+pub mod timer;
+
+/// Returns all CPU and performance-related tweaks
+pub fn get_cpu_tweaks() -> Vec<Tweak> {
+    let mut tweaks = Vec::new();
+
+    // CPU Scheduling & Priority
+    tweaks.extend(scheduling::get_scheduling_tweaks());
+
+    // Power Management
+    tweaks.extend(power::get_power_tweaks());
+
+    // Memory & Storage
+    tweaks.extend(memory::get_memory_tweaks());
+
+    // Timer & Boot Config
+    tweaks.extend(timer::get_timer_tweaks());
+
+    tweaks
+}

@@ -1,0 +1,183 @@
+//! Memory and NTFS Tweaks
+//!
+//! Based on:
+//! - optimize-ntfs.yml
+//! - disable-paging.yml
+//! - prompt.md memory optimizations
+
+use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+
+/// Returns all memory and NTFS related tweaks
+pub fn get_memory_tweaks() -> Vec<Tweak> {
+    vec![
+        // ============================================
+        // Memory Management
+        // ============================================
+        Tweak {
+            id: "cpu_large_system_cache".to_string(),
+            category: TweakCategory::CpuPerformance,
+            name: "Optimize for Programs (Not System Cache)".to_string(),
+            description: "Sets LargeSystemCache to 0, prioritizing memory for applications over file caching.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: true,
+            enabled: false,
+            revert_operations: Some(vec![
+                TweakOperation::RegistryDelete {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management".to_string(),
+                    key: "LargeSystemCache".to_string(),
+                }
+            ]),
+            check: None,
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management".to_string(),
+                    key: "LargeSystemCache".to_string(),
+                    value: RegistryValue::DWord(0),
+                }
+            ]
+        },
+        Tweak {
+            id: "cpu_disable_paging_executive".to_string(),
+            category: TweakCategory::CpuPerformance,
+            name: "Keep Kernel in RAM".to_string(),
+            description: "Prevents kernel and drivers from being paged to disk. Requires sufficient RAM.".to_string(),
+            warning_level: WarningLevel::Careful,
+            requires_restart: true,
+            enabled: false,
+            revert_operations: Some(vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management".to_string(),
+                    key: "DisablePagingExecutive".to_string(),
+                    value: RegistryValue::DWord(0), // Default
+                }
+            ]),
+            check: None,
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management".to_string(),
+                    key: "DisablePagingExecutive".to_string(),
+                    value: RegistryValue::DWord(1),
+                }
+            ]
+        },
+        
+        // ============================================
+        // Background Apps
+        // ============================================
+        Tweak {
+            id: "cpu_disable_background_apps".to_string(),
+            category: TweakCategory::CpuPerformance,
+            name: "Disable Background Apps".to_string(),
+            description: "Globally disables background app execution to minimize resource usage.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            enabled: false,
+            revert_operations: Some(vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications".to_string(),
+                    key: "GlobalUserDisabled".to_string(),
+                    value: RegistryValue::DWord(0),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Search".to_string(),
+                    key: "BackgroundAppGlobalToggle".to_string(),
+                    value: RegistryValue::DWord(1),
+                },
+            ]),
+            check: None,
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications".to_string(),
+                    key: "GlobalUserDisabled".to_string(),
+                    value: RegistryValue::DWord(1),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Search".to_string(),
+                    key: "BackgroundAppGlobalToggle".to_string(),
+                    value: RegistryValue::DWord(0),
+                },
+            ]
+        },
+        
+        // ============================================
+        // NEW: Disable Prefetch
+        // ============================================
+        Tweak {
+            id: "cpu_disable_prefetch".to_string(),
+            category: TweakCategory::CpuPerformance,
+            name: "Disable Prefetch".to_string(),
+            description: "Disables Windows Prefetch. Recommended for SSD systems where prefetch provides minimal benefit.".to_string(),
+            warning_level: WarningLevel::Careful,
+            requires_restart: true,
+            enabled: false,
+            revert_operations: Some(vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management\\PrefetchParameters".to_string(),
+                    key: "EnablePrefetcher".to_string(),
+                    value: RegistryValue::DWord(3), // Default (Boot + App)
+                }
+            ]),
+            check: None,
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management\\PrefetchParameters".to_string(),
+                    key: "EnablePrefetcher".to_string(),
+                    value: RegistryValue::DWord(0),
+                }
+            ]
+        },
+        
+        // ============================================
+        // NEW: Disable Superfetch/SysMain
+        // ============================================
+        Tweak {
+            id: "cpu_disable_superfetch".to_string(),
+            category: TweakCategory::CpuPerformance,
+            name: "Disable Superfetch (SysMain)".to_string(),
+            description: "Disables Windows Superfetch/SysMain service. Recommended for SSD systems.".to_string(),
+            warning_level: WarningLevel::Careful,
+            requires_restart: false,
+            enabled: false,
+            revert_operations: Some(vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management\\PrefetchParameters".to_string(),
+                    key: "EnableSuperfetch".to_string(),
+                    value: RegistryValue::DWord(3), // Default
+                },
+                TweakOperation::Powershell {
+                    script: r#"
+Set-Service -Name SysMain -StartupType Automatic -EA 0
+Start-Service -Name SysMain -EA 0
+"#.to_string(),
+                }
+            ]),
+            check: None,
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management\\PrefetchParameters".to_string(),
+                    key: "EnableSuperfetch".to_string(),
+                    value: RegistryValue::DWord(0),
+                },
+                TweakOperation::Powershell {
+                    script: r#"
+# Stop and disable SysMain service
+Stop-Service -Name SysMain -Force -EA 0
+Set-Service -Name SysMain -StartupType Disabled -EA 0
+"#.to_string(),
+                }
+            ]
+        },
+    ]
+}

@@ -1,0 +1,32 @@
+# Dependencies and build output
+node_modules/
+.svelte-kit/
+build/
+dist/
+target/
+src-tauri/target/
+
+# Environment, logs and local OS files
+.env
+.env.*
+!.env.example
+*.log
+Thumbs.db
+.DS_Store
+
+# Local IDE/tool state
+.idea/
+.vscode/
+
+# AI/agent development artifacts
+.serena/
+.opencode/
+.claude/
+.cursor/
+.windsurf/
+.mcp.json
+AGENTS.md
+CLAUDE.md
+prompt*.md
+*_memory.json
+*-memory.json
