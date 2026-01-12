@@ -1,94 +1,91 @@
 <script lang="ts">
     import { invoke } from "@tauri-apps/api/core";
-    import TweakCard from "../TweakCard.svelte";
+    import TweakList from "../TweakList.svelte";
     import type { Tweak } from "$lib/types";
 
     export let allTweaks: Tweak[] = [];
 
-    $: mouseTweaks = allTweaks.filter(
-        (t) => t.category === "MouseInput" && t.id.includes("mouse"),
-    );
+    $: mouseTweaks = allTweaks.filter((t) => t.category === "MouseInput");
 
-    async function toggleTweak(tweak: Tweak) {
-        try {
-            if (tweak.enabled) {
-                await invoke("undo_tweak", { id: tweak.id });
-                tweak.enabled = false;
-            } else {
-                await invoke("apply_tweak", { id: tweak.id });
-                tweak.enabled = true;
+    async function applySafeTweaks(tweaks: Tweak[]) {
+        for (const tweak of tweaks.filter((t) => t.warning_level === "Safe")) {
+            if (!tweak.enabled) {
+                try {
+                    await invoke("apply_tweak", { id: tweak.id });
+                    tweak.enabled = true;
+                } catch (e) {
+                    console.error(`Failed to apply tweak ${tweak.id}:`, e);
+                }
             }
-            allTweaks = allTweaks;
-        } catch (e) {
-            console.error("Failed to toggle tweak:", e);
         }
+        allTweaks = allTweaks;
     }
 </script>
 
-<div class="mouse-dashboard">
-    <div class="header">
-        <h2>🖱️ Mouse Optimization</h2>
-        <p class="subtitle">
-            Reduce input lag, disable acceleration, and optimize pointer
-            precision.
-        </p>
+<div class="section-container">
+    <div class="section-header">
+        <div class="header-text">
+            <h2>🖱️ Mouse Optimization</h2>
+            <p>Reduce input lag, disable acceleration, and adjust scaling.</p>
+        </div>
+        <button
+            class="optimize-btn safe"
+            on:click={() => applySafeTweaks(mouseTweaks)}
+        >
+            ✅ Apply Safe Tweaks
+        </button>
     </div>
 
-    <div class="tweaks-grid">
-        {#each mouseTweaks as tweak}
-            <TweakCard {tweak} on:toggle={() => toggleTweak(tweak)} />
-        {/each}
-        {#if mouseTweaks.length === 0}
-            <p class="empty">No mouse tweaks found.</p>
-        {/if}
+    <div class="tweaks-wrapper">
+        <TweakList tweaks={mouseTweaks} showHeader={false} />
     </div>
 </div>
 
 <style>
-    .mouse-dashboard {
-        padding: 0 0 24px 0;
-        animation: fadeIn 0.3s ease-out;
+    .section-container {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
     }
 
-    .header {
+    .section-header {
         margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
     }
 
-    h2 {
+    .header-text h2 {
         font-size: 20px;
-        font-weight: 600;
-        margin-bottom: 8px;
+        margin: 0 0 8px 0;
         color: var(--text-color);
     }
-
-    .subtitle {
+    .header-text p {
+        margin: 0 0 16px 0;
         color: var(--text-muted);
         font-size: 14px;
     }
 
-    .tweaks-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 12px;
+    .optimize-btn {
+        border: none;
+        padding: 8px 16px;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        cursor: pointer;
+        color: white;
+        white-space: nowrap;
+    }
+    .optimize-btn.safe {
+        background: #10b981;
+    }
+    .optimize-btn.safe:hover {
+        background: #059669;
     }
 
-    .empty {
-        color: var(--text-muted);
-        grid-column: 1 / -1;
-        padding: 24px;
-        text-align: center;
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 8px;
-    }
-
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    .tweaks-wrapper {
+        flex: 1;
+        overflow: hidden;
     }
 </style>

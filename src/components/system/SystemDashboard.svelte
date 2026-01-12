@@ -1,224 +1,324 @@
 <script lang="ts">
     import { fade } from "svelte/transition";
-    import TweakCard from "../TweakCard.svelte";
+    import TweakList from "../TweakList.svelte";
     import { invoke } from "@tauri-apps/api/core";
     import type { Tweak } from "$lib/types";
 
     export let allTweaks: Tweak[] = [];
 
-    // Filter System tweaks
-    // Category is "System"
-    // We can also split by ID prefix or analysis
-    $: systemTweaks = allTweaks.filter((t) => t.category === "System");
-    $: hardwareTweaks = allTweaks.filter(
-        (t) => t.category === "Hardware" || t.id.includes("msi_global"),
-    ); // Including global msi if mapped to Hardware or System
+    // Navigation state
+    let currentView: "dashboard" | "maintenance" | "services" | "system" =
+        "dashboard";
 
-    // Grouping
-    // Services, Maintenance, MSI (Hardware)
-    // Actually backend System module: maintenance, services, msi.
-    // msi.rs tweak category is "Hardware" in my previous edit?
-    // Let's check msi.rs content again or just assume catch-all.
-    // Wait, I set category to "Hardware" in system/msi.rs but user said "Hardware shouldn't exist".
-    // I should probably map "Hardware" category in sidebar to SystemDashboard if I keep it, or I should have changed category to "System".
-    // I entered "Hardware" in msi.rs.
-    // Let's filter for both "System" and "Hardware" categories here to be safe and show them.
+    // --- Filters ---
 
-    $: combinedTweaks = allTweaks.filter(
-        (t) => t.category === "System" || t.category === "Hardware",
+    // Maintenance (Cleaning, Restore Points, etc)
+    $: maintenanceTweaks = allTweaks.filter(
+        (t) =>
+            t.category === "System" &&
+            (t.id.includes("maintenance") ||
+                t.id.includes("restore") ||
+                t.id.includes("cleanup") ||
+                t.id.includes("bso_d") || // bsod auto restart usually
+                t.id.includes("restart")),
     );
 
-    $: maintenanceTweaks = combinedTweaks.filter(
-        (t) => t.id.includes("maintenance") || t.id.includes("cleanup"),
+    // Services (Windows Update, Fax, etc)
+    $: servicesTweaks = allTweaks.filter(
+        (t) =>
+            t.category === "System" &&
+            (t.id.includes("service") ||
+                t.id.includes("update") ||
+                t.id.includes("fax") ||
+                t.id.includes("print") ||
+                t.id.includes("bloat")),
     );
-    $: serviceTweaks = combinedTweaks.filter(
-        (t) => t.id.includes("service") || t.id.includes("svc"),
-    );
-    $: msiTweaks = combinedTweaks.filter((t) => t.id.includes("msi"));
 
-    async function toggleTweak(tweak: Tweak) {
-        try {
-            if (tweak.enabled) {
-                await invoke("undo_tweak", { id: tweak.id });
-                tweak.enabled = false;
-            } else {
-                await invoke("apply_tweak", { id: tweak.id });
-                tweak.enabled = true;
+    // System / Hardware / MSI (General System Tweaks)
+    $: systemTweaks = allTweaks.filter(
+        (t) =>
+            t.category === "System" &&
+            !maintenanceTweaks.includes(t) &&
+            !servicesTweaks.includes(t),
+    );
+
+    // Helper for "Apply Safe Tweaks"
+    async function applySafeTweaks(tweaks: Tweak[]) {
+        for (const tweak of tweaks.filter((t) => t.warning_level === "Safe")) {
+            if (!tweak.enabled) {
+                try {
+                    await invoke("apply_tweak", { id: tweak.id });
+                    tweak.enabled = true;
+                } catch (e) {
+                    console.error(`Failed to apply tweak ${tweak.id}:`, e);
+                }
             }
-            allTweaks = allTweaks;
-        } catch (e) {
-            console.error("Failed to toggle tweak:", e);
         }
+        allTweaks = allTweaks; // Trigger updates
     }
-
-    let activeTab: "general" | "services" | "hardware" = "general";
 </script>
 
-<div class="system-dashboard">
-    <div class="header-section">
-        <h1>System Optimization</h1>
-        <p>
-            Manage system services, maintenance tasks, and hardware interrupts.
-        </p>
-    </div>
+<div class="system-container">
+    {#if currentView === "dashboard"}
+        <div class="dashboard-grid" in:fade>
+            <!-- Maintenance Card -->
+            <div
+                class="card"
+                role="button"
+                tabindex="0"
+                on:click={() => (currentView = "maintenance")}
+                on:keydown={(e) =>
+                    e.key === "Enter" && (currentView = "maintenance")}
+            >
+                <div class="card-icon">🧹</div>
+                <h3>Maintenance</h3>
+                <p>
+                    System cleanup, restore points, and auto-restart settings.
+                </p>
+                <div class="status">{maintenanceTweaks.length} tweaks</div>
+            </div>
 
-    <div class="tabs">
-        <button
-            class:active={activeTab === "general"}
-            on:click={() => (activeTab = "general")}
-        >
-            <span class="icon">🛠️</span>
-            <span>Maintenance</span>
-        </button>
-        <button
-            class:active={activeTab === "services"}
-            on:click={() => (activeTab = "services")}
-        >
-            <span class="icon">⚙️</span>
-            <span>Services</span>
-        </button>
-        <button
-            class:active={activeTab === "hardware"}
-            on:click={() => (activeTab = "hardware")}
-        >
-            <span class="icon">⚡</span>
-            <span>Hardware / MSI</span>
-        </button>
-    </div>
+            <!-- Services Card -->
+            <div
+                class="card"
+                role="button"
+                tabindex="0"
+                on:click={() => (currentView = "services")}
+                on:keydown={(e) =>
+                    e.key === "Enter" && (currentView = "services")}
+            >
+                <div class="card-icon">⚙️</div>
+                <h3>Windows Services</h3>
+                <p>Optimize background services and disable bloat.</p>
+                <div class="status">{servicesTweaks.length} tweaks</div>
+            </div>
 
-    <div class="content">
-        {#if activeTab === "general"}
-            <div class="grid" in:fade>
-                {#each maintenanceTweaks as tweak}
-                    <TweakCard {tweak} on:toggle={() => toggleTweak(tweak)} />
-                {/each}
-                {#if maintenanceTweaks.length === 0}
-                    <div class="empty">No maintenance tweaks found.</div>
+            <!-- System / MSI Card -->
+            <div
+                class="card"
+                role="button"
+                tabindex="0"
+                on:click={() => (currentView = "system")}
+                on:keydown={(e) =>
+                    e.key === "Enter" && (currentView = "system")}
+            >
+                <div class="card-icon">💻</div>
+                <h3>System & Hardware</h3>
+                <p>General system tweaks and hardware configurations.</p>
+                <div class="status">{systemTweaks.length} tweaks</div>
+            </div>
+        </div>
+    {:else}
+        <div class="detail-view" in:fade>
+            <button
+                class="back-btn"
+                on:click={() => (currentView = "dashboard")}
+            >
+                ← Back to Dashboard
+            </button>
+
+            <div class="section-content">
+                {#if currentView === "maintenance"}
+                    <div class="section-header">
+                        <div class="header-text">
+                            <h2>🧹 Maintenance</h2>
+                            <p>Keep your system clean and stable.</p>
+                        </div>
+                        <button
+                            class="optimize-btn safe"
+                            on:click={() => applySafeTweaks(maintenanceTweaks)}
+                        >
+                            ✅ Apply Safe Tweaks
+                        </button>
+                    </div>
+                    <div class="tweaks-wrapper">
+                        <TweakList
+                            tweaks={maintenanceTweaks}
+                            showHeader={false}
+                        />
+                    </div>
+                {:else if currentView === "services"}
+                    <div class="section-header">
+                        <div class="header-text">
+                            <h2>⚙️ Windows Services</h2>
+                            <p>
+                                Manage background services for better
+                                performance.
+                            </p>
+                        </div>
+                        <button
+                            class="optimize-btn safe"
+                            on:click={() => applySafeTweaks(servicesTweaks)}
+                        >
+                            ✅ Apply Safe Tweaks
+                        </button>
+                    </div>
+                    <div class="tweaks-wrapper">
+                        <TweakList tweaks={servicesTweaks} showHeader={false} />
+                    </div>
+                {:else if currentView === "system"}
+                    <div class="section-header">
+                        <div class="header-text">
+                            <h2>💻 System & Hardware</h2>
+                            <p>Core system behavior and hardware interrupts.</p>
+                        </div>
+                        <button
+                            class="optimize-btn safe"
+                            on:click={() => applySafeTweaks(systemTweaks)}
+                        >
+                            ✅ Apply Safe Tweaks
+                        </button>
+                    </div>
+                    <div class="tweaks-wrapper">
+                        <TweakList tweaks={systemTweaks} showHeader={false} />
+                    </div>
                 {/if}
             </div>
-        {:else if activeTab === "services"}
-            <div class="grid" in:fade>
-                {#each serviceTweaks as tweak}
-                    <TweakCard {tweak} on:toggle={() => toggleTweak(tweak)} />
-                {/each}
-                {#if serviceTweaks.length === 0}
-                    <div class="empty">No service tweaks found.</div>
-                {/if}
-            </div>
-        {:else if activeTab === "hardware"}
-            <div class="grid" in:fade>
-                <div class="info-banner">
-                    <span class="icon">ℹ️</span>
-                    <p>
-                        Global MSI Mode attempts to enable Message Signaled
-                        Interrupts for all supported devices. Use with caution.
-                    </p>
-                </div>
-                {#each msiTweaks as tweak}
-                    <TweakCard {tweak} on:toggle={() => toggleTweak(tweak)} />
-                {/each}
-                {#if msiTweaks.length === 0}
-                    <div class="empty">No hardware/MSI tweaks found.</div>
-                {/if}
-            </div>
-        {/if}
-    </div>
+        </div>
+    {/if}
 </div>
 
 <style>
-    .system-dashboard {
+    .system-container {
+        height: 100%;
+        color: var(--text-color);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 24px;
+        margin-top: 20px;
+        overflow-y: auto;
+        flex: 1;
+        padding: 24px;
+        padding-top: 4px;
+    }
+
+    .card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius);
+        padding: 24px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        position: relative;
+        z-index: 1;
+    }
+
+    .card:hover {
+        background: rgba(255, 255, 255, 0.06);
+        transform: translateY(-2px);
+        border-color: var(--accent-color);
+        z-index: 10;
+        position: relative;
+    }
+
+    .card-icon {
+        font-size: 32px;
+        margin-bottom: 16px;
+    }
+
+    h3 {
+        margin: 0 0 8px 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-color);
+    }
+
+    p {
+        margin: 0 0 24px 0;
+        color: var(--text-muted);
+        font-size: 14px;
+        line-height: 1.5;
+        flex-grow: 1;
+    }
+
+    .status {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--accent-color);
+        background: rgba(59, 130, 246, 0.1);
+        padding: 6px 12px;
+        border-radius: 20px;
+    }
+
+    .detail-view {
         height: 100%;
         display: flex;
         flex-direction: column;
         padding: 24px;
-        color: var(--text-color);
-        box-sizing: border-box;
-        overflow: hidden;
     }
 
-    .header-section {
-        margin-bottom: 24px;
-        flex-shrink: 0;
-    }
-
-    h1 {
-        font-size: 24px;
-        font-weight: 700;
-        margin: 0 0 8px 0;
-    }
-
-    p {
-        color: var(--text-muted);
-        font-size: 14px;
-        margin: 0;
-    }
-
-    .tabs {
-        display: flex;
-        gap: 12px;
-        margin-bottom: 24px;
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: 0;
-        flex-shrink: 0;
-    }
-
-    .tabs button {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 12px 16px;
-        background: transparent;
-        border: none;
-        border-bottom: 2px solid transparent;
-        color: var(--text-muted);
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 500;
-        transition: all 0.2s;
-    }
-
-    .tabs button:hover {
-        color: var(--text-color);
-        background: rgba(255, 255, 255, 0.03);
-    }
-
-    .tabs button.active {
-        color: var(--accent-color);
-        border-bottom-color: var(--accent-color);
-    }
-
-    .content {
+    .section-content {
         flex: 1;
-        overflow-y: auto;
-        padding-bottom: 20px;
-    }
-
-    .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 16px;
-    }
-
-    .info-banner {
-        grid-column: 1 / -1;
-        background: rgba(245, 158, 11, 0.1);
-        border: 1px solid rgba(245, 158, 11, 0.2);
-        border-radius: var(--radius-sm);
-        padding: 12px 16px;
+        overflow: hidden;
         display: flex;
-        gap: 12px;
-        align-items: flex-start;
-        color: var(--text-color);
-        font-size: 14px;
-        line-height: 1.5;
-        margin-bottom: 8px;
+        flex-direction: column;
     }
 
-    .empty {
-        text-align: center;
-        padding: 40px;
+    .section-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .header-text h2 {
+        font-size: 20px;
+        margin: 0 0 8px 0;
+        color: var(--text-color);
+    }
+    .header-text p {
+        margin: 0 0 16px 0;
         color: var(--text-muted);
-        font-style: italic;
-        grid-column: 1 / -1;
+        font-size: 14px;
+    }
+
+    .optimize-btn {
+        border: none;
+        padding: 8px 16px;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        cursor: pointer;
+        color: white;
+        white-space: nowrap;
+    }
+    .optimize-btn.safe {
+        background: #10b981;
+    }
+    .optimize-btn.safe:hover {
+        background: #059669;
+    }
+
+    .tweaks-wrapper {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .back-btn {
+        align-self: flex-start;
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-size: 14px;
+        cursor: pointer;
+        padding: 8px 0;
+        margin-bottom: 16px;
+        transition: color 0.2s;
+    }
+
+    .back-btn:hover {
+        color: var(--text-color);
     }
 </style>
