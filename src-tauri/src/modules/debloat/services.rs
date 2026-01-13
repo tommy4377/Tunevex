@@ -16,6 +16,7 @@ pub fn get_service_tweaks() -> Vec<Tweak> {
                     foreach ($svc in $services) { Set-Service -Name $svc -StartupType Manual -EA 0 }
                     "#.to_string(),
                 }
+            ]),
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $fax = Get-Service Fax -ErrorAction SilentlyContinue
