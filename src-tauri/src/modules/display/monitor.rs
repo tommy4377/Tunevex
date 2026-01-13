@@ -14,16 +14,16 @@ fn tweak_max_refresh_rate() -> Tweak {
     Tweak {
         id: "display_max_refresh_rate".to_string(),
         category: TweakCategory::DisplayMonitor,
-        name: "🖥️ Set Monitor to Maximum Refresh Rate".to_string(),
+        name: "Set Monitor to Maximum Refresh Rate".to_string(),
         description: "Automatically sets your monitor to its maximum supported refresh rate (120Hz/144Hz/165Hz/240Hz/360Hz).".to_string(),
         warning_level: WarningLevel::Safe,
         requires_restart: false,
         revert_operations: Some(vec![TweakOperation::Powershell {
             script: r#"
-            Write-Host "To revert, go to:" -ForegroundColor Yellow
-            Write-Host "Settings > Display > Advanced display > Choose a refresh rate" -ForegroundColor Cyan
-            Write-Host "Or use Windows Display Settings to select your preferred refresh rate." -ForegroundColor Cyan
-        "#.to_string(),
+Write-Host "This tweak cannot be reverted automatically - it only sets to maximum." -ForegroundColor Yellow
+Write-Host "Your monitor is now at its maximum supported refresh rate." -ForegroundColor Cyan
+Write-Host "To change: Settings > Display > Advanced display > Choose a refresh rate" -ForegroundColor Cyan
+"#.to_string(),
         }]),
         tweak_type: TweakType::Toggle, enabled: false,
         check: Some(TweakCheck::Powershell {
@@ -226,7 +226,7 @@ fn tweak_dpi_100() -> Tweak {
     Tweak {
         id: "display_dpi_100".to_string(),
         category: TweakCategory::DisplayMonitor,
-        name: "📐 Set DPI Scaling to 100%".to_string(),
+        name: "Set DPI Scaling to 100%".to_string(),
         description: "Forces DPI scaling to 100% to avoid blur and rendering overhead in games. May make UI smaller on high-resolution displays.".to_string(),
         warning_level: WarningLevel::Careful,
         requires_restart: true,
@@ -280,7 +280,7 @@ fn tweak_8bit_color() -> Tweak {
     Tweak {
         id: "display_8bit_color".to_string(),
         category: TweakCategory::DisplayMonitor,
-        name: "🎨 Force 8-bit Color Depth".to_string(),
+        name: "Force 8-bit Color Depth".to_string(),
         description: "Sets display to 8-bit (32bpp) instead of 10-bit for better compatibility with high refresh rates (144Hz+).".to_string(),
         warning_level: WarningLevel::Safe,
         requires_restart: false,

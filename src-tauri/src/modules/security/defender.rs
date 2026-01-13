@@ -129,7 +129,7 @@ if ($status.IsTamperProtected) {
         Tweak {
             id: "sec_disable_samples".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "📤 Disable Sample Submission".to_string(),
+            name: "Disable Sample Submission".to_string(),
             description: "Stops Defender from sending file samples to Microsoft for analysis.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -161,7 +161,7 @@ if ($status.IsTamperProtected) {
         Tweak {
             id: "sec_dev_exclusions".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "💻 Add Developer Folder Exclusions".to_string(),
+            name: "Add Developer Folder Exclusions".to_string(),
             description: "Excludes common developer folders from Defender scanning (improves build times).".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -221,7 +221,7 @@ Write-Host "Developer exclusions added to Windows Defender" -ForegroundColor Gre
         Tweak {
             id: "sec_disable_pua".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "📦 Disable PUA Protection".to_string(),
+            name: "Disable PUA Protection".to_string(),
             description: "Disables detection of Potentially Unwanted Applications. Useful for tools like cracks, keygens.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
@@ -253,7 +253,7 @@ Write-Host "Developer exclusions added to Windows Defender" -ForegroundColor Gre
         Tweak {
             id: "sec_disable_defender".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "⛔ Disable Windows Defender Completely".to_string(),
+            name: "Disable Windows Defender Completely".to_string(),
             description: "Completely disables Windows Defender antivirus. EXTREME RISK. NOTE: You MUST disable 'Tamper Protection' manually in Windows Security settings first.".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: true,

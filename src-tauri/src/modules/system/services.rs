@@ -41,7 +41,7 @@ if ($s -and $s.StartType -eq 'Disabled') { "True" } else { "False" }
         Tweak {
             id: "system_set_bits_manual".to_string(),
             category: TweakCategory::System,
-            name: "📉 Set BITS to Manual".to_string(),
+            name: "Set BITS to Manual".to_string(),
             description: "Sets Background Intelligent Transfer Service to Manual. Stops it from running constantly in the background.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,

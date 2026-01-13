@@ -1,11 +1,13 @@
-use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 pub fn get_service_tweaks() -> Vec<Tweak> {
     vec![
         Tweak {
             id: "sec_disable_remote_services".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🔐 Disable Remote Access Services".to_string(),
+            name: "Disable Remote Access Services".to_string(),
             description: "Disables Remote Registry, Remote Access, WinRM. Improves security by reducing attack surface.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,

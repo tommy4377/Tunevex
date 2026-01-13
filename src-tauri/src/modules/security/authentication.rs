@@ -12,7 +12,7 @@ pub fn get_authentication_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_disable_hello".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "👋 Disable Windows Hello".to_string(),
+            name: "Disable Windows Hello".to_string(),
             description: "Disables Windows Hello biometric and PIN sign-in prompts.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -112,7 +112,7 @@ pub fn get_authentication_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_no_signin_sleep".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "😴 Disable Sign-in After Sleep".to_string(),
+            name: "Disable Sign-in After Sleep".to_string(),
             description: "Skips password prompt when waking from sleep/hibernate.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,

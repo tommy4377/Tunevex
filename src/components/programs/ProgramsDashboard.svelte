@@ -293,6 +293,21 @@
         border-bottom: 1px solid var(--border-color);
         overflow-x: auto;
         align-items: center;
+        flex-shrink: 0;
+        min-height: 56px;
+    }
+
+    .tabs::-webkit-scrollbar {
+        height: 4px;
+    }
+
+    .tabs::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .tabs::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 4px;
     }
 
     .tabs button {
@@ -338,6 +353,37 @@
         gap: 12px;
         cursor: pointer;
         transition: all 0.2s;
+        overflow: hidden;
+        min-height: 160px;
+    }
+
+    .card.selected {
+        border-color: var(--accent-color);
+        background: rgba(59, 130, 246, 0.05);
+    }
+
+    .card:hover {
+        border-color: var(--accent-color);
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .card-content {
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .card-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .card-header-row input[type="checkbox"] {
+        accent-color: var(--accent-color);
+        cursor: pointer;
+        flex-shrink: 0;
     }
 
     .loading-state {
@@ -352,9 +398,14 @@
     }
 
     .card-content h3 {
-        margin: 0 0 4px 0;
-        font-size: 16px;
+        margin: 0;
+        font-size: 15px;
         color: var(--text-color);
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
     }
 
     .desc {
@@ -362,15 +413,24 @@
         color: var(--text-muted);
         margin: 0 0 8px 0;
         line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
 
     .pkg-id {
         font-size: 11px;
         color: var(--text-muted);
         background: rgba(0, 0, 0, 0.2);
-        padding: 2px 4px;
+        padding: 2px 6px;
         border-radius: 4px;
         font-family: monospace;
+        display: inline-block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .card-actions {

@@ -7,7 +7,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "debloat_disable_printer_features".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🖨️ Disable Printer & XPS Features".to_string(),
+            name: "Disable Printer & XPS Features".to_string(),
             description: "Disables Internet Printing, LPD, LPR, Print to PDF, XPS Services/Viewer, and Work Folders.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
@@ -64,7 +64,7 @@ Write-Host "Printer and XPS features disabled" -ForegroundColor Green
         Tweak {
             id: "debloat_disable_ie_features".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🌐 Disable Internet Explorer".to_string(),
+            name: "Disable Internet Explorer".to_string(),
             description: "Disables Internet Explorer mode (legacy feature).".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
@@ -97,7 +97,7 @@ Write-Host "Internet Explorer disabled" -ForegroundColor Green
         Tweak {
             id: "debloat_disable_mediaplayer".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🎵 Disable Windows Media Player".to_string(),
+            name: "Disable Windows Media Player".to_string(),
             description: "Disables Windows Media Player legacy feature.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
@@ -130,7 +130,7 @@ Write-Host "Windows Media Player disabled" -ForegroundColor Green
         Tweak {
             id: "debloat_disable_wordpad".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "📝 Disable WordPad".to_string(),
+            name: "Disable WordPad".to_string(),
             description: "Disables WordPad legacy feature.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,

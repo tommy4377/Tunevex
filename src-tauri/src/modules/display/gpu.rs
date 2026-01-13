@@ -15,7 +15,7 @@ fn tweak_enable_vrr() -> Tweak {
     Tweak {
         id: "display_enable_vrr".to_string(),
         category: TweakCategory::DisplayMonitor,
-        name: "🔄 Enable Variable Refresh Rate (VRR/G-SYNC/FreeSync)".to_string(),
+        name: "Enable Variable Refresh Rate (VRR/G-SYNC/FreeSync)".to_string(),
         description: "Enables VRR to eliminate screen tearing without V-Sync lag. Requires G-SYNC/FreeSync compatible monitor.".to_string(),
         warning_level: WarningLevel::Safe,
         requires_restart: false,
@@ -101,7 +101,7 @@ fn tweak_no_gpu_scaling() -> Tweak {
     Tweak {
         id: "display_no_gpu_scaling".to_string(),
         category: TweakCategory::DisplayMonitor,
-        name: "🎯 Disable GPU Scaling".to_string(),
+        name: "Disable GPU Scaling".to_string(),
         description: "Uses display (monitor) scaling instead of GPU scaling to reduce input latency. Best for native resolution gaming.".to_string(),
         warning_level: WarningLevel::Safe,
         requires_restart: true,
@@ -185,7 +185,7 @@ fn tweak_toggle_hdr() -> Tweak {
     Tweak {
         id: "display_enable_hdr".to_string(),
         category: TweakCategory::DisplayMonitor,
-        name: "🌈 Enable HDR (High Dynamic Range)".to_string(),
+        name: "Enable HDR (High Dynamic Range)".to_string(),
         description: "Enables HDR for supported monitors. Provides better colors and contrast in games and media.
 
 Requires:
@@ -261,7 +261,7 @@ fn tweak_nvidia_low_latency() -> Tweak {
     Tweak {
         id: "display_nvidia_low_latency".to_string(),
         category: TweakCategory::DisplayMonitor,
-        name: "⚡ NVIDIA Low Latency Mode (Ultra)".to_string(),
+        name: "NVIDIA Low Latency Mode (Ultra)".to_string(),
         description: "Enables NVIDIA Ultra Low Latency Mode globally for reduced input lag.
 
 Equivalent to setting 'Low Latency Mode' to 'Ultra' in NVIDIA Control Panel.

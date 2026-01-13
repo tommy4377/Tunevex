@@ -7,7 +7,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "debloat_edge_sidebar".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🔧 Disable Edge Sidebar & Discover".to_string(),
+            name: "Disable Edge Sidebar & Discover".to_string(),
             description: "Disables Edge sidebar, Discover button, and related bloat features.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -46,7 +46,7 @@ Write-Host "Edge sidebar features disabled" -ForegroundColor Green
         Tweak {
             id: "debloat_edge_startup".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🔧 Disable Edge First Run & Welcome".to_string(),
+            name: "Disable Edge First Run & Welcome".to_string(),
             description: "Disables Edge first run experience and welcome page.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -83,7 +83,7 @@ Write-Host "Edge first run disabled" -ForegroundColor Green
         Tweak {
             id: "debloat_edge_sync".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🔧 Disable Edge Sync & Cloud Features".to_string(),
+            name: "Disable Edge Sync & Cloud Features".to_string(),
             description: "Disables Edge sync, collections, and cloud features.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -120,7 +120,7 @@ Write-Host "Edge sync disabled" -ForegroundColor Green
         Tweak {
             id: "debloat_edge_telemetry".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🔧 Disable Edge Telemetry".to_string(),
+            name: "Disable Edge Telemetry".to_string(),
             description: "Disables Edge telemetry, usage data, and personalization.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -159,7 +159,7 @@ Write-Host "Edge telemetry disabled" -ForegroundColor Green
         Tweak {
             id: "debloat_edge_autostart".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🔧 Disable Edge Auto-Start".to_string(),
+            name: "Disable Edge Auto-Start".to_string(),
             description: "Prevents Edge from starting automatically at login.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,

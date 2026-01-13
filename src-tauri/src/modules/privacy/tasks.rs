@@ -7,7 +7,7 @@ pub fn get_task_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "privacy_disable_telemetry_tasks".to_string(),
             category: TweakCategory::Privacy,
-            name: "📋 Disable Telemetry Tasks".to_string(),
+            name: "Disable Telemetry Tasks".to_string(),
             description: "Disables 30+ telemetry and data collection scheduled tasks.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,

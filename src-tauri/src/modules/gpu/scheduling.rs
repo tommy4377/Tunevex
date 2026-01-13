@@ -118,7 +118,7 @@ pub fn get_scheduling_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "gpu_disable_nvidia_telemetry".to_string(),
             category: TweakCategory::GpuOptimization,
-            name: "🔇 Disable NVIDIA Telemetry".to_string(),
+            name: "Disable NVIDIA Telemetry".to_string(),
             description: "Stops and disables NVIDIA telemetry services (NvTelemetryContainer, NvContainerLocalSystem). Reduces background CPU usage and network traffic.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,

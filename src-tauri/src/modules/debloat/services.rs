@@ -7,7 +7,7 @@ pub fn get_service_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "debloat_disable_misc_services".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🧹 Disable Miscellaneous Services".to_string(),
+            name: "Disable Miscellaneous Services".to_string(),
             description: "Disables unused services: WMP, Maps, Fax, RetailDemo, Wallet, Phone, etc.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -42,7 +42,7 @@ if (($fax.StartType -eq 'Disabled') -and ($wmp.StartType -eq 'Disabled')) { "Tru
         Tweak {
             id: "debloat_disable_edge_services".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🌐 Disable Edge Update Services".to_string(),
+            name: "Disable Edge Update Services".to_string(),
             description: "Disables Microsoft Edge update services.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -73,7 +73,7 @@ if ((Get-Service edgeupdate -ErrorAction SilentlyContinue).StartType -match 'Dis
         Tweak {
             id: "debloat_disable_printer_services".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🖨️ Disable Printer Services".to_string(),
+            name: "Disable Printer Services".to_string(),
             description: "Disables Print Spooler. Only if not using printers!".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
@@ -102,7 +102,7 @@ if ((Get-Service Spooler -ErrorAction SilentlyContinue).StartType -match 'Disabl
         Tweak {
             id: "debloat_disable_bluetooth_services".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🔵 Disable Bluetooth Services".to_string(),
+            name: "Disable Bluetooth Services".to_string(),
             description: "Disables Bluetooth services. Only if not using Bluetooth!".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,

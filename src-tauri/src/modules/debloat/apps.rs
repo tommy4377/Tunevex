@@ -68,7 +68,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "debloat_ms_common".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🧹 Remove Common Microsoft Bloatware".to_string(),
+            name: "Remove Common Microsoft Bloatware".to_string(),
             description: "Removes Clipchamp, 3DBuilder, BingNews, Solitaire, Skype, Zune, StickyNotes, etc.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -210,7 +210,7 @@ if (!(Get-AppxPackage -Name "*YourPhone*" -ErrorAction SilentlyContinue)) { "Tru
         Tweak {
             id: "debloat_onedrive".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "☁️ Remove OneDrive".to_string(),
+            name: "Remove OneDrive".to_string(),
             description: "Completely removes Microsoft OneDrive from the system.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
@@ -315,7 +315,7 @@ if (!(Get-AppxPackage -Name "*Spotify*" -ErrorAction SilentlyContinue)) { "True"
         Tweak {
             id: "debloat_hp".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "💻 Remove HP Bloatware".to_string(),
+            name: "Remove HP Bloatware".to_string(),
             description: "Removes HP pre-installed apps: Support Assistant, JumpStarts, MyHP, WorkWell, etc.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -348,7 +348,7 @@ if (!(Get-AppxPackage -Name "*HPSupportAssistant*" -ErrorAction SilentlyContinue
         Tweak {
             id: "debloat_dell".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "💻 Remove Dell Bloatware".to_string(),
+            name: "Remove Dell Bloatware".to_string(),
             description: "Removes Dell pre-installed apps: SupportAssist, Digital Delivery, etc.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -376,7 +376,7 @@ if (!(Get-AppxPackage -Name "*DellSupportAssistforPCs*" -ErrorAction SilentlyCon
         Tweak {
             id: "debloat_lenovo".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "💻 Remove Lenovo Bloatware".to_string(),
+            name: "Remove Lenovo Bloatware".to_string(),
             description: "Removes Lenovo pre-installed apps: Vantage, Companion, etc.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -404,7 +404,7 @@ if (!(Get-AppxPackage -Name "*LenovoVantage*" -ErrorAction SilentlyContinue)) { 
         Tweak {
             id: "debloat_asus".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "💻 Remove ASUS Bloatware".to_string(),
+            name: "Remove ASUS Bloatware".to_string(),
             description: "Removes ASUS pre-installed apps: Armoury Crate, ROG, MyASUS, etc.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
@@ -432,7 +432,7 @@ if (!(Get-AppxPackage -Name "*ArmouryCrate*" -ErrorAction SilentlyContinue)) { "
         Tweak {
             id: "debloat_msi".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "💻 Remove MSI Bloatware".to_string(),
+            name: "Remove MSI Bloatware".to_string(),
             description: "Removes MSI Center, Dragon Center, Live Update, SDK, Sound Tune, True Color.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
@@ -476,7 +476,7 @@ Write-Host "Removed $removed MSI apps" -ForegroundColor Green
         Tweak {
             id: "debloat_acer".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "💻 Remove Acer Bloatware".to_string(),
+            name: "Remove Acer Bloatware".to_string(),
             description: "Removes Acer Care Center, Quick Access, Portal, Collection, Product Registration.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -519,7 +519,7 @@ Write-Host "Removed $removed Acer apps" -ForegroundColor Green
         Tweak {
             id: "debloat_razer".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "💻 Remove Razer Bloatware".to_string(),
+            name: "Remove Razer Bloatware".to_string(),
             description: "Removes Razer Synapse, Cortex, Central, Chroma (keeps drivers intact).".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
@@ -631,7 +631,7 @@ Write-Host "Removed $removed Norton apps" -ForegroundColor Green
         Tweak {
             id: "debloat_teams_chat_taskbar".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "💬 Remove Teams Chat from Taskbar".to_string(),
+            name: "Remove Teams Chat from Taskbar".to_string(),
             description: "Hides Teams Chat icon from Windows 11 taskbar and removes integration.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -692,7 +692,7 @@ if (!(Get-AppxPackage -Name "*GamingApp*" -ErrorAction SilentlyContinue)) { "Tru
         Tweak {
             id: "debloat_widgets".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "📰 Remove Widgets".to_string(),
+            name: "Remove Widgets".to_string(),
             description: "Removes Widgets app and hides taskbar button.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -729,7 +729,7 @@ Write-Host "Widgets removed" -ForegroundColor Green
         Tweak {
             id: "debloat_prevent_reinstall".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🚫 Prevent App Reinstallation".to_string(),
+            name: "Prevent App Reinstallation".to_string(),
             description: "Prevents Windows from automatically reinstalling removed apps.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -766,7 +766,7 @@ Write-Host "AppX reinstallation prevention enabled" -ForegroundColor Green
         Tweak {
             id: "debloat_remove_edge_full".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🗑️ Remove Microsoft Edge (Full)".to_string(),
+            name: "Remove Microsoft Edge (Full)".to_string(),
             description: "DANGEROUS: Completely removes Microsoft Edge browser. WARNING: May break WebView2 apps (Teams, Outlook). Use Firefox or Chrome as alternative.".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: true,
@@ -879,7 +879,7 @@ Write-Host "`nEdge removal complete! Restart recommended." -ForegroundColor Gree
         // ============================================
         Tweak {
             id: "debloat_disable_defender".to_string(),
-            category: TweakCategory::DebloatTelemetry,
+            category: TweakCategory::SecurityPrivacy,
             name: "Disable Windows Defender".to_string(),
             description: "DANGEROUS: Disables Windows Defender real-time protection and services via registry policies. Does NOT remove files. Requires reboot.".to_string(),
             warning_level: WarningLevel::Dangerous,
@@ -970,7 +970,7 @@ Write-Host "Defender disabled. Please reboot." -ForegroundColor Green
         Tweak {
             id: "debloat_remove_store".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🏪 Remove Microsoft Store".to_string(),
+            name: "Remove Microsoft Store".to_string(),
             description: "Removes the Microsoft Store application. Use the restore checks or `Get-AppxPackage` to reinstall if needed.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,

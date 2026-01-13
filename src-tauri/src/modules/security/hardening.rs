@@ -44,7 +44,7 @@ pub fn get_hardening_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_disable_remote_assistance".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🚫 Disable Remote Assistance".to_string(),
+            name: "Disable Remote Assistance".to_string(),
             description: "Disables Windows Remote Assistance feature and blocks related firewall rules.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -123,7 +123,7 @@ Write-Host "SMBv1 disabled" -ForegroundColor Green
         Tweak {
             id: "sec_enable_smb_signing".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "✅ Enable SMB Signing".to_string(),
+            name: "Enable SMB Signing".to_string(),
             description: "Requires SMB packet signing. Prevents man-in-the-middle attacks.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -168,7 +168,7 @@ Write-Host "SMBv1 disabled" -ForegroundColor Green
         Tweak {
             id: "sec_disable_delivery_opt".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "📦 Disable Delivery Optimization".to_string(),
+            name: "Disable Delivery Optimization".to_string(),
             description: "Stops P2P sharing of Windows Updates. Downloads only from Microsoft servers.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -200,7 +200,7 @@ Write-Host "SMBv1 disabled" -ForegroundColor Green
         Tweak {
             id: "sec_disable_update_medic".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🔧 Disable Update Medic Service".to_string(),
+            name: "Disable Update Medic Service".to_string(),
             description: "Disables WaaSMedicSvc which re-enables Windows Update. May break updates.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
@@ -233,7 +233,7 @@ Write-Host "SMBv1 disabled" -ForegroundColor Green
         Tweak {
             id: "sec_disable_uac_virtualization".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "📂 Disable UAC Virtualization".to_string(),
+            name: "Disable UAC Virtualization".to_string(),
             description: "Disables file/registry virtualization for legacy apps. May break old software.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,

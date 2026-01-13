@@ -209,7 +209,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "priv_all_in_one".to_string(),
             category: TweakCategory::Privacy,
-            name: "🔐 Privacy Hardening All-in-One".to_string(),
+            name: "Privacy Hardening All-in-One".to_string(),
             description: "Comprehensive privacy settings: disables feedback, handwriting reports, Copilot, Recall, web content, and more.".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: true,

@@ -12,7 +12,7 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_uac_lower".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "📉 Lower UAC Level".to_string(),
+            name: "Lower UAC Level".to_string(),
             description: "Sets UAC to 'notify only when apps try to make changes' without dimming desktop.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
@@ -90,7 +90,7 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_disable_uac".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "⛔ Disable UAC Prompts".to_string(),
+            name: "Disable UAC Prompts".to_string(),
             description: "Disables all UAC elevation prompts. Apps elevate silently. DANGEROUS: Malware can run elevated without warning.".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: true,
@@ -123,7 +123,7 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_uac_admin_mode".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "👑 Disable Admin Approval Mode".to_string(),
+            name: "Disable Admin Approval Mode".to_string(),
             description: "Admin accounts run with full privileges without prompts. Requires reboot.".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: true,

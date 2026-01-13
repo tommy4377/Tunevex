@@ -100,7 +100,7 @@ Write-Host "NVIDIA telemetry disabled" -ForegroundColor Green
         Tweak {
             id: "priv_office_telemetry".to_string(),
             category: TweakCategory::Privacy,
-            name: "📄 Disable Microsoft Office Telemetry".to_string(),
+            name: "Disable Microsoft Office Telemetry".to_string(),
             description: "Disables Office telemetry, CEIP, and customer data collection.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -165,7 +165,7 @@ Write-Host "NVIDIA telemetry disabled" -ForegroundColor Green
         Tweak {
             id: "priv_vs_telemetry".to_string(),
             category: TweakCategory::Privacy,
-            name: "💻 Disable Visual Studio Telemetry".to_string(),
+            name: "Disable Visual Studio Telemetry".to_string(),
             description: "Disables Visual Studio telemetry, VSCEIP, feedback, and IntelliCode collection.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -255,7 +255,7 @@ Write-Host "Visual Studio telemetry disabled" -ForegroundColor Green
         Tweak {
             id: "priv_vscode_telemetry".to_string(),
             category: TweakCategory::Privacy,
-            name: "📝 Disable VS Code Telemetry".to_string(),
+            name: "Disable VS Code Telemetry".to_string(),
             description: "Modifies VS Code settings.json to disable telemetry, crash reports, and experiments.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -389,7 +389,7 @@ Write-Host "PowerShell telemetry disabled" -ForegroundColor Green
         Tweak {
             id: "priv_chrome_telemetry".to_string(),
             category: TweakCategory::Privacy,
-            name: "🌐 Disable Chrome Telemetry".to_string(),
+            name: "Disable Chrome Telemetry".to_string(),
             description: "Disables Chrome metrics reporting and software reporter tool.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -443,7 +443,7 @@ Write-Host "PowerShell telemetry disabled" -ForegroundColor Green
         Tweak {
             id: "priv_firefox_telemetry".to_string(),
             category: TweakCategory::Privacy,
-            name: "🦊 Disable Firefox Telemetry (Enterprise)".to_string(),
+            name: "Disable Firefox Telemetry (Enterprise)".to_string(),
             description: "Sets Firefox enterprise policies to disable telemetry, studies, and crash reports.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,

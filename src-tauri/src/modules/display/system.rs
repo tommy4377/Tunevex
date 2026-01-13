@@ -1,4 +1,6 @@
-use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 pub fn get_system_tweaks() -> Vec<Tweak> {
     vec![tweak_timer_resolution()]
@@ -8,7 +10,7 @@ fn tweak_timer_resolution() -> Tweak {
     Tweak {
         id: "display_timer_resolution".to_string(),
         category: TweakCategory::DisplayMonitor,
-        name: "⏱️ Set Timer Resolution to 0.5ms".to_string(),
+        name: "Set Timer Resolution to 0.5ms".to_string(),
         description: "Reduces Windows timer interval from 15.6ms to 0.5ms for lower input lag. May slightly increase power consumption.".to_string(),
         warning_level: WarningLevel::Careful,
         requires_restart: false,

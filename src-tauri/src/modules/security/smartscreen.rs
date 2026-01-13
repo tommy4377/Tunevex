@@ -56,7 +56,7 @@ pub fn get_smartscreen_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_disable_smartscreen_edge".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🌐 Disable SmartScreen for Edge".to_string(),
+            name: "Disable SmartScreen for Edge".to_string(),
             description: "Disables SmartScreen in Microsoft Edge browser.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
@@ -89,7 +89,7 @@ pub fn get_smartscreen_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_disable_smartscreen_store".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🏪 Disable SmartScreen for Store Apps".to_string(),
+            name: "Disable SmartScreen for Store Apps".to_string(),
             description: "Disables web content evaluation for Microsoft Store apps.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
@@ -122,7 +122,7 @@ pub fn get_smartscreen_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_disable_app_reputation".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "📋 Disable App Reputation Check".to_string(),
+            name: "Disable App Reputation Check".to_string(),
             description: "Stops Windows from checking app reputation online before execution.".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: false,
@@ -154,7 +154,7 @@ pub fn get_smartscreen_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_disable_protected_popup".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🚫 Disable 'Protected Your PC' Popup".to_string(),
+            name: "Disable 'Protected Your PC' Popup".to_string(),
             description: "Removes the blue warning screen when running unrecognized apps.".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: false,

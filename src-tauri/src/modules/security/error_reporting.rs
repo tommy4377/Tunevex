@@ -12,7 +12,7 @@ pub fn get_error_reporting_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_disable_wer".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "📊 Disable Windows Error Reporting".to_string(),
+            name: "Disable Windows Error Reporting".to_string(),
             description: "Stops Windows from collecting and sending crash reports to Microsoft."
                 .to_string(),
             warning_level: WarningLevel::Safe,
@@ -135,7 +135,7 @@ Write-Host "Windows Error Reporting Service disabled" -ForegroundColor Green
         Tweak {
             id: "sec_disable_problem_dialog".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "💬 Disable Problem Reporting Dialog".to_string(),
+            name: "Disable Problem Reporting Dialog".to_string(),
             description: "Disables the 'Windows is checking for a solution' dialog.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -163,7 +163,7 @@ Write-Host "Windows Error Reporting Service disabled" -ForegroundColor Green
         Tweak {
             id: "sec_disable_corp_wer".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🏢 Disable Corporate Error Reporting".to_string(),
+            name: "Disable Corporate Error Reporting".to_string(),
             description: "Disables error reporting for enterprise environments.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,

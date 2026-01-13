@@ -12,7 +12,7 @@ pub fn get_firewall_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_fw_notifications".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🔔 Disable Firewall Notifications".to_string(),
+            name: "Disable Firewall Notifications".to_string(),
             description: "Stops Windows Firewall from showing popup notifications when blocking apps.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -69,7 +69,7 @@ pub fn get_firewall_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_disable_firewall".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🔥 Disable Windows Firewall".to_string(),
+            name: "Disable Windows Firewall".to_string(),
             description: "Completely disables Windows Firewall for all network profiles. DANGEROUS: System exposed to network attacks.".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: false,
@@ -102,7 +102,7 @@ Write-Host "Windows Firewall disabled for all profiles" -ForegroundColor Yellow
         Tweak {
             id: "sec_fw_whitelist".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🚫 Block Outbound by Default".to_string(),
+            name: "Block Outbound by Default".to_string(),
             description: "Sets firewall to block all outbound connections unless explicitly allowed. Very restrictive.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,

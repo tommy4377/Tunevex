@@ -150,7 +150,7 @@ Write-Host "Ensure you have a UPS to prevent data loss on power failure" -Foregr
         Tweak {
             id: "storage_disable_scheduled_defrag".to_string(),
             category: TweakCategory::FileSystem,
-            name: "🛑 Disable Scheduled Defragmentation".to_string(),
+            name: "Disable Scheduled Defragmentation".to_string(),
             description: "Disables the Windows scheduled defragmentation task.
 
 Recommended for SSDs where defrag is unnecessary and can cause extra writes.

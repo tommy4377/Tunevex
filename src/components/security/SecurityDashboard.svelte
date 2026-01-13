@@ -68,7 +68,12 @@
             (t.id === "sec_block_sam_enum" ||
                 t.id === "sec_disable_remote_assistance" ||
                 t.id === "sec_disable_netbios" ||
+                t.id === "net_disable_netbios" || // Added network variant
                 t.id === "sec_disable_llmnr" ||
+                t.id === "net_disable_llmnr" || // Added network variant
+                t.id === "net_restrict_anonymous_access" ||
+                t.id === "net_restrict_anonymous_enum" ||
+                t.id === "net_disable_smb_throttling" ||
                 t.id === "sec_disable_smbv1" ||
                 t.id === "sec_enable_smb_signing" ||
                 t.id === "sec_disable_delivery_opt" ||

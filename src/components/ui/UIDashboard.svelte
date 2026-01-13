@@ -14,19 +14,14 @@
         (t) => t.id.includes("taskbar") || t.id.includes("TaskbarGlomLevel"),
     );
     $: visualTweaks = uiTweaks.filter(
-        (t) =>
-            t.id.includes("context") ||
-            t.id.includes("dark") ||
-            t.id.includes("_mode") ||
-            t.id.includes("file_ext") ||
-            t.id.includes("hidden") ||
-            t.id.includes("compact"),
+        (t) => t.id.includes("context") || t.id.includes("dark"),
     );
     $: explorerTweaks = uiTweaks.filter(
         (t) =>
             t.id.includes("extension") ||
-            t.id.includes("_files") ||
-            t.id.includes("end_task"),
+            t.id.includes("file") ||
+            t.id.includes("compact") ||
+            t.id.includes("hidden"),
     );
 
     // Fallback: Tweaks not in above sections
@@ -178,10 +173,6 @@
         font-size: 14px;
     }
 
-
-
-
-
     .dashboard-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -237,8 +228,6 @@
         padding: 2px 8px;
         border-radius: 10px;
     }
-
-
 
     .detail-view {
         height: 100%;

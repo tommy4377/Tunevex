@@ -51,8 +51,18 @@
                 return "🎨 System & Visuals";
             case "GameOptimizations":
                 return "🎮 Gaming Optimization";
-            case "Input":
+            case "MouseInput":
                 return "🖱️ Mouse & Input";
+            case "DisplayMonitor":
+                return "🖥️ Display & Monitor";
+            case "FileSystem":
+                return "💾 Storage & Filesystem";
+            case "BackupRestore":
+                return "↺ Backup & Restore";
+            case "Monitoring":
+                return "📊 System Monitoring";
+            case "SecurityPrivacy":
+                return "🔒 Security & Privacy";
             default:
                 return "Tweaks";
         }

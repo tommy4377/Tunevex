@@ -86,7 +86,7 @@ if (($panel.ShowStartupPanel -eq 0) -and ($capture.AppCaptureEnabled -eq 0)) { "
         Tweak {
             id: "gaming_disable_gamedvr".to_string(),
             category: TweakCategory::GameOptimizations,
-            name: "📹 Disable Game DVR".to_string(),
+            name: "Disable Game DVR".to_string(),
             description: "Disables background recording, capturing, and broadcasting (GameDVR).".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -158,7 +158,7 @@ if (($panel.ShowStartupPanel -eq 0) -and ($capture.AppCaptureEnabled -eq 0)) { "
         Tweak {
             id: "gaming_enable_gamemode".to_string(),
             category: TweakCategory::GameOptimizations,
-            name: "🎯 Enable Game Mode".to_string(),
+            name: "Enable Game Mode".to_string(),
             description: "Enables Windows Game Mode to prioritize games and minimize background activity.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -333,7 +333,7 @@ Disabling FSO may BREAK VRR and HDR functionality!".to_string(),
         Tweak {
             id: "gaming_disable_network_throttling".to_string(),
             category: TweakCategory::GameOptimizations,
-            name: "🌐 Disable Network Throttling".to_string(),
+            name: "Disable Network Throttling".to_string(),
             description: "Disables Windows network throttling (10 packets/ms limit). Reduces online gaming latency by 10-30ms. Also sets SystemResponsiveness to 0 for maximum foreground priority.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -380,7 +380,7 @@ Disabling FSO may BREAK VRR and HDR functionality!".to_string(),
         Tweak {
             id: "gaming_disable_visual_effects".to_string(),
             category: TweakCategory::GameOptimizations,
-            name: "🎨 Disable Visual Effects".to_string(),
+            name: "Disable Visual Effects".to_string(),
             description: "Disables Windows visual effects and animations for maximum performance.
 
 Disables:

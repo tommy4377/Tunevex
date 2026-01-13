@@ -97,7 +97,7 @@ if ($bcd -match "Yes") { "True" } else { "False" }
         Tweak {
             id: "cpu_disable_hpet".to_string(),
             category: TweakCategory::CpuPerformance,
-            name: "⚡ Disable HPET for Lower Latency".to_string(),
+            name: "Disable HPET for Lower Latency".to_string(),
             description: "Disables High Precision Event Timer. Modern TSC is faster. Can improve FPS by 10-20% in games.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
@@ -179,7 +179,7 @@ if ($bcd -match "Legacy") { "True" } else { "False" }
         Tweak {
             id: "cpu_processor_check_interval".to_string(), // Renamed to drop "_timer" suffix for consistency if desired, or keep. Plan says "cpu_processor_check_interval".
             category: TweakCategory::CpuPerformance,
-            name: "⚡ Optimize Processor Check Interval".to_string(),
+            name: "Optimize Processor Check Interval".to_string(),
             description: "Sets processor performance check interval to 1 (minimum). Reduces latency by checking CPU state more frequently. Windows default is 15.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,

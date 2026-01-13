@@ -1,10 +1,12 @@
-use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 pub fn get_task_tweaks() -> Vec<Tweak> {
     vec![Tweak {
         id: "debloat_disable_misc_tasks".to_string(),
         category: TweakCategory::DebloatTelemetry,
-        name: "📅 Disable Misc Scheduled Tasks".to_string(),
+        name: "Disable Misc Scheduled Tasks".to_string(),
         description: "Disables Maps, Speech, Language, Retail Demo, and other unused tasks."
             .to_string(),
         warning_level: WarningLevel::Safe,

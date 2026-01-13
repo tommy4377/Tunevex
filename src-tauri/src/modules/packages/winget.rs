@@ -134,12 +134,12 @@ pub async fn check_package_status(id: String) -> bool {
 // C.9: Package Search
 #[command]
 pub async fn search_packages(query: String) -> Result<Vec<WingetPackage>, String> {
-    // Search with exact limit
+    // Search winget for packages
     let output = Command::new("powershell")
         .args(&[
             "-NoProfile",
             "-Command",
-            &format!("winget search --query '{}' --count 20", query),
+            &format!("winget search '{}' --source winget 2>$null | Select-Object -First 25", query),
         ])
         .output()
         .map_err(|e| e.to_string())?;
@@ -203,6 +203,8 @@ pub async fn get_popular_packages() -> Vec<WingetPackage> {
         WingetPackage { id: "Google.Chrome".to_string(), name: "Google Chrome".to_string(), description: "Fast, secure browser".to_string(), category: "Browser".to_string(), installed: false },
         WingetPackage { id: "Mozilla.Firefox".to_string(), name: "Mozilla Firefox".to_string(), description: "Privacy-focused browser".to_string(), category: "Browser".to_string(), installed: false },
         WingetPackage { id: "BraveSoftware.BraveBrowser".to_string(), name: "Brave".to_string(), description: "Privacy browser with ad blocking".to_string(), category: "Browser".to_string(), installed: false },
+        WingetPackage { id: "Microsoft.Edge".to_string(), name: "Microsoft Edge".to_string(), description: "Chromium-based browser".to_string(), category: "Browser".to_string(), installed: false },
+        WingetPackage { id: "Opera.Opera".to_string(), name: "Opera".to_string(), description: "Feature-rich browser".to_string(), category: "Browser".to_string(), installed: false },
         
         // Development
         WingetPackage { id: "Microsoft.VisualStudioCode".to_string(), name: "VS Code".to_string(), description: "Popular code editor".to_string(), category: "Development".to_string(), installed: false },
@@ -210,20 +212,46 @@ pub async fn get_popular_packages() -> Vec<WingetPackage> {
         WingetPackage { id: "OpenJS.NodeJS.LTS".to_string(), name: "Node.js LTS".to_string(), description: "JavaScript runtime".to_string(), category: "Development".to_string(), installed: false },
         WingetPackage { id: "Python.Python.3.12".to_string(), name: "Python 3.12".to_string(), description: "Programming language".to_string(), category: "Development".to_string(), installed: false },
         WingetPackage { id: "Rustlang.Rustup".to_string(), name: "Rust".to_string(), description: "Systems programming language".to_string(), category: "Development".to_string(), installed: false },
-        
+        WingetPackage { id: "JetBrains.IntelliJIDEA.Community".to_string(), name: "IntelliJ IDEA".to_string(), description: "Java IDE".to_string(), category: "Development".to_string(), installed: false },
+        WingetPackage { id: "Docker.DockerDesktop".to_string(), name: "Docker Desktop".to_string(), description: "Container platform".to_string(), category: "Development".to_string(), installed: false },
+        WingetPackage { id: "GitHub.GitHubDesktop".to_string(), name: "GitHub Desktop".to_string(), description: "Git GUI client".to_string(), category: "Development".to_string(), installed: false },
+
         // Utilities
         WingetPackage { id: "7zip.7zip".to_string(), name: "7-Zip".to_string(), description: "File archiver".to_string(), category: "Utility".to_string(), installed: false },
         WingetPackage { id: "Notepad++.Notepad++".to_string(), name: "Notepad++".to_string(), description: "Text editor".to_string(), category: "Utility".to_string(), installed: false },
         WingetPackage { id: "VideoLAN.VLC".to_string(), name: "VLC".to_string(), description: "Media player".to_string(), category: "Utility".to_string(), installed: false },
         WingetPackage { id: "voidtools.Everything".to_string(), name: "Everything".to_string(), description: "Fast file search".to_string(), category: "Utility".to_string(), installed: false },
+        WingetPackage { id: "RARLab.WinRAR".to_string(), name: "WinRAR".to_string(), description: "Archive manager".to_string(), category: "Utility".to_string(), installed: false },
+        WingetPackage { id: "ShareX.ShareX".to_string(), name: "ShareX".to_string(), description: "Screenshot tool".to_string(), category: "Utility".to_string(), installed: false },
+        WingetPackage { id: "OBSProject.OBSStudio".to_string(), name: "OBS Studio".to_string(), description: "Streaming/recording".to_string(), category: "Utility".to_string(), installed: false },
+        WingetPackage { id: "qBittorrent.qBittorrent".to_string(), name: "qBittorrent".to_string(), description: "Torrent client".to_string(), category: "Utility".to_string(), installed: false },
         
         // Communication
         WingetPackage { id: "Discord.Discord".to_string(), name: "Discord".to_string(), description: "Voice and text chat".to_string(), category: "Communication".to_string(), installed: false },
         WingetPackage { id: "Telegram.TelegramDesktop".to_string(), name: "Telegram".to_string(), description: "Messaging app".to_string(), category: "Communication".to_string(), installed: false },
+        WingetPackage { id: "SlackTechnologies.Slack".to_string(), name: "Slack".to_string(), description: "Team communication".to_string(), category: "Communication".to_string(), installed: false },
+        WingetPackage { id: "Zoom.Zoom".to_string(), name: "Zoom".to_string(), description: "Video conferencing".to_string(), category: "Communication".to_string(), installed: false },
+        WingetPackage { id: "Microsoft.Teams".to_string(), name: "Microsoft Teams".to_string(), description: "Team collaboration".to_string(), category: "Communication".to_string(), installed: false },
         
         // Gaming
         WingetPackage { id: "Valve.Steam".to_string(), name: "Steam".to_string(), description: "Gaming platform".to_string(), category: "Gaming".to_string(), installed: false },
         WingetPackage { id: "EpicGames.EpicGamesLauncher".to_string(), name: "Epic Games".to_string(), description: "Gaming platform".to_string(), category: "Gaming".to_string(), installed: false },
+        WingetPackage { id: "GOG.Galaxy".to_string(), name: "GOG Galaxy".to_string(), description: "Gaming platform".to_string(), category: "Gaming".to_string(), installed: false },
+        WingetPackage { id: "Ubisoft.Connect".to_string(), name: "Ubisoft Connect".to_string(), description: "Ubisoft launcher".to_string(), category: "Gaming".to_string(), installed: false },
+        WingetPackage { id: "ElectronicArts.EADesktop".to_string(), name: "EA Desktop".to_string(), description: "EA games launcher".to_string(), category: "Gaming".to_string(), installed: false },
+        
+        // Media & Creative
+        WingetPackage { id: "Spotify.Spotify".to_string(), name: "Spotify".to_string(), description: "Music streaming".to_string(), category: "Media".to_string(), installed: false },
+        WingetPackage { id: "GIMP.GIMP".to_string(), name: "GIMP".to_string(), description: "Image editor".to_string(), category: "Media".to_string(), installed: false },
+        WingetPackage { id: "Audacity.Audacity".to_string(), name: "Audacity".to_string(), description: "Audio editor".to_string(), category: "Media".to_string(), installed: false },
+        WingetPackage { id: "BlenderFoundation.Blender".to_string(), name: "Blender".to_string(), description: "3D creation suite".to_string(), category: "Media".to_string(), installed: false },
+        WingetPackage { id: "HandBrake.HandBrake".to_string(), name: "HandBrake".to_string(), description: "Video converter".to_string(), category: "Media".to_string(), installed: false },
+        
+        // Security
+        WingetPackage { id: "Malwarebytes.Malwarebytes".to_string(), name: "Malwarebytes".to_string(), description: "Anti-malware".to_string(), category: "Security".to_string(), installed: false },
+        WingetPackage { id: "Bitwarden.Bitwarden".to_string(), name: "Bitwarden".to_string(), description: "Password manager".to_string(), category: "Security".to_string(), installed: false },
+        WingetPackage { id: "KeePassXCTeam.KeePassXC".to_string(), name: "KeePassXC".to_string(), description: "Password manager".to_string(), category: "Security".to_string(), installed: false },
+        WingetPackage { id: "Proton.ProtonVPN".to_string(), name: "ProtonVPN".to_string(), description: "VPN client".to_string(), category: "Security".to_string(), installed: false },
     ]
 }
 
