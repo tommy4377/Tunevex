@@ -70,7 +70,7 @@ pub async fn compress_folder(
     
     let walker = walkdir::WalkDir::new(&path).into_iter();
     
-    for (i, entry) in walker.filter_map(|e| e.ok()).enumerate() {
+    for (_i, entry) in walker.filter_map(|e| e.ok()).enumerate() {
         // Check cancellation
         if cancel_token.load(Ordering::SeqCst) {
              let _ = app.emit("compactor-status", "Compression Cancelled");

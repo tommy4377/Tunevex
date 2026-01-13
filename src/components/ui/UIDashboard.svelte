@@ -178,41 +178,9 @@
         font-size: 14px;
     }
 
-    .quick-profile {
-        display: flex;
-        justify-content: center;
-    }
 
-    .profile-btn {
-        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-        border: none;
-        color: white;
-        padding: 14px 28px;
-        border-radius: var(--radius);
-        cursor: pointer;
-        font-weight: 600;
-        font-size: 15px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        transition: all 0.2s;
-    }
 
-    .profile-btn:hover {
-        transform: scale(1.02);
-        box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
-    }
 
-    .profile-btn.enabled {
-        background: linear-gradient(135deg, #10b981, #059669);
-    }
-
-    .badge {
-        background: rgba(255, 255, 255, 0.2);
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-size: 12px;
-    }
 
     .dashboard-grid {
         display: grid;
@@ -270,23 +238,7 @@
         border-radius: 10px;
     }
 
-    .info-box {
-        background: rgba(59, 130, 246, 0.1);
-        border: 1px solid rgba(59, 130, 246, 0.3);
-        border-radius: var(--radius);
-        padding: 16px 20px;
-        font-size: 13px;
-        color: var(--text-color);
-    }
 
-    .info-box ol {
-        margin: 8px 0 0 20px;
-        padding: 0;
-    }
-
-    .info-box li {
-        margin: 4px 0;
-    }
 
     .detail-view {
         height: 100%;

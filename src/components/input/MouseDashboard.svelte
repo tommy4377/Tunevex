@@ -48,11 +48,7 @@
         flex-direction: column;
     }
 
-    .tweaks-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-        gap: 20px;
-    }
+
 
     .section-header {
         margin-bottom: 24px;

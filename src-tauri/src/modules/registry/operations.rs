@@ -1,4 +1,4 @@
-use crate::modules::types::{RegistryValue, TweakOperation, TweakType};
+use crate::modules::types::{RegistryValue, TweakOperation};
 use anyhow::{Context, Result};
 use winreg::enums::*;
 use winreg::RegKey;

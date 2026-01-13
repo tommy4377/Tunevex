@@ -1040,22 +1040,9 @@
         transition: width 0.3s ease;
     }
 
-    .current-file {
-        font-size: 12px;
-        color: var(--text-muted);
-        font-family: monospace;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        opacity: 0.8;
-    }
 
-    .progress-stats {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-    }
+
+
 
     .bytes-analyzed {
         font-size: 12px;

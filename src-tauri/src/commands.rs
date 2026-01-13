@@ -88,7 +88,7 @@ pub async fn apply_tweak(
     // 2. Execute operations (Async/Blocking wrapper)
     // We use tokio::spawn_blocking for heavy IO/Process operations to avoid blocking the async runtime
     let tweak_clone = tweak.clone();
-    let result = tokio::task::spawn_blocking(move || -> Result<(), String> {
+    let _result = tokio::task::spawn_blocking(move || -> Result<(), String> {
         println!("[TWEAK APPLY] Applying ID: {}", tweak_clone.id);
         for (i, op) in tweak_clone.operations.iter().enumerate() {
             println!("[TWEAK APPLY] Operation {}/{}: {:?}", i + 1, tweak_clone.operations.len(), op);

@@ -2,7 +2,7 @@
 //!
 //! NVMe and storage power optimization tweaks moved from CPU module
 
-use crate::modules::types::{TweakType, Tweak, TweakCheck, TweakCategory, TweakOperation, WarningLevel, RegistryValue};
+use crate::modules::types::{TweakType, Tweak, TweakCheck, TweakCategory, TweakOperation, WarningLevel};
 
 /// Returns all storage power management tweaks
 pub fn get_storage_power_tweaks() -> Vec<Tweak> {

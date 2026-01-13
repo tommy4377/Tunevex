@@ -71,11 +71,7 @@
         align-items: flex-start;
     }
 
-    .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-        gap: 20px;
-    }
+
 
     .header-text h2 {
         font-size: 20px;

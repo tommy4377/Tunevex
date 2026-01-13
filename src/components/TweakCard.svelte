@@ -57,7 +57,7 @@
     <p class="description">{tweak.description}</p>
 
     {#if isApplying}
-        <div class="loading-bar animate-pulse" />
+        <div class="loading-bar animate-pulse"></div>
     {/if}
 
     <div class="footer">

@@ -190,7 +190,15 @@
                 <div
                     class="card"
                     class:selected={selectedIds.has(prog.id)}
+                    role="button"
+                    tabindex="0"
                     on:click={() => toggleSelection(prog.id)}
+                    on:keydown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            toggleSelection(prog.id);
+                        }
+                    }}
                 >
                     <div class="card-content">
                         <div class="card-header-row">
@@ -198,12 +206,18 @@
                             <input
                                 type="checkbox"
                                 checked={selectedIds.has(prog.id)}
+                                tabindex="-1"
                             />
                         </div>
                         <p class="desc">{prog.description}</p>
                         <code class="pkg-id">{prog.id}</code>
                     </div>
-                    <div class="card-actions" on:click|stopPropagation>
+                    <!-- svelte-ignore a11y-no-static-element-interactions -->
+                    <div
+                        class="card-actions"
+                        on:click|stopPropagation
+                        on:keydown|stopPropagation
+                    >
                         {#if processingMap[prog.id]}
                             <div class="status">{processingMap[prog.id]}</div>
                         {:else}
