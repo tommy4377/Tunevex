@@ -61,9 +61,6 @@
     {/if}
 
     <div class="footer">
-        {#if tweak.requires_restart}
-            <span class="restart-badge">🔄 Restart</span>
-        {/if}
         <button
             class="apply-btn"
             class:applied={tweak.enabled}
@@ -150,15 +147,6 @@
         align-items: center;
         gap: 12px;
         margin-top: auto;
-    }
-
-    .restart-badge {
-        font-size: 11px;
-        color: var(--warning-color);
-        background: rgba(245, 158, 11, 0.1);
-        padding: 4px 10px;
-        border-radius: 20px;
-        white-space: nowrap;
     }
 
     .apply-btn {
