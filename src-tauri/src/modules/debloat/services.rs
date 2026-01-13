@@ -1,4 +1,6 @@
-use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 pub fn get_service_tweaks() -> Vec<Tweak> {
     vec![
@@ -33,7 +35,9 @@ if (($fax.StartType -eq 'Disabled') -and ($wmp.StartType -eq 'Disabled')) { "Tru
                     Write-Host "Misc services disabled" -ForegroundColor Green
                 "#.to_string(),
                 }
-            ]
+            ],
+            tweak_type: TweakType::Toggle,
+            enabled: false,
         },
         Tweak {
             id: "debloat_disable_edge_services".to_string(),

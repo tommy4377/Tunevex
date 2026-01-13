@@ -1,5 +1,5 @@
 use crate::modules::types::{
-    Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
 };
 
 pub fn get_gpu_tweaks() -> Vec<Tweak> {

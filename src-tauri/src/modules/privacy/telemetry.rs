@@ -1,4 +1,4 @@
-use crate::modules::types::{TweakType, RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, TweakCheck, RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
 
 /// Windows Core Telemetry
 /// From: disallow-data-collection.yml, disable-diagnostic-tracing.yml, disable-ceip.yml

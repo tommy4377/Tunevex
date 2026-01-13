@@ -43,5 +43,6 @@ pub enum SafetyRating {
     Safe,      // Microsoft, known good publishers
     Careful,   // Third-party apps (Steam, Discord)
     Dangerous, // Unknown publisher, suspicious path
+    Critical,  // Essential system service, never disable
     Unknown,   // No publisher info
 }

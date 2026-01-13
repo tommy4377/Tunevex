@@ -223,6 +223,7 @@ Remove-Item -Path "HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905b
                     root_key: "HKCU".to_string(),
                     path: "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced".to_string(),
                     key: "TaskbarEndTask".to_string(),
+                    value: RegistryValue::DWord(1),
                 },
             ],
         },

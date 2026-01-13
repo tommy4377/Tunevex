@@ -1,4 +1,4 @@
-use crate::modules::types::{TweakType, RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, TweakCheck, RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
 
 /// Application Telemetry (NVIDIA, Office, VS, Chrome, Firefox, etc.)
 pub fn get_tweaks() -> Vec<Tweak> {
@@ -45,7 +45,6 @@ Write-Host "NVIDIA telemetry re-enabled (files cannot be restored)" -ForegroundC
 "#.to_string(),
                 }
             ]),
-            tweak_type: TweakType::Toggle, enabled: false,
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(crate::modules::types::TweakCheck::Powershell {
                 script: r#"
@@ -128,7 +127,6 @@ Write-Host "NVIDIA telemetry disabled" -ForegroundColor Green
                 },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKCU".to_string(),
                 path: "SOFTWARE\\Policies\\Microsoft\\office\\16.0\\common".to_string(),
@@ -204,7 +202,6 @@ Write-Host "Visual Studio telemetry re-enabled" -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            tweak_type: TweakType::Toggle, enabled: false,
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
@@ -285,7 +282,6 @@ if (Test-Path $settingsPath) {
                 }
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $p = "$env:APPDATA\Code\User\settings.json"
@@ -340,7 +336,6 @@ Write-Host ".NET CLI telemetry opt-out removed" -ForegroundColor Green
                 }
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 if ([Environment]::GetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "Machine") -eq "1") { "True" } else { "False" }
@@ -373,7 +368,6 @@ Write-Host "PowerShell telemetry opt-out removed" -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            tweak_type: TweakType::Toggle, enabled: false,
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
@@ -416,7 +410,6 @@ Write-Host "PowerShell telemetry disabled" -ForegroundColor Green
                     key: "ChromeCleanupEnabled".to_string(),
                 },
             ]),
-            tweak_type: TweakType::Toggle, enabled: false,
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
@@ -466,7 +459,6 @@ Write-Host "PowerShell telemetry disabled" -ForegroundColor Green
                     key: "DisableFirefoxStudies".to_string(),
                 },
             ]),
-            tweak_type: TweakType::Toggle, enabled: false,
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),

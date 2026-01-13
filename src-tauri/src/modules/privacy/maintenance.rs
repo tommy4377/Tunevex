@@ -1,4 +1,4 @@
-use crate::modules::types::{TweakType, RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, TweakCheck, RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
 
 /// System Maintenance & Storage Privacy
 pub fn get_tweaks() -> Vec<Tweak> {

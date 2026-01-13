@@ -1,4 +1,4 @@
-use crate::modules::types::{TweakType, RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{TweakType, TweakCheck, RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
 
 /// Advertising & Tracking
 pub fn get_tweaks() -> Vec<Tweak> {
@@ -24,7 +24,6 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     key: "DisabledByGroupPolicy".to_string(),
                 },
             ]),
-            tweak_type: TweakType::Toggle, enabled: false,
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
@@ -65,7 +64,6 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKCU".to_string(),
                 path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced".to_string(),
@@ -103,7 +101,6 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     key: "DisableTailoredExperiencesWithDiagnosticData".to_string(),
                 },
             ]),
-            tweak_type: TweakType::Toggle, enabled: false,
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
@@ -167,7 +164,6 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            tweak_type: TweakType::Toggle, enabled: false,
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKCU".to_string(),
@@ -252,7 +248,6 @@ Write-Host "Privacy hardening reverted" -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            tweak_type: TweakType::Toggle, enabled: false,
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(crate::modules::types::TweakCheck::Powershell {
                 script: r#"
