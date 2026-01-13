@@ -2,8 +2,8 @@
 //!
 //! Based on: bcdedit-tweaks.yml, DisablePowerSaving.ps1
 
-use crate::modules::types::{TweakType, 
-    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
 };
 
 pub fn get_timer_tweaks() -> Vec<Tweak> {
@@ -105,7 +105,7 @@ if ($bcd -match "Yes") { "True" } else { "False" }
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $hpet = Get-PnpDevice | Where-Object { $_.FriendlyName -like "*High Precision Event Timer*" }
-if ($hpet.Status -eq "Error" -or $hpet.Status -eq "Disabled") {
+if (-not $hpet -or $hpet.Status -eq "Error" -or $hpet.Status -eq "Disabled") {
     Write-Output "True"
 } else {
     Write-Output "False"

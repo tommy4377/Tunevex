@@ -16,9 +16,11 @@ pub fn get_service_tweaks() -> Vec<Tweak> {
                     foreach ($svc in $services) { Set-Service -Name $svc -StartupType Manual -EA 0 }
                     "#.to_string(),
                 }
-            ]), tweak_type: TweakType::Toggle, enabled: false, check: Some(TweakCheck::Powershell {
+            check: Some(TweakCheck::Powershell {
                 script: r#"
-if ((Get-Service Fax -ErrorAction SilentlyContinue).StartType -match 'Disabled') { "True" } else { "False" }
+$fax = Get-Service Fax -ErrorAction SilentlyContinue
+$wmp = Get-Service WMPNetworkSvc -ErrorAction SilentlyContinue
+if (($fax.StartType -eq 'Disabled') -and ($wmp.StartType -eq 'Disabled')) { "True" } else { "False" }
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),

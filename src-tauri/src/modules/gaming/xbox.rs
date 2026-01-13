@@ -1,4 +1,6 @@
-use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 pub fn get_xbox_tweaks() -> Vec<Tweak> {
     vec![
@@ -21,10 +23,10 @@ pub fn get_xbox_tweaks() -> Vec<Tweak> {
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
-$svc = Get-Service -Name "XboxGipSvc" -EA 0
-if ($svc.StartType -eq 'Disabled') { "True" } else { "False" }
-"#
-                .to_string(),
+$gip = Get-Service -Name "XboxGipSvc" -EA 0
+$auth = Get-Service -Name "XblAuthManager" -EA 0
+if (($gip.StartType -eq 'Disabled') -and ($auth.StartType -eq 'Disabled')) { "True" } else { "False" }
+"#.to_string(),
                 expected_output: "True".to_string(),
             }),
             operations: vec![TweakOperation::Powershell {

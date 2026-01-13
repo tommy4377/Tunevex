@@ -2,8 +2,8 @@
 //!
 //! Controls for Windows Firewall profiles, notifications, and rules.
 
-use crate::modules::types::{TweakType, 
-    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
 };
 
 pub fn get_firewall_tweaks() -> Vec<Tweak> {
@@ -76,8 +76,8 @@ pub fn get_firewall_tweaks() -> Vec<Tweak> {
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
-$profile = Get-NetFirewallProfile -Profile Private
-if ($profile.Enabled -eq "False") { "True" } else { "False" }
+$profiles = Get-NetFirewallProfile | Where-Object { $_.Enabled -eq $true }
+if ($profiles.Count -eq 0) { "True" } else { "False" }
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),

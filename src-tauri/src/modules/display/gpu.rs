@@ -1,4 +1,6 @@
-use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 pub fn get_gpu_tweaks() -> Vec<Tweak> {
     vec![
@@ -36,11 +38,23 @@ fn tweak_enable_vrr() -> Tweak {
         "#.to_string(),
         }]),
         tweak_type: TweakType::Toggle, enabled: false,
-        check: Some(TweakCheck::Registry {
-            root_key: "HKCU".to_string(),
-            path: "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced".to_string(),
-            key: "EnableVRR".to_string(),
-            expected_value: RegistryValue::DWord(1),
+        check: Some(TweakCheck::Powershell {
+            script: r#"
+$vrr_enabled = $false
+# Check 1: Windows Settings
+$path1 = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+$val1 = Get-ItemProperty -Path $path1 -Name "EnableVRR" -EA 0
+if ($val1.EnableVRR -eq 1) {
+    # Check 2: DirectX Global Settings
+    $path2 = "HKCU:\Software\Microsoft\DirectX\UserGpuPreferences"
+    $val2 = Get-ItemProperty -Path $path2 -Name "DirectXUserGlobalSettings" -EA 0
+    if ($val2.DirectXUserGlobalSettings -match "VRROptimizeEnable=1") {
+        $vrr_enabled = $true
+    }
+}
+if ($vrr_enabled) { "True" } else { "False" }
+"#.to_string(),
+            expected_output: "True".to_string(),
         }),
         operations: vec![TweakOperation::Powershell {
             script: r#"

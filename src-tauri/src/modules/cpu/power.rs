@@ -75,7 +75,7 @@ powercfg -setactive SCHEME_CURRENT
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $res = powercfg /q SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bebba308a3 48e6b7a6-50f5-4782-a5d4-53bb8f07e226
-if ($res -match "0x00000000") { "True" } else { "False" }
+if ($res -match "Current AC Power Setting Index: 0x00000000") { "True" } else { "False" }
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),
@@ -114,7 +114,7 @@ powercfg -setactive SCHEME_CURRENT
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $res = powercfg /q SCHEME_CURRENT 501a4d13-42af-4429-9fd1-a8218c268e20 ee12f906-d277-404b-b6da-e5fa1a576df5
-if ($res -match "0x00000000") { "True" } else { "False" }
+if ($res -match "Current AC Power Setting Index: 0x00000000") { "True" } else { "False" }
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),
@@ -155,7 +155,7 @@ powercfg -setactive SCHEME_CURRENT
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $res = powercfg /q SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 0cc5b647-c1df-4637-891a-dec35c318583
-if ($res -match "0x00000064") { "True" } else { "False" }
+if ($res -match "Current AC Power Setting Index: 0x00000064") { "True" } else { "False" }
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),
@@ -200,7 +200,7 @@ powercfg /setactive scheme_current
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $res = powercfg /q SCHEME_CURRENT sub_processor 5d76a2ca-e8c0-402f-a133-2158492d58ad
-if ($res -match "0x00000001") { "True" } else { "False" }
+if ($res -match "Current AC Power Setting Index: 0x00000001") { "True" } else { "False" }
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),
@@ -271,7 +271,7 @@ Write-Host "Atlas Power Scheme created and activated!" -ForegroundColor Green
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $result = powercfg /q scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 d4e98f31-5ffe-4ce1-be31-1b38b384c009
-if ($result -match "0x00000003") {
+if ($result -match "Current AC Power Setting Index: 0x00000003") {
     Write-Output "True"
 } else {
     Write-Output "False"
@@ -341,7 +341,7 @@ powercfg /setactive scheme_current
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $res = powercfg /q SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 3b04d4fd-1cc7-4f23-ab1c-d1337819c4bb
-if ($res -match "0x00000000") { "True" } else { "False" }
+if ($res -match "Current AC Power Setting Index: 0x00000000") { "True" } else { "False" }
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),
@@ -413,11 +413,23 @@ foreach ($device in $devices) {
                     script: "powercfg -setactive 381b4222-f694-41f0-9685-ff5bb260df2e".to_string(), // Best effort: restore balanced
                 }
             ]),
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\Storage".to_string(),
-                key: "StorageD3InModernStandby".to_string(),
-                expected_value: RegistryValue::DWord(0),
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$storage = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Storage" -Name "StorageD3InModernStandby" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty StorageD3InModernStandby
+$adapterCheck = $true
+$adapters = Get-NetAdapter -Physical -ErrorAction SilentlyContinue
+if ($adapters) {
+    # Check if any adapter has EnableGreenEthernet enabled (value 1). If key missing, assume disabled/safe.
+    # We only flag as False if we explicitly find it enabled.
+    $green = Get-NetAdapterAdvancedProperty -Name "*" -RegistryKeyword "EnableGreenEthernet" -ErrorAction SilentlyContinue
+    if ($green -and ($green | Where-Object { $_.RegistryValue -ne "0" })) {
+        $adapterCheck = $false
+    }
+}
+
+if (($storage -eq 0) -and $adapterCheck) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
             }),
             operations: vec![
                 TweakOperation::Powershell {

@@ -34,16 +34,33 @@ pub async fn install_package(id: String) -> Result<String, String> {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BulkInstallResult {
+    pub id: String,
+    pub status: String,
+    pub code: i32,
+}
+
 #[command]
-pub async fn install_packages_bulk(ids: Vec<String>) -> Result<String, String> {
-    // Install multiple packages sequentially
+pub async fn install_packages_bulk(ids: Vec<String>) -> Result<Vec<BulkInstallResult>, String> {
+    // Install multiple packages sequentially and report status for each
     let ids_str = ids.join("\", \"");
+    // PowerShell script to iterate and capture results
     let script = format!(r#"
 $ids = @("{}")
+$results = @()
 foreach ($id in $ids) {{
     Write-Host "Installing $id..."
-    winget install --id $id -e --silent --accept-package-agreements --accept-source-agreements
+    $proc = Start-Process -FilePath "winget" -ArgumentList "install --id $id -e --silent --accept-package-agreements --accept-source-agreements" -Wait -PassThru -NoNewWindow
+    $code = $proc.ExitCode
+    $status = if ($code -eq 0) {{ "Success" }} else {{ "Failed" }}
+    $results += [PSCustomObject]@{{
+        id = $id
+        status = $status
+        code = $code
+    }}
 }}
+$results | ConvertTo-Json -Depth 2
 "#, ids_str);
 
     let output = Command::new("powershell")
@@ -56,7 +73,17 @@ foreach ($id in $ids) {{
         .map_err(|e| e.to_string())?;
 
     if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        let json_output = String::from_utf8_lossy(&output.stdout);
+        // Parse JSON output
+        let results: Vec<BulkInstallResult> = serde_json::from_str(&json_output)
+            .or_else(|_| {
+                // Handle single object case or empty array wrapper issues if convertto-json behaves oddly
+                // Sometimes singular object isn't in array
+                serde_json::from_str::<BulkInstallResult>(&json_output).map(|r| vec![r])
+            })
+            .map_err(|e| format!("Failed to parse bulk install results: {} | Output: {}", e, json_output))?;
+        
+        Ok(results)
     } else {
         Err(String::from_utf8_lossy(&output.stderr).to_string())
     }
@@ -107,6 +134,7 @@ pub async fn check_package_status(id: String) -> bool {
 // C.9: Package Search
 #[command]
 pub async fn search_packages(query: String) -> Result<Vec<WingetPackage>, String> {
+    // Search with exact limit
     let output = Command::new("powershell")
         .args(&[
             "-NoProfile",
@@ -118,24 +146,50 @@ pub async fn search_packages(query: String) -> Result<Vec<WingetPackage>, String
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut packages = Vec::new();
+    let lines: Vec<&str> = stdout.lines().collect();
 
-    // Parse winget output (skip header lines)
-    for line in stdout.lines().skip(2) {
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() >= 2 {
-            let name = parts[0..parts.len()-1].join(" ");
-            let id = parts.last().unwrap_or(&"").to_string();
-            
-            if !id.is_empty() && id.contains('.') {
+    if lines.len() < 2 {
+        return Ok(packages);
+    }
+
+    // Find header line to parse column positions (Name, Id, Version, etc.)
+    // Header usually looks like: Name      Id      Version      Match      Source
+    let header_line_idx = lines.iter().position(|l| l.contains("Id") && l.contains("Name"));
+    
+    if let Some(idx) = header_line_idx {
+        let header = lines[idx];
+        let id_start = header.find("Id").unwrap_or(0);
+        let version_start = header.find("Version").unwrap_or(id_start + 10); // fallback
+
+        // Iterate lines after header (and maybe skip separator line "---")
+        for line in lines.iter().skip(idx + 1) {
+            if line.trim().is_empty() || line.starts_with("---") {
+                continue;
+            }
+
+            // Slice the line based on column positions
+            // Name is from 0 to id_start
+            // Id is from id_start to version_start
+            let name_end = std::cmp::min(id_start, line.len());
+            let name = line[0..name_end].trim().to_string();
+
+            let id_end = std::cmp::min(version_start, line.len());
+            if id_start >= line.len() { continue; } // Line too short
+            let id = line[id_start..id_end].trim().to_string();
+
+            if !id.is_empty() && !name.is_empty() {
                 packages.push(WingetPackage {
-                    id: id.clone(),
+                    id,
                     name,
                     description: String::new(),
                     category: "Search Result".to_string(),
-                    installed: false, // Would need to check each one
+                    installed: false, // Would need check
                 });
             }
         }
+    } else {
+        // Fallback or empty result if header strictly not found
+        // The original implementation logic was too fragile, returning empty is safer than garbage
     }
 
     Ok(packages)

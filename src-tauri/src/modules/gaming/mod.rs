@@ -6,8 +6,8 @@
 //! - Fullscreen Optimizations
 //! - MMCSS Priority for Games
 
-use crate::modules::types::{TweakType, 
-    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
 };
 
 pub mod xbox;
@@ -47,11 +47,13 @@ pub fn get_gaming_tweaks() -> Vec<Tweak> {
                 },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKCU".to_string(),
-                path: "SOFTWARE\\Microsoft\\GameBar".to_string(),
-                key: "ShowStartupPanel".to_string(),
-                expected_value: RegistryValue::DWord(0),
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$panel = Get-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\GameBar" -Name "ShowStartupPanel" -ErrorAction SilentlyContinue
+$capture = Get-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR" -Name "AppCaptureEnabled" -ErrorAction SilentlyContinue
+if (($panel.ShowStartupPanel -eq 0) -and ($capture.AppCaptureEnabled -eq 0)) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
             }),
             operations: vec![
                 TweakOperation::RegistrySet {

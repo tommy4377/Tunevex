@@ -6,42 +6,36 @@
 
     export let allTweaks: Tweak[] = [];
 
-    // Filter UI Classic tweaks
-    $: uiTweaks = allTweaks.filter(
-        (t) => t.category === "InterfaceUx" && t.id.startsWith("ui."),
-    );
+    // Filter UI tweaks (both legacy ui. and new interface_ prefixes)
+    $: uiTweaks = allTweaks.filter((t) => t.category === "InterfaceUx");
 
     // Organize by section
-    $: patchTweaks = uiTweaks.filter((t) => t.id === "ui.patch_uxtheme");
-    $: taskbarTweaks = uiTweaks.filter((t) =>
-        ["ui.taskbar_classic", "ui.taskbar_top", "ui.taskbar_center"].includes(
-            t.id,
-        ),
+    $: taskbarTweaks = uiTweaks.filter(
+        (t) => t.id.includes("taskbar") || t.id.includes("TaskbarGlomLevel"),
     );
-    $: startTweaks = uiTweaks.filter((t) =>
-        [
-            "ui.start_orb_win7",
-            "ui.start_orb_clover",
-            "ui.start_win7_menu",
-        ].includes(t.id),
+    $: visualTweaks = uiTweaks.filter(
+        (t) =>
+            t.id.includes("context") ||
+            t.id.includes("dark") ||
+            t.id.includes("_mode") ||
+            t.id.includes("file_ext") ||
+            t.id.includes("hidden") ||
+            t.id.includes("compact"),
     );
-    $: visualTweaks = uiTweaks.filter((t) =>
-        [
-            "ui.context_classic",
-            "ui.dark_full",
-            "ui.explorer_ribbon_dark",
-            "ui.explorer_ribbon_light",
-        ].includes(t.id),
+    $: explorerTweaks = uiTweaks.filter(
+        (t) =>
+            t.id.includes("extension") ||
+            t.id.includes("_files") ||
+            t.id.includes("end_task"),
     );
-    $: themeTweaks = uiTweaks.filter((t) =>
-        ["ui.msstyles_win7", "ui.msstyles_plain8"].includes(t.id),
+
+    // Fallback: Tweaks not in above sections
+    $: otherTweaks = uiTweaks.filter(
+        (t) =>
+            !taskbarTweaks.includes(t) &&
+            !visualTweaks.includes(t) &&
+            !explorerTweaks.includes(t),
     );
-    $: systemTweaks = uiTweaks.filter((t) =>
-        ["ui.details_bottom", "ui.search_classic", "ui.tray_win10"].includes(
-            t.id,
-        ),
-    );
-    $: profileTweaks = uiTweaks.filter((t) => t.id === "ui.profile_win7_full");
 
     interface Section {
         title: string;
@@ -53,48 +47,34 @@
 
     $: sections = [
         {
-            title: "UxTheme Patch",
-            icon: "🔓",
-            color: "#ef4444",
-            tweaks: patchTweaks,
-            description: "Required for custom themes",
-        },
-        {
             title: "Taskbar",
             icon: "🎯",
             color: "#3b82f6",
             tweaks: taskbarTweaks,
-            description: "Classic taskbar options",
+            description: "Taskbar layout & behavior",
         },
         {
-            title: "Start Menu",
-            icon: "🔵",
+            title: "Appearance",
+            icon: "🌙",
             color: "#8b5cf6",
-            tweaks: startTweaks,
-            description: "Orbs & menu style",
-        },
-        {
-            title: "Visual",
-            icon: "👁️",
-            color: "#10b981",
             tweaks: visualTweaks,
-            description: "Context menus & ribbon",
+            description: "Dark mode & context menus",
         },
         {
-            title: "Themes",
-            icon: "🎨",
-            color: "#f59e0b",
-            tweaks: themeTweaks,
-            description: "Apply custom msstyles",
+            title: "Explorer",
+            icon: "📁",
+            color: "#10b981",
+            tweaks: explorerTweaks,
+            description: "File Explorer tweaks",
         },
         {
-            title: "System",
+            title: "Other",
             icon: "⚙️",
             color: "#6b7280",
-            tweaks: systemTweaks,
-            description: "Search & tray",
+            tweaks: otherTweaks,
+            description: "Additional tweaks",
         },
-    ] as Section[];
+    ].filter((s) => s.tweaks.length > 0) as Section[];
 
     type View = "dashboard" | "detail";
     let currentView: View = "dashboard";
@@ -135,29 +115,8 @@
 <div class="ui-dashboard" in:fade>
     {#if currentView === "dashboard"}
         <div class="header">
-            <h2>🪟 UI Classic</h2>
-            <p class="subtitle">
-                Complete StartAllBack-style Windows UI customization
-            </p>
-        </div>
-
-        <!-- Quick Profile Button -->
-        <div class="quick-profile">
-            {#each profileTweaks as profile}
-                <button
-                    class="profile-btn"
-                    class:enabled={profile.enabled}
-                    on:click={() =>
-                        profile.enabled
-                            ? revertTweak(profile)
-                            : applyTweak(profile)}
-                >
-                    {profile.name}
-                    <span class="badge"
-                        >{profile.enabled ? "✓ Active" : "Apply All"}</span
-                    >
-                </button>
-            {/each}
+            <h2>🎨 Interface Tweaks</h2>
+            <p class="subtitle">Customize Windows appearance and behavior</p>
         </div>
 
         <div class="dashboard-grid">
@@ -175,21 +134,6 @@
                     <span class="count">{section.tweaks.length} options</span>
                 </button>
             {/each}
-        </div>
-
-        <div class="info-box">
-            <strong>💡 Getting Started:</strong>
-            <ol>
-                <li>
-                    Apply <strong>UxTheme Patch</strong> first (enables custom themes)
-                </li>
-                <li>Restart your computer</li>
-                <li>Apply any <strong>Theme</strong> (Win7, Plain8)</li>
-                <li>
-                    Customize <strong>Taskbar</strong>,
-                    <strong>Start Menu</strong>, etc.
-                </li>
-            </ol>
         </div>
     {:else}
         <div class="detail-view">

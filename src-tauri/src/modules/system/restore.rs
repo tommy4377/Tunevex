@@ -10,7 +10,7 @@ pub async fn create_restore_point(description: String) -> Result<String, String>
             "-Command",
             &format!(
                 "Checkpoint-Computer -Description '{}' -RestorePointType 'MODIFY_SETTINGS'",
-                description
+                description.replace("'", "''")
             ),
         ])
         .output()

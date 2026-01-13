@@ -254,11 +254,19 @@ Write-Host "Privacy hardening reverted" -ForegroundColor Green
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKCU".to_string(),
-                path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsCopilot".to_string(),
-                key: "TurnOffWindowsCopilot".to_string(),
-                expected_value: RegistryValue::DWord(1),
+            check: Some(crate::modules::types::TweakCheck::Powershell {
+                script: r#"
+$copilot = Get-ItemProperty -Path "HKCU:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -Name "TurnOffWindowsCopilot" -ErrorAction SilentlyContinue
+$recall = Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -Name "DisableAIDataAnalysis" -ErrorAction SilentlyContinue
+$smartscreen = Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "EnableSmartScreen" -ErrorAction SilentlyContinue
+
+if (($copilot.TurnOffWindowsCopilot -eq 1) -and ($recall.DisableAIDataAnalysis -eq 1) -and ($smartscreen.EnableSmartScreen -eq 0)) {
+    "True"
+} else {
+    "False"
+}
+"#.to_string(),
+                expected_output: "True".to_string(),
             }),
             operations: vec![
                 TweakOperation::Powershell {

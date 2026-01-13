@@ -1,4 +1,6 @@
-use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 /// Returns System MSI tweaks
 pub fn get_system_msi_tweaks() -> Vec<Tweak> {
@@ -21,8 +23,8 @@ $allEnabled = $true
 foreach ($class in $classes) {
     $devices = Get-PnpDevice -Class $class -Status OK -ErrorAction SilentlyContinue
     foreach ($dev in $devices) {
-        $val = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.InstanceId)\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties" -Name "MSISupported" -ErrorAction SilentlyContinue
-        if (!$val -or $val.MSISupported -ne 1) { $allEnabled = $false }
+        $val = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.InstanceId)\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties" -ErrorAction SilentlyContinue
+        if (-not $val -or $val.MSISupported -ne 1 -or $val.MessageNumberLimit -ne 1 -or $val.Priority -ne 0) { $allEnabled = $false }
     }
 }
 if ($allEnabled) { "True" } else { "False" }

@@ -36,6 +36,7 @@ rdev = "0.5"
 walkdir = "2.4"
 globset = "0.4"
 tokio = { version = "1", features = ["full"] }
+pelite = "0.10"
 
 [dependencies.windows]
 version = "0.61"

@@ -1,5 +1,5 @@
-use crate::modules::types::{TweakType, 
-    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
 };
 
 pub fn get_monitor_tweaks() -> Vec<Tweak> {
@@ -26,7 +26,87 @@ fn tweak_max_refresh_rate() -> Tweak {
         "#.to_string(),
         }]),
         tweak_type: TweakType::Toggle, enabled: false,
-        check: None,
+        check: Some(TweakCheck::Powershell {
+            script: r#"
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class DisplayConfig {
+    [DllImport("user32.dll")]
+    public static extern int EnumDisplaySettings(string deviceName, int modeNum, ref DEVMODE devMode);
+    
+    public const int ENUM_CURRENT_SETTINGS = -1;
+    
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct DEVMODE {
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string dmDeviceName;
+        public short dmSpecVersion;
+        public short dmDriverVersion;
+        public short dmSize;
+        public short dmDriverExtra;
+        public int dmFields;
+        public int dmPositionX;
+        public int dmPositionY;
+        public int dmDisplayOrientation;
+        public int dmDisplayFixedOutput;
+        public short dmColor;
+        public short dmDuplex;
+        public short dmYResolution;
+        public short dmTTOption;
+        public short dmCollate;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string dmFormName;
+        public short dmLogPixels;
+        public int dmBitsPerPel;
+        public int dmPelsWidth;
+        public int dmPelsHeight;
+        public int dmDisplayFlags;
+        public int dmDisplayFrequency;
+        public int dmICMMethod;
+        public int dmICMIntent;
+        public int dmMediaType;
+        public int dmDitherType;
+        public int dmReserved1;
+        public int dmReserved2;
+        public int dmPanningWidth;
+        public int dmPanningHeight;
+    }
+}
+"@
+
+$devmode = New-Object DisplayConfig+DEVMODE
+$devmode.dmSize = [System.Runtime.InteropServices.Marshal]::SizeOf($devmode)
+
+# Get current display settings
+[DisplayConfig]::EnumDisplaySettings($null, [DisplayConfig]::ENUM_CURRENT_SETTINGS, [ref]$devmode)
+$currentHz = $devmode.dmDisplayFrequency
+
+# Find max Hz for current resolution
+$maxHz = $currentHz
+$modeNum = 0
+while ($true) {
+    $testMode = New-Object DisplayConfig+DEVMODE
+    $testMode.dmSize = [System.Runtime.InteropServices.Marshal]::SizeOf($testMode)
+    
+    $result = [DisplayConfig]::EnumDisplaySettings($null, $modeNum, [ref]$testMode)
+    if ($result -eq 0) { break }
+    
+    if ($testMode.dmPelsWidth -eq $devmode.dmPelsWidth -and 
+        $testMode.dmPelsHeight -eq $devmode.dmPelsHeight -and
+        $testMode.dmBitsPerPel -eq $devmode.dmBitsPerPel) {
+        
+        if ($testMode.dmDisplayFrequency -gt $maxHz) {
+            $maxHz = $testMode.dmDisplayFrequency
+        }
+    }
+    $modeNum++
+}
+
+if ($currentHz -ge $maxHz) { "True" } else { "False" }
+"#.to_string(),
+            expected_output: "True".to_string(),
+        }),
         operations: vec![TweakOperation::Powershell {
             script: r#"
 Add-Type @"

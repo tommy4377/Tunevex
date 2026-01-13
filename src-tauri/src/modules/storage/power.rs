@@ -62,11 +62,13 @@ powercfg /setactive scheme_current
             warning_level: WarningLevel::Careful,
             requires_restart: true,
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\Storage".to_string(),
-                key: "StorageD3InModernStandby".to_string(),
-                expected_value: RegistryValue::DWord(0),
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$d3 = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Storage" -Name "StorageD3InModernStandby" -ErrorAction SilentlyContinue
+$nvme = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\stornvme\Parameters\Device" -Name "IdlePowerMode" -ErrorAction SilentlyContinue
+if (($d3.StorageD3InModernStandby -eq 0) -and ($nvme.IdlePowerMode -eq 0)) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
             }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {

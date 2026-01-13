@@ -82,7 +82,25 @@ Write-Host "Microsoft apps must be reinstalled from Microsoft Store manually." -
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
-if (!(Get-AppxPackage -Name "*Solitaire*" -ErrorAction SilentlyContinue)) { "True" } else { "False" }
+$apps = @(
+    "Clipchamp.Clipchamp","Microsoft.3DBuilder","Microsoft.549981C3F5F10",
+    "Microsoft.Windows.Ai.Copilot.Provider","Microsoft.WindowsBackup","Microsoft.Paint",
+    "Microsoft.BingFinance","Microsoft.BingFoodAndDrink","Microsoft.BingHealthAndFitness",
+    "Microsoft.BingNews","Microsoft.BingSports","Microsoft.BingTranslator",
+    "Microsoft.BingTravel","Microsoft.BingWeather","Microsoft.GetHelp","Microsoft.Getstarted",
+    "Microsoft.Messaging","Microsoft.Microsoft3DViewer","Microsoft.MicrosoftJournal",
+    "Microsoft.MicrosoftOfficeHub","Microsoft.MicrosoftPowerBIForWindows",
+    "Microsoft.MicrosoftSolitaireCollection","Microsoft.MicrosoftStickyNotes",
+    "Microsoft.MixedReality.Portal","Microsoft.NetworkSpeedTest","Microsoft.News",
+    "Microsoft.Office.OneNote","Microsoft.Office.Sway","Microsoft.OneConnect",
+    "Microsoft.PowerAutomateDesktop","Microsoft.Print3D","Microsoft.SkypeApp",
+    "Microsoft.Todos","Microsoft.Windows.DevHome","Microsoft.WindowsAlarms",
+    "Microsoft.WindowsFeedbackHub","Microsoft.WindowsMaps","Microsoft.WindowsSoundRecorder",
+    "Microsoft.XboxApp","Microsoft.ZuneMusic","Microsoft.ZuneVideo","MicrosoftCorporationII.MicrosoftFamily",
+    "MicrosoftCorporationII.QuickAssist","MicrosoftTeams","MSTeams"
+)
+$installed = Get-AppxPackage -AllUsers | Where-Object { $apps -contains $_.Name }
+if (-not $installed) { "True" } else { "False" }
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),
@@ -207,7 +225,16 @@ Write-Host "https://www.microsoft.com/en-us/microsoft-365/onedrive/download" -Fo
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
-if (!(Test-Path "$env:LOCALAPPDATA\Microsoft\OneDrive\OneDrive.exe")) { "True" } else { "False" }
+$paths = @(
+    "$env:LOCALAPPDATA\Microsoft\OneDrive\OneDrive.exe",
+    "$env:ProgramFiles\Microsoft OneDrive\OneDrive.exe",
+    "${env:ProgramFiles(x86)}\Microsoft OneDrive\OneDrive.exe"
+)
+$exists = $false
+foreach ($p in $paths) {
+    if (Test-Path $p) { $exists = $true; break }
+}
+if (-not $exists) { "True" } else { "False" }
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),

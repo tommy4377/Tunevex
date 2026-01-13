@@ -1,4 +1,4 @@
-use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{Tweak, TweakCategory, TweakOperation, TweakType, WarningLevel};
 
 pub fn get_service_tweaks() -> Vec<Tweak> {
     vec![
@@ -22,9 +22,15 @@ pub fn get_service_tweaks() -> Vec<Tweak> {
                 }
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
+            check: Some(crate::modules::types::TweakCheck::Powershell {
                 script: r#"
-if ((Get-Service DiagTrack -ErrorAction SilentlyContinue).StartType -match 'Disabled') { "True" } else { "False" }
+$services = @("DiagTrack", "dmwappushservice", "diagnosticshub.standardcollector.service", "WerSvc", "wercplsupport", "PcaSvc")
+$allDisabled = $true
+foreach ($svcName in $services) {
+    $svc = Get-Service -Name $svcName -ErrorAction SilentlyContinue
+    if ($svc -and $svc.StartType -ne 'Disabled') { $allDisabled = $false; break }
+}
+if ($allDisabled) { "True" } else { "False" }
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),

@@ -14,8 +14,8 @@ use crate::modules::privacy::get_privacy_tweaks;
 use crate::modules::security::get_security_tweaks;
 use crate::modules::storage::get_storage_tweaks;
 // use crate::modules::startup::get_startup_tweaks;
+use crate::modules::interface::get_interface_tweaks;
 use crate::modules::system::get_system_tweaks;
-use crate::modules::ui_classic::get_ui_classic_tweaks;
 use std::sync::Mutex;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -34,7 +34,7 @@ pub fn run() {
     all_tweaks.extend(get_input_tweaks());
     // all_tweaks.extend(get_hardware_tweaks()); // Removed
     all_tweaks.extend(get_storage_tweaks());
-    all_tweaks.extend(get_ui_classic_tweaks()); // UI Classic tweaks
+    all_tweaks.extend(get_interface_tweaks());
 
     // Load initial state
     let state_path = crate::modules::utils::dirs::get_state_path()
@@ -127,11 +127,6 @@ pub fn run() {
                     eprintln!("Error in global mouse hook: {:?}", error);
                 }
             });
-
-            // Deploy UI Classic assets
-            if let Err(e) = crate::modules::ui_classic::setup::deploy_assets(app) {
-                eprintln!("Failed to deploy UI assets: {}", e);
-            }
 
             Ok(())
         })

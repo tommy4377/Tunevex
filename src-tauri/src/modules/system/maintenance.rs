@@ -115,7 +115,6 @@ Note: Boot time may increase by 2-5 seconds.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             tweak_type: TweakType::Toggle, enabled: false,
-            tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power".to_string(),

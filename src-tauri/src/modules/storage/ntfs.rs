@@ -1,5 +1,5 @@
-use crate::modules::types::{TweakType, 
-    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
 };
 
 /// Returns all NTFS filesystem tweaks
@@ -24,11 +24,12 @@ pub fn get_ntfs_tweaks() -> Vec<Tweak> {
                     "2".to_string(),
                 ], // 2 = System Managed (Default)
             }]),
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\FileSystem".to_string(),
-                key: "NtfsDisableLastAccessUpdate".to_string(),
-                expected_value: RegistryValue::DWord(1),
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$res = fsutil behavior query disablelastaccess
+if ($res -match "1") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
             }),
             operations: vec![TweakOperation::Command {
                 cmd: "fsutil".to_string(),
@@ -53,11 +54,12 @@ pub fn get_ntfs_tweaks() -> Vec<Tweak> {
                 cmd: "fsutil".to_string(),
                 args: vec!["8dot3name".to_string(), "set".to_string(), "2".to_string()], // 2 = Volume Default
             }]),
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\FileSystem".to_string(),
-                key: "NtfsDisable8dot3NameCreation".to_string(),
-                expected_value: RegistryValue::DWord(1),
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$res = fsutil behavior query 8dot3name
+if ($res -match "1") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
             }),
             operations: vec![TweakOperation::Command {
                 cmd: "fsutil".to_string(),
@@ -158,7 +160,7 @@ Windows should auto-detect SSDs, but this ensures it's disabled.".to_string(),
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
-if ((Get-ScheduledTask -TaskName "ScheduledDefrag" -ErrorAction SilentlyContinue).State -match 'Disabled') { "True" } else { "False" }
+if ((Get-ScheduledTask -TaskName "ScheduledDefrag" -TaskPath "\Microsoft\Windows\Defrag\" -ErrorAction SilentlyContinue).State -match 'Disabled') { "True" } else { "False" }
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),

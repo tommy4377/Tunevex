@@ -1,4 +1,6 @@
-use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 pub fn get_service_tweaks() -> Vec<Tweak> {
     vec![
@@ -21,7 +23,8 @@ pub fn get_service_tweaks() -> Vec<Tweak> {
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
-if ((Get-Service WSearch -ErrorAction SilentlyContinue).StartType -match 'Disabled') { "True" } else { "False" }
+$s = Get-Service WSearch -ErrorAction SilentlyContinue
+if ($s -and $s.StartType -eq 'Disabled') { "True" } else { "False" }
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),
@@ -53,7 +56,8 @@ if ((Get-Service WSearch -ErrorAction SilentlyContinue).StartType -match 'Disabl
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
-if ((Get-Service BITS -ErrorAction SilentlyContinue).StartType -match 'Manual') { "True" } else { "False" }
+$s = Get-Service BITS -ErrorAction SilentlyContinue
+if ($s -and $s.StartType -eq 'Manual') { "True" } else { "False" }
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),
@@ -98,7 +102,8 @@ The old 2013 advice to 'always disable on SSDs' is outdated.".to_string(),
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
-if ((Get-Service SysMain -ErrorAction SilentlyContinue).StartType -match 'Disabled') { "True" } else { "False" }
+$s = Get-Service SysMain -ErrorAction SilentlyContinue
+if ($s -and $s.StartType -eq 'Disabled') { "True" } else { "False" }
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),

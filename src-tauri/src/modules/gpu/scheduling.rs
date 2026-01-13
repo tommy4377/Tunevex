@@ -125,8 +125,17 @@ pub fn get_scheduling_tweaks() -> Vec<Tweak> {
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
+$serviceDisabled = $true
 $svc = Get-Service -Name "NvTelemetryContainer" -EA 0
-if ($svc -and $svc.StartType -ne 'Disabled') { "False" } else { "True" }
+if ($svc -and $svc.StartType -ne 'Disabled') { $serviceDisabled = $false }
+
+$tasksDisabled = $true
+$tasks = Get-ScheduledTask | Where-Object { $_.TaskName -like "*NvTmMon*" }
+foreach ($t in $tasks) {
+    if ($t.State -ne 'Disabled') { $tasksDisabled = $false; break }
+}
+
+if ($serviceDisabled -and $tasksDisabled) { "True" } else { "False" }
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),

@@ -166,11 +166,20 @@ Reduces DNS lookup latency and improves browsing speed.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters".to_string(),
-                key: "CacheHashTableSize".to_string(),
-                expected_value: RegistryValue::DWord(384),
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$path = "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters"
+$hash = Get-ItemProperty -Path $path -Name "CacheHashTableSize" -ErrorAction SilentlyContinue
+$ttl = Get-ItemProperty -Path $path -Name "MaxCacheEntryTtlLimit" -ErrorAction SilentlyContinue
+$timeout = Get-ItemProperty -Path $path -Name "ServiceConnHardTimeout" -ErrorAction SilentlyContinue
+
+if (($hash.CacheHashTableSize -eq 384) -and ($ttl.MaxCacheEntryTtlLimit -eq 64000) -and ($timeout.ServiceConnHardTimeout -eq 30)) {
+    "True"
+} else {
+    "False"
+}
+"#.to_string(),
+                expected_output: "True".to_string(),
             }),
             revert_operations: Some(vec![
                 TweakOperation::RegistryDelete {

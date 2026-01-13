@@ -157,10 +157,49 @@ pub fn decompress_file(path: &Path) -> io::Result<bool> {
     }
 }
 
+const FSCTL_GET_EXTERNAL_BACKING: u32 = 0x90314;
+
 #[allow(unused_variables)]
 pub fn is_compressed(path: &Path) -> bool {
-    // TODO: Implement FSCTL_GET_EXTERNAL_BACKING check
-    false
+    unsafe {
+        let path_str = HSTRING::from(path.as_os_str());
+        // Open file with minimal permissions to query compression state
+        let handle = CreateFileW(
+            PCWSTR::from_raw(path_str.as_ptr()),
+            0, // Read attributes minimal
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            None,
+            OPEN_EXISTING,
+            FILE_FLAG_BACKUP_SEMANTICS,
+            None,
+        );
+
+        if let Ok(handle) = handle {
+            if handle == INVALID_HANDLE_VALUE {
+                return false;
+            }
+            let _handle_guard = HandleGuard(handle);
+
+            // Output buffer for WOF_EXTERNAL_INFO
+            let mut wof_info = [0u8; 1024]; // Generous buffer
+            let mut bytes_returned = 0;
+
+            let result = DeviceIoControl(
+                handle,
+                FSCTL_GET_EXTERNAL_BACKING,
+                None,
+                0,
+                Some(wof_info.as_mut_ptr() as *mut _),
+                wof_info.len() as u32,
+                Some(&mut bytes_returned),
+                None,
+            );
+
+            result.is_ok()
+        } else {
+            false
+        }
+    }
 }
 
 // Helper for handle
