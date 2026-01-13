@@ -73,7 +73,7 @@ pub fn get_scheduling_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "gpu_increase_tdr_delay".to_string(),
             category: TweakCategory::GpuOptimization,
-            name: "⏱️ Increase GPU Timeout Delay".to_string(),
+            name: "Increase GPU Timeout Delay".to_string(),
             description: "Increases GPU timeout from 2s to 8s. Prevents 'Display driver stopped responding' during heavy loads.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
@@ -210,7 +210,7 @@ if ($disabled -gt 0) {
         Tweak {
             id: "gpu_disable_preemption".to_string(),
             category: TweakCategory::GpuOptimization,
-            name: "🎮 Disable GPU Preemption".to_string(),
+            name: "Disable GPU Preemption".to_string(),
             description: "Disables GPU preemption for potentially smoother frame pacing. May reduce micro-stuttering in some games.
 
 Note: Effects vary by GPU and game. Test thoroughly.

@@ -54,7 +54,7 @@ if ($t.State -eq 'Disabled') { "True" } else { "False" }
         Tweak {
             id: "privacy_disable_input_sync_tasks".to_string(),
             category: TweakCategory::Privacy,
-            name: "⌨️ Disable Input Sync Tasks".to_string(),
+            name: "Disable Input Sync Tasks".to_string(),
             description: "Disables mouse, keyboard, and touchpad sync tasks.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,

@@ -11,7 +11,7 @@ pub fn get_system_msi_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "system_msi_global_safe".to_string(),
             category: TweakCategory::System,
-            name: "⚡ Enable MSI Mode Globally (Safe Priority)".to_string(),
+            name: "Enable MSI Mode Globally (Safe Priority)".to_string(),
             description: "Enables MSI with Priority 0 on all supported PCI devices. Safest option for broad compatibility.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,

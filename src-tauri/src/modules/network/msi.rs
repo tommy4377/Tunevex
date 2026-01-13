@@ -1,4 +1,6 @@
-use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 /// Returns Network Adapter MSI tweaks
 pub fn get_network_msi_tweaks() -> Vec<Tweak> {
@@ -9,7 +11,7 @@ pub fn get_network_msi_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "net_msi_nic_high".to_string(), // Renamed
             category: TweakCategory::Network,
-            name: "🌐 Enable MSI Mode on NIC (High Priority)".to_string(),
+            name: "Enable MSI Mode on NIC (High Priority)".to_string(),
             description: "Enables MSI with Priority 3 on Realtek/Intel network adapters. Reduces network latency.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
@@ -131,7 +133,7 @@ Write-Host "MSI enabled on $count NIC(s) with High Priority!" -ForegroundColor G
         Tweak {
             id: "net_msi_nic_normal".to_string(), // Renamed
             category: TweakCategory::Network,
-            name: "🌐 Enable MSI Mode on NIC (Normal Priority)".to_string(),
+            name: "Enable MSI Mode on NIC (Normal Priority)".to_string(),
             description: "Enables MSI with Priority 1 on network adapters. Safer option for compatibility.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
@@ -253,15 +255,8 @@ Write-Host "MSI enabled on $count NIC(s) with Normal Priority!" -ForegroundColor
         Tweak {
             id: "net_msi_additional_vendors".to_string(),
             category: TweakCategory::Network,
-            name: "🌐 Enable MSI on Additional NICs".to_string(),
-            description: "Enables MSI mode for additional network adapters:
-- Qualcomm Atheros (VEN_168C)
-- Broadcom (VEN_14E4)
-- Marvell (VEN_11AB)
-- Killer Networking (VEN_1969)
-- MediaTek (VEN_14C3)
-
-Uses Priority 2 for balanced latency and compatibility.".to_string(),
+            name: "Enable MSI on Additional NICs".to_string(),
+            description: "Enables MSI mode for Qualcomm, Broadcom, Marvell, Killer, and MediaTek network adapters with Priority 2.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
             tweak_type: TweakType::Toggle, enabled: false,

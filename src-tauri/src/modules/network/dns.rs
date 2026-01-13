@@ -79,7 +79,7 @@ foreach ($adapter in $adapters) {
         Tweak {
             id: "net_dns_benchmark".to_string(),
             category: TweakCategory::Network,
-            name: "🔍 DNS Benchmark & Auto-Select Fastest".to_string(),
+            name: "DNS Benchmark & Auto-Select Fastest".to_string(),
             description: "Tests 25+ DNS servers and applies the fastest one (Legacy method, use Dashboard instead).".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -154,15 +154,8 @@ foreach ($adapter in $adapters) {
         Tweak {
             id: "net_dns_cache_optimization".to_string(),
             category: TweakCategory::Network,
-            name: "⚡ Optimize DNS Cache".to_string(),
-            description: "Optimizes DNS cache for better performance.
-
-Sets:
-- CacheHashTableSize = 384 (larger hash table)
-- MaxCacheEntryTtlLimit = 64000 (longer cache entries)
-- ServiceConnHardTimeout = 30 (faster failover)
-
-Reduces DNS lookup latency and improves browsing speed.".to_string(),
+            name: "Optimize DNS Cache".to_string(),
+            description: "Optimizes DNS cache with larger hash table, longer entry TTL, and faster failover for improved browsing speed.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             tweak_type: TweakType::Toggle, enabled: false,

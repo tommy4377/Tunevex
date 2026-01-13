@@ -1,4 +1,6 @@
-use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 /// Returns NVMe MSI Mode tweaks
 pub fn get_storage_msi_tweaks() -> Vec<Tweak> {
@@ -9,7 +11,7 @@ pub fn get_storage_msi_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "storage_msi_nvme_high".to_string(), // Renamed from hw_
             category: TweakCategory::FileSystem,
-            name: "💾 Enable MSI Mode on NVMe (High Priority)".to_string(),
+            name: "Enable MSI Mode on NVMe (High Priority)".to_string(),
             description: "Enables MSI with Priority 3 on NVMe drives. Reduces storage latency.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,

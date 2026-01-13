@@ -7,7 +7,7 @@ pub fn get_xbox_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "gaming_disable_xbox_services".to_string(),
             category: TweakCategory::GameOptimizations,
-            name: "🎮 Disable Xbox Services".to_string(),
+            name: "Disable Xbox Services".to_string(),
             description: "Disables Xbox-related services. WARNING: May affect some games!"
                 .to_string(),
             warning_level: WarningLevel::Careful,
@@ -44,7 +44,7 @@ if (($gip.StartType -eq 'Disabled') -and ($auth.StartType -eq 'Disabled')) { "Tr
         Tweak {
             id: "gaming_disable_xbox_tasks".to_string(),
             category: TweakCategory::GameOptimizations,
-            name: "🎮 Disable Xbox Scheduled Tasks".to_string(),
+            name: "Disable Xbox Scheduled Tasks".to_string(),
             description: "Disables Xbox game save and related tasks.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,

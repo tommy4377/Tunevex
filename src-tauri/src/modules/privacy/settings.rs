@@ -431,7 +431,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "priv_disable_bing_search".to_string(),
             category: TweakCategory::Privacy,
-            name: "🔍 Disable Bing Web Search".to_string(),
+            name: "Disable Bing Web Search".to_string(),
             description: "Disables Bing web search and Cortana in Windows Search.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -480,7 +480,7 @@ Write-Host "Bing search disabled" -ForegroundColor Green
         Tweak {
             id: "priv_clear_mru".to_string(),
             category: TweakCategory::Privacy,
-            name: "🧹 Clear Recent Files & MRU History".to_string(),
+            name: "Clear Recent Files & MRU History".to_string(),
             description: "Clears all Most Recently Used (MRU) lists for privacy.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,

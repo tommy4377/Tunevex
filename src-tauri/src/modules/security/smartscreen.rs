@@ -2,8 +2,8 @@
 //!
 //! Controls for Windows SmartScreen filter for apps, Edge, and Store.
 
-use crate::modules::types::{TweakType, 
-    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
 };
 
 pub fn get_smartscreen_tweaks() -> Vec<Tweak> {
@@ -12,7 +12,7 @@ pub fn get_smartscreen_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_disable_smartscreen_apps".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🛡️ Disable SmartScreen for Apps".to_string(),
+            name: "Disable SmartScreen for Apps".to_string(),
             description: "Disables SmartScreen filter for downloaded apps and files. Reduces protection against malware.".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: false,

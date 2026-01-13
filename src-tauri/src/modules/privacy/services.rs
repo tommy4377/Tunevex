@@ -5,7 +5,7 @@ pub fn get_service_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "privacy_disable_telemetry_services".to_string(),
             category: TweakCategory::Privacy,
-            name: "🔒 Disable Telemetry Services".to_string(),
+            name: "Disable Telemetry Services".to_string(),
             description: "Disables DiagTrack, dmwappushservice, diagnosticshub, and other telemetry services.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,

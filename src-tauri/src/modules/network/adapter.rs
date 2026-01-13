@@ -137,7 +137,15 @@ Get-NetAdapter | ForEach-Object {
             description: "Sets RSS profile to ClosestProcessor and enables RSS.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            revert_operations: None, tweak_type: TweakType::Toggle, enabled: false,
+            revert_operations: Some(vec![
+                TweakOperation::Powershell {
+                    script: r#"
+Get-NetAdapter | ForEach-Object {
+    Set-NetAdapterRss -Name $_.Name -Profile NUMAStatic -ErrorAction SilentlyContinue
+}
+"#.to_string(),
+                }
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $adapters = Get-NetAdapter

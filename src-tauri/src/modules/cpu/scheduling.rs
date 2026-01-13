@@ -235,7 +235,7 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services' |
         Tweak {
             id: "cpu_disable_vbs".to_string(),
             category: TweakCategory::CpuPerformance,
-            name: "🔒 Disable VBS (Virtualization Based Security)".to_string(),
+            name: "Disable VBS (Virtualization Based Security)".to_string(),
             description: "Disables VBS and Memory Integrity. Provides 5-15% FPS boost. Reduces security - only for gaming systems.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,

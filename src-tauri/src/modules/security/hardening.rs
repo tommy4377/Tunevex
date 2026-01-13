@@ -2,8 +2,8 @@
 //!
 //! Network security hardening, SAM enumeration blocking, remote assistance disable.
 
-use crate::modules::types::{TweakType, 
-    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
 };
 
 pub fn get_hardening_tweaks() -> Vec<Tweak> {
@@ -12,7 +12,7 @@ pub fn get_hardening_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_block_sam_enum".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🔒 Block Anonymous SAM Enumeration".to_string(),
+            name: "Block Anonymous SAM Enumeration".to_string(),
             description: "Prevents anonymous users from enumerating SAM accounts. Security hardening.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -88,7 +88,7 @@ Write-Host "Remote Assistance disabled" -ForegroundColor Green
         Tweak {
             id: "sec_disable_smbv1".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🛡️ Disable SMBv1".to_string(),
+            name: "Disable SMBv1".to_string(),
             description: "Disables vulnerable SMBv1 protocol. Protects against WannaCry-style attacks.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
@@ -266,7 +266,7 @@ Write-Host "SMBv1 disabled" -ForegroundColor Green
         Tweak {
             id: "sec_disable_auto_maintenance".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🛠️ Disable Automatic Maintenance".to_string(),
+            name: "Disable Automatic Maintenance".to_string(),
             description: "Stops Windows from running automatic maintenance tasks (updates, defrag, etc).".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,

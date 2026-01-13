@@ -1,4 +1,6 @@
-use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 /// Returns USB MSI Mode tweaks
 pub fn get_usb_msi_tweaks() -> Vec<Tweak> {
@@ -9,7 +11,7 @@ pub fn get_usb_msi_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "input_msi_usb_normal".to_string(), // Renamed
             category: TweakCategory::MouseInput, // Changed category to Input
-            name: "🔌 Enable MSI Mode on USB Controllers (Normal)".to_string(),
+            name: "Enable MSI Mode on USB Controllers (Normal)".to_string(),
             description: "Enables MSI with Priority 1 on USB host controllers. Reduces USB latency.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,

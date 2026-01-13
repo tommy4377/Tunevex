@@ -2,8 +2,8 @@
 //!
 //! Controls for Windows Hello, lock screen, password policies, and auto-login.
 
-use crate::modules::types::{TweakType, 
-    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
 };
 
 pub fn get_authentication_tweaks() -> Vec<Tweak> {
@@ -28,7 +28,8 @@ pub fn get_authentication_tweaks() -> Vec<Tweak> {
                     key: "DisablePostLogonProvisioning".to_string(),
                 },
             ]),
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SOFTWARE\\Policies\\Microsoft\\PassportForWork".to_string(),
@@ -54,7 +55,7 @@ pub fn get_authentication_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_disable_lockscreen".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🔓 Disable Lock Screen".to_string(),
+            name: "Disable Lock Screen".to_string(),
             description: "Skips the lock screen and goes directly to login. Faster access."
                 .to_string(),
             warning_level: WarningLevel::Careful,
@@ -64,7 +65,8 @@ pub fn get_authentication_tweaks() -> Vec<Tweak> {
                 path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Personalization".to_string(),
                 key: "NoLockScreen".to_string(),
             }]),
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Personalization".to_string(),
@@ -82,7 +84,7 @@ pub fn get_authentication_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_no_password_reveal".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "👁️ Disable Password Reveal Button".to_string(),
+            name: "Disable Password Reveal Button".to_string(),
             description: "Hides the 'eye' button that reveals password in text fields.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -91,7 +93,8 @@ pub fn get_authentication_tweaks() -> Vec<Tweak> {
                 path: "SOFTWARE\\Policies\\Microsoft\\Windows\\CredUI".to_string(),
                 key: "DisablePasswordReveal".to_string(),
             }]),
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SOFTWARE\\Policies\\Microsoft\\Windows\\CredUI".to_string(),
@@ -113,7 +116,8 @@ pub fn get_authentication_tweaks() -> Vec<Tweak> {
             description: "Skips password prompt when waking from sleep/hibernate.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $res = powercfg /q SCHEME_CURRENT SUB_NONE CONSOLELOCK
@@ -144,7 +148,7 @@ Write-Host "Sign-in after sleep disabled" -ForegroundColor Green
         Tweak {
             id: "sec_disable_auto_login".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🔒 Disable Automatic Login".to_string(),
+            name: "Disable Automatic Login".to_string(),
             description: "Ensures Windows requires a password to log in. Improves security."
                 .to_string(),
             warning_level: WarningLevel::Safe,
@@ -160,7 +164,8 @@ Write-Host "Sign-in after sleep disabled" -ForegroundColor Green
                     value: RegistryValue::String("0".to_string()),
                 },
             ]),
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon".to_string(),
@@ -185,7 +190,7 @@ Write-Host "Sign-in after sleep disabled" -ForegroundColor Green
         Tweak {
             id: "sec_disable_rdp".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🖥️ Disable Remote Desktop".to_string(),
+            name: "Disable Remote Desktop".to_string(),
             description: "Disables Remote Desktop Protocol access to this computer.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -195,7 +200,8 @@ Write-Host "Sign-in after sleep disabled" -ForegroundColor Green
                 key: "fDenyTSConnections".to_string(),
                 value: RegistryValue::DWord(0),
             }]),
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SYSTEM\\CurrentControlSet\\Control\\Terminal Server".to_string(),

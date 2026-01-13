@@ -12,7 +12,7 @@ pub fn get_interface_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "interface_show_file_extensions".to_string(),
             category: TweakCategory::InterfaceUx,
-            name: "📄 Show File Extensions".to_string(),
+            name: "Show File Extensions".to_string(),
             description:
                 "Shows file extensions in File Explorer (e.g., document.docx instead of document).
 
@@ -49,7 +49,7 @@ Security benefit: Prevents malware from disguising .exe files as documents."
         Tweak {
             id: "interface_compact_mode".to_string(),
             category: TweakCategory::InterfaceUx,
-            name: "📐 Enable Compact File Explorer".to_string(),
+            name: "Enable Compact File Explorer".to_string(),
             description: "Enables compact mode in File Explorer for more items per page.
 
 Reduces padding between items to fit more files on screen.
@@ -86,7 +86,7 @@ Useful for high-resolution displays or power users."
         Tweak {
             id: "interface_show_hidden_files".to_string(),
             category: TweakCategory::InterfaceUx,
-            name: "👁️ Show Hidden Files".to_string(),
+            name: "Show Hidden Files".to_string(),
             description: "Shows hidden files and folders in File Explorer.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -119,7 +119,7 @@ Useful for high-resolution displays or power users."
         Tweak {
             id: "interface_show_system_files".to_string(),
             category: TweakCategory::InterfaceUx,
-            name: "⚙️ Show Protected System Files".to_string(),
+            name: "Show Protected System Files".to_string(),
             description: "Shows protected operating system files in File Explorer.
 
 WARNING: Be careful not to modify or delete system files!"
@@ -156,16 +156,16 @@ WARNING: Be careful not to modify or delete system files!"
         Tweak {
             id: "interface_classic_context_menu".to_string(),
             category: TweakCategory::InterfaceUx,
-            name: "🖱️ Restore Classic Context Menu".to_string(),
+            name: "Restore Classic Context Menu".to_string(),
             description: "Restores the Windows 10 style full context menu on right-click, removing the 'Show more options' delay.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true, // Explorer restart usually needed
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKCU".to_string(),
-                path: "Software\\Classes\\CLSID\\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\\InprocServer32".to_string(),
-                key: "".to_string(), // Default value
-                expected_value: RegistryValue::String("".to_string()),
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+if (Test-Path "HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
             }),
             revert_operations: Some(vec![
                 TweakOperation::RegistryDelete {
@@ -199,7 +199,7 @@ Remove-Item -Path "HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905b
         Tweak {
             id: "interface_end_task_taskbar".to_string(),
             category: TweakCategory::InterfaceUx,
-            name: "🛑 Enable 'End Task' in Taskbar".to_string(),
+            name: "Enable 'End Task' in Taskbar".to_string(),
             description: "Adds an 'End Task' option when right-clicking apps in the taskbar. Useful for frozen apps.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -233,7 +233,7 @@ Remove-Item -Path "HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905b
         Tweak {
             id: "interface_taskbar_classic".to_string(),
             category: TweakCategory::InterfaceUx,
-            name: "🎯 Classic Taskbar (Win10 Style)".to_string(),
+            name: "Classic Taskbar (Win10 Style)".to_string(),
             description: "Enable task labels, small icons, and never combine buttons like Windows 10.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
@@ -274,7 +274,7 @@ Stop-Process -Name "explorer" -Force -ErrorAction SilentlyContinue; Start-Sleep 
         Tweak {
             id: "interface_taskbar_top".to_string(),
             category: TweakCategory::InterfaceUx,
-            name: "📍 Taskbar on Top".to_string(),
+            name: "Taskbar on Top".to_string(),
             description: "Move taskbar to the top of the screen. Requires explorer restart.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
@@ -317,7 +317,7 @@ Stop-Process -Name "explorer" -Force -ErrorAction SilentlyContinue; Start-Sleep 
         Tweak {
             id: "interface_taskbar_center".to_string(),
             category: TweakCategory::InterfaceUx,
-            name: "⚖️ Center Taskbar Icons".to_string(),
+            name: "Center Taskbar Icons".to_string(),
             description: "Center taskbar icons (Windows 11 style).".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -352,7 +352,7 @@ Stop-Process -Name "explorer" -Force -ErrorAction SilentlyContinue; Start-Sleep 
         Tweak {
             id: "interface_dark_mode".to_string(),
             category: TweakCategory::InterfaceUx,
-            name: "🌙 Full Dark Mode".to_string(),
+            name: "Full Dark Mode".to_string(),
             description: "Enable dark mode everywhere: apps, system, and dialogs.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,

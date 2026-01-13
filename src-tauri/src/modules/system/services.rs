@@ -7,7 +7,7 @@ pub fn get_service_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "system_disable_windows_search".to_string(),
             category: TweakCategory::System,
-            name: "🔍 Disable Windows Search Indexer".to_string(),
+            name: "Disable Windows Search Indexer".to_string(),
             description: "Disables file indexing. Reduces high disk usage and CPU load, but slows down file search results.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -73,7 +73,7 @@ if ($s -and $s.StartType -eq 'Manual') { "True" } else { "False" }
         Tweak {
             id: "system_disable_superfetch".to_string(),
             category: TweakCategory::System,
-            name: "⚠️ Disable SysMain (Superfetch)".to_string(),
+            name: "Disable SysMain (Superfetch)".to_string(),
             description: "Disables SysMain/Superfetch service.
 
 ⚠️ MODERN ADVICE (2024+):

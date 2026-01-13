@@ -22,7 +22,7 @@ pub fn get_gaming_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "gaming_disable_gamebar".to_string(),
             category: TweakCategory::GameOptimizations,
-            name: "🎮 Disable Xbox Game Bar".to_string(),
+            name: "Disable Xbox Game Bar".to_string(),
             description: "Completely disables Xbox Game Bar overlay, startup panel, and tips.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -201,7 +201,7 @@ if (($panel.ShowStartupPanel -eq 0) -and ($capture.AppCaptureEnabled -eq 0)) { "
         Tweak {
             id: "gaming_disable_fso".to_string(),
             category: TweakCategory::GameOptimizations,
-            name: "🖥️ Disable Fullscreen Optimizations".to_string(),
+            name: "Disable Fullscreen Optimizations".to_string(),
             description: "Globally disables fullscreen optimizations (FSO).
 
 ⚠️ MODERN ADVICE (2024+):
@@ -268,7 +268,7 @@ Disabling FSO may BREAK VRR and HDR functionality!".to_string(),
         Tweak {
             id: "gaming_mmcss_priority".to_string(),
             category: TweakCategory::GameOptimizations,
-            name: "⚖️ Optimize Game Process Priority".to_string(),
+            name: "Optimize Game Process Priority".to_string(),
             description: "Sets MMCSS Games task to high priority for better CPU scheduling in games.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -448,7 +448,7 @@ Write-Host "You may need to restart Explorer or log off for all changes to apply
         Tweak {
             id: "gaming_disable_mmcss".to_string(),
             category: TweakCategory::GameOptimizations,
-            name: "⚠️ Disable MMCSS Service".to_string(),
+            name: "Disable MMCSS Service".to_string(),
             description: "Disables Multimedia Class Scheduler Service (MMCSS).
 
 Some systems perform better without MMCSS interference:

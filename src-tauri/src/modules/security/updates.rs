@@ -1,11 +1,13 @@
-use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 pub fn get_update_tweaks() -> Vec<Tweak> {
     vec![
         Tweak {
             id: "sec_disable_windows_update".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "⚠️ Disable Windows Update Services".to_string(),
+            name: "Disable Windows Update Services".to_string(),
             description: "Completely disables Windows Update services and tasks. WARNING: You will receive NO security updates!".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: true,

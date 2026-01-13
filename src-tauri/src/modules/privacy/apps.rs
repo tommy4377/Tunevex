@@ -9,7 +9,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "priv_nvidia_telemetry".to_string(),
             category: TweakCategory::Privacy,
-            name: "🎮 Disable NVIDIA Telemetry".to_string(),
+            name: "Disable NVIDIA Telemetry".to_string(),
             description: "Disables NVIDIA telemetry: services, scheduled tasks, registry keys. From privacy.sexy scripts.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,

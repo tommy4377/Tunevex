@@ -184,7 +184,7 @@ powercfg -setactive SCHEME_CURRENT
         Tweak {
             id: "cpu_disable_idle".to_string(),
             category: TweakCategory::CpuPerformance,
-            name: "⚠️ Disable CPU Idle States".to_string(),
+            name: "Disable CPU Idle States".to_string(),
             description: "Forces CPU to maximum speed always. NOT recommended with HyperThreading/SMT. Ensure good cooling!".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: false,
@@ -207,7 +207,7 @@ if ($res -match "Current AC Power Setting Index: 0x00000001") { "True" } else { 
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
-# From Atlas CPU Idle script
+# Disable CPU Idle States
 powercfg /setacvalueindex scheme_current sub_processor 5d76a2ca-e8c0-402f-a133-2158492d58ad 1
 powercfg /setactive scheme_current
 Write-Host "CPU Idle disabled - Task Manager will show 100% usage" -ForegroundColor Yellow
@@ -222,8 +222,8 @@ Write-Host "CPU Idle disabled - Task Manager will show 100% usage" -ForegroundCo
         Tweak {
             id: "cpu_atlas_power_scheme".to_string(),
             category: TweakCategory::CpuPerformance,
-            name: "🔌 Create Atlas Power Scheme".to_string(),
-            description: "Creates custom Atlas Power Scheme based on Ultimate Performance with all power-saving disabled.".to_string(),
+            name: "Create Ultimate Power Scheme".to_string(),
+            description: "Creates custom Ultimate Power Scheme based on ultimate performance with all power-saving disabled.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             tweak_type: TweakType::Toggle, enabled: false,
@@ -242,16 +242,16 @@ if ($scheme -match "11111111-1111-1111-1111-111111111111") { "True" } else { "Fa
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
-Write-Host "Creating Atlas Power Scheme..." -ForegroundColor Yellow
+Write-Host "Creating Ultimate Power Scheme..." -ForegroundColor Yellow
 
 # Create/activate Ultimate Performance based scheme
 if (!(powercfg /l | Select-String "11111111-1111-1111-1111-111111111111" -Quiet)) {
     powercfg /duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 11111111-1111-1111-1111-111111111111 2>$null
 }
 powercfg /setactive 11111111-1111-1111-1111-111111111111
-powercfg /changename scheme_current "Atlas Power Scheme" "Optimized for latency and performance"
+powercfg /changename scheme_current "Ultimate Power Scheme" "Optimized for latency and performance"
 
-Write-Host "Atlas Power Scheme created and activated!" -ForegroundColor Green
+Write-Host "Ultimate Power Scheme created and activated!" -ForegroundColor Green
 "#.to_string(),
                 }
             ]
@@ -263,7 +263,7 @@ Write-Host "Atlas Power Scheme created and activated!" -ForegroundColor Green
         Tweak {
             id: "cpu_usb3_link_power".to_string(),
             category: TweakCategory::CpuPerformance,
-            name: "🔌 Disable USB 3 Link Power Management".to_string(),
+            name: "Disable USB 3 Link Power Management".to_string(),
             description: "Sets USB 3 Link Power Management to maximum performance. Prevents USB device latency spikes and disconnections.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -403,8 +403,8 @@ foreach ($device in $devices) {
         Tweak {
             id: "cpu_disable_all_power_saving".to_string(),
             category: TweakCategory::CpuPerformance,
-            name: "🔋 Disable All Power-Saving Features".to_string(),
-            description: "Comprehensive power-saving disable: NVMe idle, USB3 link power, throttle states, device D3, EEE. From Atlas.".to_string(),
+            name: "Disable All Power-Saving Features".to_string(),
+            description: "Comprehensive power-saving disable: NVMe idle, USB3 link power, throttle states, device D3, EEE.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
             tweak_type: TweakType::Toggle, enabled: false,
@@ -434,14 +434,14 @@ if (($storage -eq 0) -and $adapterCheck) { "True" } else { "False" }
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
-Write-Host "Configuring Atlas Power Scheme..." -ForegroundColor Yellow
+Write-Host "Configuring Ultimate Power Scheme..." -ForegroundColor Yellow
 
 # Create/activate Ultimate Performance based scheme
 if (!(powercfg /l | Select-String "11111111-1111-1111-1111-111111111111" -Quiet)) {
     powercfg /duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 11111111-1111-1111-1111-111111111111 2>$null
 }
 powercfg /setactive 11111111-1111-1111-1111-111111111111
-powercfg /changename scheme_current "Atlas Power Scheme" "Optimized for latency and performance"
+powercfg /changename scheme_current "Ultimate Power Scheme" "Optimized for latency and performance"
 
 # NVMe Idle Timeout - 0ms
 powercfg /setacvalueindex scheme_current 0012ee47-9041-4b5d-9b77-535fba8b1442 d3d55efd-c1ff-424e-9dc3-441be7833010 0

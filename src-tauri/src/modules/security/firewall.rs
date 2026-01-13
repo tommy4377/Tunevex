@@ -135,7 +135,7 @@ Write-Host "Firewall set to block outbound by default" -ForegroundColor Cyan
         Tweak {
             id: "sec_fw_block_rdp".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🖥️ Block Remote Desktop".to_string(),
+            name: "Block Remote Desktop".to_string(),
             description: "Disables Remote Desktop firewall rules to prevent remote access.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,

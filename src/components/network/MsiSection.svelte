@@ -20,43 +20,17 @@
             console.error("Failed to toggle tweak:", e);
         }
     }
-
-    async function applySafeTweaks() {
-        for (const tweak of tweaks.filter((t) => t.warning_level === "Safe")) {
-            if (!tweak.enabled) {
-                try {
-                    await invoke("apply_tweak", { id: tweak.id });
-                    tweak.enabled = true;
-                } catch (e) {
-                    console.error(`Failed to apply tweak ${tweak.id}:`, e);
-                }
-            }
-        }
-        tweaks = tweaks;
-    }
 </script>
 
 <div class="msi-section" in:fade>
     <div class="header">
         <div class="header-text">
-            <h2>⚡ Network MSI Mode</h2>
+            <h2>Network MSI Mode</h2>
             <p>
                 Enable Message Signaled Interrupts (MSI) for lower latency and
                 better stability.
             </p>
         </div>
-        <button class="optimize-btn safe" on:click={() => applySafeTweaks()}>
-            ✅ Apply Safe Tweaks
-        </button>
-    </div>
-
-    <div class="info-banner">
-        <span class="icon">ℹ️</span>
-        <p>
-            MSI Mode reduces CPU overhead for network interrupts.
-            <strong>High Priority</strong> is recommended for gaming.
-            <strong>Normal Priority</strong> is safer for general use.
-        </p>
     </div>
 
     <div class="grid">
@@ -72,6 +46,10 @@
 <style>
     .msi-section {
         padding-bottom: 24px;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        overflow: hidden;
     }
 
     .header {
@@ -79,6 +57,7 @@
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
+        flex-shrink: 0;
     }
 
     .header-text h2 {
@@ -94,38 +73,14 @@
         font-size: 14px;
     }
 
-    .optimize-btn.safe {
-        background: #10b981;
-        color: white;
-        border: none;
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-weight: 500;
-        cursor: pointer;
-        font-size: 13px;
-    }
-    .optimize-btn.safe:hover {
-        background: #059669;
-    }
-
-    .info-banner {
-        background: rgba(59, 130, 246, 0.1);
-        border: 1px solid rgba(59, 130, 246, 0.2);
-        border-radius: var(--radius-sm);
-        padding: 12px 16px;
-        display: flex;
-        gap: 12px;
-        align-items: flex-start;
-        margin-bottom: 24px;
-        color: var(--text-color);
-        font-size: 14px;
-        line-height: 1.5;
-    }
-
     .grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, 320px);
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
         gap: 16px;
+        overflow-y: auto;
+        flex: 1;
+        padding: 4px; /* Padding for hover transform clearance */
+        padding-bottom: 24px;
     }
 
     .empty {

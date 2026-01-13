@@ -2,8 +2,8 @@
 //!
 //! Controls for UAC prompts, elevation, and admin approval mode.
 
-use crate::modules::types::{TweakType, 
-    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
 };
 
 pub fn get_uac_tweaks() -> Vec<Tweak> {
@@ -57,7 +57,7 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_uac_no_secure".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🖥️ Disable Secure Desktop for UAC".to_string(),
+            name: "Disable Secure Desktop for UAC".to_string(),
             description: "UAC prompts appear on regular desktop instead of secure (dimmed) desktop.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
@@ -168,7 +168,7 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_uac_auto_elevate".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "⬆️ Auto-Elevate Known Apps".to_string(),
+            name: "Auto-Elevate Known Apps".to_string(),
             description: "Allows Windows to auto-elevate known Microsoft applications without prompts.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,

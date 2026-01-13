@@ -275,7 +275,7 @@ Write-Host "OneDrive removed" -ForegroundColor Green
         Tweak {
             id: "debloat_thirdparty".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🎮 Remove Third-Party Bloatware".to_string(),
+            name: "Remove Third-Party Bloatware".to_string(),
             description: "Removes Spotify, Netflix, Disney+, TikTok, Facebook, Instagram, Candy Crush, etc.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -557,7 +557,7 @@ Write-Host "Removed $removed Razer apps" -ForegroundColor Green
         Tweak {
             id: "debloat_mcafee".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🛡️ Remove McAfee Antivirus".to_string(),
+            name: "Remove McAfee Antivirus".to_string(),
             description: "Removes McAfee trial software using official removal tool (MCPR).".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
@@ -596,7 +596,7 @@ try {
         Tweak {
             id: "debloat_norton".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🛡️ Remove Norton Security".to_string(),
+            name: "Remove Norton Security".to_string(),
             description: "Removes Norton/Symantec trial software.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -664,7 +664,7 @@ Write-Host "Teams Chat removed from taskbar" -ForegroundColor Green
         Tweak {
             id: "debloat_gaming".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🎮 Remove Xbox Gaming Apps".to_string(),
+            name: "Remove Xbox Gaming Apps".to_string(),
             description: "Removes Xbox apps. WARNING: May break some games that require Xbox integration!".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: false,
@@ -880,7 +880,7 @@ Write-Host "`nEdge removal complete! Restart recommended." -ForegroundColor Gree
         Tweak {
             id: "debloat_disable_defender".to_string(),
             category: TweakCategory::DebloatTelemetry,
-            name: "🛡️ Disable Windows Defender".to_string(),
+            name: "Disable Windows Defender".to_string(),
             description: "DANGEROUS: Disables Windows Defender real-time protection and services via registry policies. Does NOT remove files. Requires reboot.".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: true,

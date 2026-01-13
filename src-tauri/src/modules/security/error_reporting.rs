@@ -2,8 +2,8 @@
 //!
 //! Controls for crash reporting, memory dumps, and WER service.
 
-use crate::modules::types::{TweakType, 
-    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
 };
 
 pub fn get_error_reporting_tweaks() -> Vec<Tweak> {
@@ -30,7 +30,8 @@ pub fn get_error_reporting_tweaks() -> Vec<Tweak> {
                     key: "Disabled".to_string(),
                 },
             ]),
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Error Reporting".to_string(),
@@ -57,7 +58,7 @@ pub fn get_error_reporting_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_disable_crash_dumps".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "💾 Disable Automatic Crash Dumps".to_string(),
+            name: "Disable Automatic Crash Dumps".to_string(),
             description: "Prevents Windows from creating memory dumps when apps crash.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -73,7 +74,8 @@ pub fn get_error_reporting_tweaks() -> Vec<Tweak> {
                     key: "DontShowUI".to_string(),
                 },
             ]),
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting".to_string(),
@@ -99,11 +101,12 @@ pub fn get_error_reporting_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_disable_wer_service".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "⚙️ Disable WER Service".to_string(),
+            name: "Disable WER Service".to_string(),
             description: "Stops the Windows Error Reporting Service from running.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
 $svc = Get-Service -Name "WerSvc" -EA 0
@@ -141,7 +144,8 @@ Write-Host "Windows Error Reporting Service disabled" -ForegroundColor Green
                 path: "SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting".to_string(),
                 key: "DontShowUI".to_string(),
             }]),
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKCU".to_string(),
                 path: "SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting".to_string(),
@@ -169,7 +173,8 @@ Write-Host "Windows Error Reporting Service disabled" -ForegroundColor Green
                 key: "DoReport".to_string(),
                 value: RegistryValue::DWord(1),
             }]),
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SOFTWARE\\Policies\\Microsoft\\PCHealth\\ErrorReporting".to_string(),

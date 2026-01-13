@@ -73,7 +73,7 @@ if ($res -match "1") { "True" } else { "False" }
         Tweak {
             id: "storage_native_nvme_driver".to_string(),
             category: TweakCategory::FileSystem,
-            name: "⚡ Enable Native NVMe Driver (24H2+)".to_string(),
+            name: "Enable Native NVMe Driver (24H2+)".to_string(),
             description: "Enables the new native Windows NVMe driver for improved performance.
 
 Only works on Windows 11 24H2 or newer.
@@ -110,7 +110,7 @@ Provides lower latency and better IOPS for NVMe SSDs.".to_string(),
         Tweak {
             id: "storage_enable_write_cache".to_string(),
             category: TweakCategory::FileSystem,
-            name: "💾 Enable Disk Write Caching".to_string(),
+            name: "Enable Disk Write Caching".to_string(),
             description: "Enables write caching on all physical disks for improved write performance.
 
 WARNING: Data loss may occur during power failure.

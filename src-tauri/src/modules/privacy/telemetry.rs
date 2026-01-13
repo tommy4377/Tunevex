@@ -11,7 +11,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "priv_disable_telemetry".to_string(),
             category: TweakCategory::Privacy,
-            name: "🔒 Disable Windows Telemetry".to_string(),
+            name: "Disable Windows Telemetry".to_string(),
             description: "Sets AllowTelemetry=0 in all locations, disables DiagTrack service, clears telemetry logs.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
@@ -346,7 +346,7 @@ Write-Host "Telemetry scheduled tasks disabled" -ForegroundColor Green
         Tweak {
             id: "priv_disable_nvidia_telemetry".to_string(),
             category: TweakCategory::Privacy,
-            name: "🔒 Disable NVIDIA Telemetry".to_string(),
+            name: "Disable NVIDIA Telemetry".to_string(),
             description: "Disables NVIDIA Telemetry Container service and scheduled tasks (NvTmMon, NvTmRep).".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,

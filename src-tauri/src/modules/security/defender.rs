@@ -3,8 +3,8 @@
 //! Controls for Windows Defender real-time protection, cloud features,
 //! sample submission, and exclusions.
 
-use crate::modules::types::{TweakType, 
-    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
 };
 
 pub fn get_defender_tweaks() -> Vec<Tweak> {
@@ -13,7 +13,7 @@ pub fn get_defender_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_disable_realtime".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🛡️ Disable Real-time Protection".to_string(),
+            name: "Disable Real-time Protection".to_string(),
             description: "Disables Windows Defender real-time scanning. WARNING: Leaves system vulnerable to malware.".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: false,
@@ -86,7 +86,7 @@ if ($status.IsTamperProtected) {
         Tweak {
             id: "sec_disable_cloud".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "☁️ Disable Cloud-Delivered Protection".to_string(),
+            name: "Disable Cloud-Delivered Protection".to_string(),
             description: "Disables cloud-based threat detection. Reduces network usage but may miss new threats.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,

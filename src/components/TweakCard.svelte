@@ -89,15 +89,39 @@
         border-radius: var(--radius);
         padding: 16px;
         transition: all 0.2s;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        z-index: 1;
     }
 
     .tweak-card:hover {
         background: rgba(255, 255, 255, 0.04);
         border-color: var(--accent-color);
         transform: translateY(-2px);
+        z-index: 10;
     }
 
-    /* ... skipped ... */
+    .tweak-card.enabled {
+        border-color: var(--accent-color);
+        background: rgba(59, 130, 246, 0.05);
+    }
+
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .name {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-color);
+        line-height: 1.3;
+        flex: 1;
+    }
 
     .warning-badge {
         font-size: 11px;
@@ -105,9 +129,37 @@
         padding: 4px 10px;
         border-radius: 20px;
         white-space: nowrap;
+        flex-shrink: 0;
     }
 
-    /* ... skipped ... */
+    .description {
+        font-size: 13px;
+        color: var(--text-muted);
+        line-height: 1.5;
+        margin: 0 0 16px 0;
+        flex: 1;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-top: auto;
+    }
+
+    .restart-badge {
+        font-size: 11px;
+        color: var(--warning-color);
+        background: rgba(245, 158, 11, 0.1);
+        padding: 4px 10px;
+        border-radius: 20px;
+        white-space: nowrap;
+    }
 
     .apply-btn {
         min-width: 80px;
@@ -126,7 +178,6 @@
     .apply-btn:hover {
         border-color: var(--text-muted);
         color: var(--text-color);
-        filter: none;
     }
 
     .apply-btn.applied {
@@ -137,8 +188,8 @@
 
     .apply-btn.applied:hover {
         background: var(--accent-hover);
-        filter: none;
     }
+
     .apply-btn.loading {
         opacity: 0.7;
         cursor: wait;

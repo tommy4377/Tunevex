@@ -1,5 +1,5 @@
-use crate::modules::types::{TweakType, 
-    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
 };
 
 pub fn get_tcp_tweaks() -> Vec<Tweak> {
@@ -516,7 +516,7 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
         Tweak {
             id: "net_tcp_initial_rto".to_string(),
             category: TweakCategory::Network,
-            name: "⏱️ Reduce TCP Initial Retransmission Timeout".to_string(),
+            name: "Reduce TCP Initial Retransmission Timeout".to_string(),
             description: "Reduces TCP Initial RTO to 2 seconds (minimum) for faster connection retries.
 
 Default is 3 seconds. Reducing to 2 seconds means faster recovery from initial connection failures.

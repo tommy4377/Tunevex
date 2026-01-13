@@ -1,34 +1,16 @@
 <script lang="ts">
     import TweakList from "../TweakList.svelte";
-    import { invoke } from "@tauri-apps/api/core";
     import type { Tweak } from "$lib/types";
     export let tweaks: Tweak[] = [];
-
-    async function applySafe() {
-        for (const tweak of tweaks.filter((t) => t.warning_level === "Safe")) {
-            if (!tweak.enabled) {
-                try {
-                    await invoke("apply_tweak", { id: tweak.id });
-                    tweak.enabled = true;
-                } catch (e) {
-                    console.error(e);
-                }
-            }
-        }
-        tweaks = tweaks;
-    }
 </script>
 
 <div class="section-container">
     <div class="header">
-        <h2>👤 User Account Control</h2>
+        <h2>User Account Control</h2>
         <p>Configure UAC prompts, secure desktop, and admin approval mode.</p>
         <div class="warning-banner">
             ⚠️ Disabling UAC significantly reduces system security
         </div>
-        <button class="optimize-btn safe" on:click={applySafe}>
-            ✅ Apply Safe Tweaks
-        </button>
     </div>
     <div class="tweaks-wrapper">
         <TweakList {tweaks} showHeader={false} />

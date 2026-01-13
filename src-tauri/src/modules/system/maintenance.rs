@@ -5,7 +5,7 @@ pub fn get_maintenance_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "system_clean_temp".to_string(),
             category: TweakCategory::System,
-            name: "🧹 Clean Temporary Files".to_string(),
+            name: "Clean Temporary Files".to_string(),
             description: "Cleans Windows temp, user temp, browser cache, Discord cache, and Windows logs.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -37,7 +37,7 @@ pub fn get_maintenance_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "system_clean_prefetch".to_string(),
             category: TweakCategory::System,
-            name: "⚠️ Clean Prefetch Cache (NOT RECOMMENDED)".to_string(),
+            name: "Clean Prefetch Cache (NOT RECOMMENDED)".to_string(),
             description: "Clears Windows Prefetch cache. 
 
 ⛔ WARNING: THIS HURTS PERFORMANCE! ⛔
@@ -81,7 +81,7 @@ Write-Host "Expect slower app launches until then" -ForegroundColor Red
         Tweak {
             id: "system_clean_recycle".to_string(),
             category: TweakCategory::System,
-            name: "🗑️ Empty Recycle Bin".to_string(),
+            name: "Empty Recycle Bin".to_string(),
             description: "Empties the Recycle Bin for all drives.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -102,7 +102,7 @@ Write-Host "Expect slower app launches until then" -ForegroundColor Red
         Tweak {
             id: "system_disable_fast_startup".to_string(),
             category: TweakCategory::System,
-            name: "⚡ Disable Fast Startup".to_string(),
+            name: "Disable Fast Startup".to_string(),
             description: "Disables Windows Fast Startup (hybrid shutdown). Performs full shutdown instead of hibernate-based shutdown.
 
 Benefits:
