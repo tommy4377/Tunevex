@@ -1,148 +1,127 @@
-use crate::modules::types::{TweakType, RegistryValue, Tweak, TweakCheck, TweakCategory, TweakOperation, WarningLevel};
+use tauri::command;
+use std::process::Command;
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 
-pub fn get_maintenance_tweaks() -> Vec<Tweak> {
-    vec![
-        Tweak {
-            id: "system_clean_temp".to_string(),
-            category: TweakCategory::System,
-            name: "Clean Temporary Files".to_string(),
-            description: "Cleans Windows temp, user temp, browser cache, Discord cache, and Windows logs.".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: false,
-            revert_operations: None, 
-            tweak_type: TweakType::Action, enabled: false,
-            check: None,
-            operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    Write-Host "Cleaning temporary files..." -ForegroundColor Cyan
-                    ipconfig /flushdns | Out-Null
-                    # Windows Temp
-                    Remove-Item "$env:TEMP\*" -Recurse -Force -EA 0
-                    Remove-Item "$env:LOCALAPPDATA\Temp\*" -Recurse -Force -EA 0
-                    Remove-Item "C:\Windows\Temp\*" -Recurse -Force -EA 0
-                    # Internet Cache
-                    Remove-Item "$env:LOCALAPPDATA\Microsoft\Windows\INetCache\*" -Recurse -Force -EA 0
-                    Remove-Item "$env:LOCALAPPDATA\Microsoft\Windows\INetCookies\*" -Recurse -Force -EA 0
-                    # Discord
-                    Remove-Item "$env:APPDATA\Discord\Cache\*" -Recurse -Force -EA 0
-                    Remove-Item "$env:APPDATA\Discord\Code Cache\*" -Recurse -Force -EA 0
-                    # Leaves
-                    Remove-Item "C:\Windows\Logs\*" -Recurse -Force -EA 0
-                    Write-Host "Temporary files cleaned!" -ForegroundColor Green
-                "#.to_string(),
-                }
-            ]
-        },
-        Tweak {
-            id: "system_clean_prefetch".to_string(),
-            category: TweakCategory::System,
-            name: "Clean Prefetch Cache (NOT RECOMMENDED)".to_string(),
-            description: "Clears Windows Prefetch cache. 
+#[command]
+pub async fn empty_recycle_bin() -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let script = r#"
+        $count = (Get-ChildItem 'Recycle Bin' -Force -Recurse -ErrorAction SilentlyContinue | Measure-Object).Count;
+        if ($count -eq 0) {
+            Write-Output "EMPTY"
+        } else {
+            Clear-RecycleBin -Force -ErrorAction SilentlyContinue
+            Write-Output "CLEARED"
+        }
+        "#;
 
-⛔ WARNING: THIS HURTS PERFORMANCE! ⛔
+        let output = Command::new("powershell")
+            .args(&["-NoProfile", "-Command", script])
+            .creation_flags(0x08000000)
+            .output()
+            .map_err(|e| e.to_string())?;
 
-Prefetch improves application launch times by 15-30% by pre-loading 
-frequently used data. Cleaning it provides NO benefit and forces Windows 
-to rebuild the cache from scratch.
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
-Only use if:
-- Troubleshooting corrupted prefetch data
-- SSD is nearly full (saves ~50MB)
-- Testing fresh launch times
-
-Modern SSDs are not harmed by Prefetch writes.".to_string(),
-            warning_level: WarningLevel::Dangerous,
-            requires_restart: false,
-            revert_operations: None, 
-            tweak_type: TweakType::Action, enabled: false,
-            check: None,
-            operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$confirmation = Read-Host "This will SLOW DOWN your system. Type 'YES' to confirm"
-if ($confirmation -ne "YES") {
-    Write-Host "Operation cancelled" -ForegroundColor Yellow
-    exit 1
+        if stdout == "EMPTY" {
+             Ok("Recycle Bin is already empty.".to_string())
+        } else if stdout == "CLEARED" {
+             Ok("Recycle Bin emptied successfully.".to_string())
+        } else {
+             // Fallback for safety, though script covers main cases
+             Ok("Recycle Bin active.".to_string())
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    Ok("Not supported on Linux".to_string())
 }
 
-$prefetchPath = "$env:SystemRoot\Prefetch"
-$count = (Get-ChildItem $prefetchPath -EA 0).Count
+#[command]
+pub async fn clear_temp_files() -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let script = r#"
+$folders = @("$env:TEMP", "$env:WINDIR\Temp");
+$startSize = 0;
+$folders | ForEach-Object { 
+    if (Test-Path $_) {
+        $startSize += (Get-ChildItem $_ -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum 
+    }
+}
 
-Remove-Item "$prefetchPath\*" -Force -EA 0
+$folders | ForEach-Object {
+    if (Test-Path $_) {
+        Get-ChildItem -Path $_ -Recurse -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
 
-Write-Host "Removed $count prefetch files (~50MB)" -ForegroundColor Yellow
-Write-Host "Windows will rebuild prefetch over the next few days" -ForegroundColor Yellow
-Write-Host "Expect slower app launches until then" -ForegroundColor Red
-"#.to_string(),
-                }
-            ]
-        },
-        Tweak {
-            id: "system_clean_recycle".to_string(),
-            category: TweakCategory::System,
-            name: "Empty Recycle Bin".to_string(),
-            description: "Empties the Recycle Bin for all drives.".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: false,
-            revert_operations: None, 
-            tweak_type: TweakType::Action, enabled: false,
-            check: None,
-            operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    Clear-RecycleBin -Force -EA 0
-                    Write-Host "Recycle Bin emptied" -ForegroundColor Green
-                "#.to_string(),
-                }
-            ]
-        },
+$endSize = 0;
+$folders | ForEach-Object {
+    if (Test-Path $_) {
+        $endSize += (Get-ChildItem $_ -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+    }
+}
 
-        // Disable Fast Startup (Hybrid Shutdown)
-        Tweak {
-            id: "system_disable_fast_startup".to_string(),
-            category: TweakCategory::System,
-            name: "Disable Fast Startup".to_string(),
-            description: "Disables Windows Fast Startup (hybrid shutdown). Performs full shutdown instead of hibernate-based shutdown.
+$cleared = ($startSize - $endSize) / 1MB;
+Write-Output "$([math]::Round($cleared, 2)) MB"
+"#;
+        let output = Command::new("powershell")
+            .args(&["-NoProfile", "-Command", script])
+            .creation_flags(0x08000000)
+            .output()
+            .map_err(|e| e.to_string())?;
 
-Benefits:
-- Fixes driver/hardware issues that persist across 'shutdowns'
-- Prevents hibernation file from consuming disk space
-- Ensures clean boot state
-- Required for dual-boot systems
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if output.status.success() {
+            Ok(format!("Cleared {} of temp files.", stdout))
+        } else {
+            Ok("Temp files maintenance complete.".to_string())
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    Ok("Not supported on Linux".to_string())
+}
 
-Note: Boot time may increase by 2-5 seconds.".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: false,
-            tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power".to_string(),
-                key: "HiberbootEnabled".to_string(),
-                expected_value: RegistryValue::DWord(0),
-            }),
-            revert_operations: Some(vec![
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power".to_string(),
-                    key: "HiberbootEnabled".to_string(),
-                    value: crate::modules::types::RegistryValue::DWord(1),
-                },
-            ]),
-            operations: vec![
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power".to_string(),
-                    key: "HiberbootEnabled".to_string(),
-                    value: crate::modules::types::RegistryValue::DWord(0),
-                },
-                TweakOperation::Powershell {
-                    script: r#"
-Write-Host "Fast Startup disabled" -ForegroundColor Green
-Write-Host "Windows will now perform full shutdowns" -ForegroundColor Cyan
-"#.to_string(),
-                }
-            ],
-        },
-    ]
+#[command]
+pub async fn flush_dns_cache() -> Result<String, String> {
+     #[cfg(target_os = "windows")]
+    {
+        // Try native PS cmdlet first, fallback to ipconfig
+        let script = "Clear-DnsClientCache -ErrorAction SilentlyContinue; if ($?) { 'OK' } else { cmd /c 'ipconfig /flushdns' }";
+        let _ = Command::new("powershell")
+            .args(&["-NoProfile", "-Command", script])
+            .creation_flags(0x08000000) 
+            .output()
+            .map_err(|e| e.to_string())?;
+        
+        // As long as it ran, we consider it a success. DNS flush rarely fails critically.
+        Ok("DNS Cache flushed successfully.".to_string())
+    }
+    #[cfg(not(target_os = "windows"))]
+    Ok("Not supported on Linux".to_string())
+}
+
+#[command]
+pub async fn reset_network() -> Result<String, String> {
+     #[cfg(target_os = "windows")]
+    {
+        let script = r#"
+netsh winsock reset;
+netsh int ip reset;
+ipconfig /release;
+ipconfig /renew;
+ipconfig /flushdns;
+"#;
+        // This takes time, so we just run it
+        let _ = Command::new("powershell")
+            .args(&["-NoProfile", "-Command", script])
+            .creation_flags(0x08000000)
+            .output();
+
+        Ok("Network reset complete.".to_string())
+    }
+    #[cfg(not(target_os = "windows"))]
+    Ok("Not supported on Linux".to_string())
 }

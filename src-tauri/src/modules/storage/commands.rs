@@ -1,12 +1,68 @@
 use crate::modules::storage::scanner::{scan_directory, ScanResult};
-use crate::modules::storage::compression::{compress_file, decompress_file, Algorithm};
+use crate::modules::storage::compression::{compress_file, decompress_file, is_compressed, Algorithm};
 use crate::modules::utils::state::AppState;
 use crate::modules::utils::dirs::get_state_path;
 use crate::modules::storage::state::CompactorState;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::path::Path;
 use tauri::{State, Emitter, AppHandle};
-// use std::path::PathBuf;
+
+// File extensions that don't compress well (already compressed formats)
+const SKIP_EXTENSIONS: &[&str] = &[
+    // Images
+    "jpg", "jpeg", "png", "gif", "webp", "bmp", "ico", "svg",
+    // Video
+    "mp4", "mkv", "avi", "mov", "webm", "wmv", "flv", "m4v",
+    // Audio
+    "mp3", "aac", "flac", "ogg", "wma", "m4a", "opus",
+    // Archives (already compressed)
+    "zip", "rar", "7z", "gz", "xz", "zst", "bz2", "tar", "cab",
+    // Documents (often compressed internally)
+    "pdf", "docx", "xlsx", "pptx",
+];
+
+// System files that should NEVER be touched (can cause BSOD)
+const SKIP_FILENAMES: &[&str] = &[
+    "pagefile.sys", "hiberfil.sys", "swapfile.sys",
+    "ntuser.dat", "usrclass.dat",
+    "desktop.ini", "thumbs.db",
+];
+
+// Minimum file size worth compressing (4KB)
+const MIN_FILE_SIZE: u64 = 4096;
+
+/// Check if a file should be skipped during compression
+fn should_skip_file(path: &Path, size: u64) -> bool {
+    // Skip files that are too small
+    if size < MIN_FILE_SIZE {
+        return true;
+    }
+
+    // Check filename against skip list
+    if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
+        let filename_lower = filename.to_lowercase();
+        if SKIP_FILENAMES.iter().any(|&skip| filename_lower == skip) {
+            return true;
+        }
+    }
+
+    // Check extension against skip list
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        let ext_lower = ext.to_lowercase();
+        if SKIP_EXTENSIONS.iter().any(|&skip| ext_lower == skip) {
+            return true;
+        }
+    }
+
+    // Skip files that are already WOF-compressed
+    if is_compressed(path) {
+        return true;
+    }
+
+    false
+}
+
 
 #[tauri::command]
 pub async fn cancel_compactor(state: State<'_, Mutex<CompactorState>>) -> Result<(), String> {
@@ -30,7 +86,7 @@ pub async fn scan_storage(app: AppHandle, path: String, compactor_state: State<'
     // Emit start event
     let _ = app.emit("compactor-status", "Scanning...");
     
-    let result = scan_directory(&path, cancel_token).await;
+    let result = scan_directory(&path, cancel_token, Some(app)).await;
     
     Ok(result)
 }
@@ -59,14 +115,13 @@ pub async fn compress_folder(
         1 => Algorithm::Xpress8K,
         2 => Algorithm::Xpress16K,
         3 => Algorithm::Lzx,
-        _ => Algorithm::Xpress8K,
+        _ => Algorithm::Xpress4K, // Default to safest algorithm
     };
     
-    // We should re-scan/walk and compress each file.
+    // Compress files in folder (with safety filtering)
     let mut count = 0;
+    let mut skipped = 0;
     let mut bytes_processed: u64 = 0;
-    // Estimate total? Hard to know without double scan. 
-    // We will just emit processed count.
     
     let walker = walkdir::WalkDir::new(&path).into_iter();
     
@@ -78,20 +133,34 @@ pub async fn compress_folder(
         }
 
         if entry.file_type().is_file() {
+            // Get file size before checking
+            let file_size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+            
+            // Check if file should be skipped (safety check)
+            if should_skip_file(entry.path(), file_size) {
+                skipped += 1;
+                continue;
+            }
+            
             // Emit current file being processed
             if let Some(path_str) = entry.path().to_str() {
                 let _ = app.emit("compactor-file", path_str.to_string());
             }
-            // Get file size before compression
-            let file_size = entry.metadata().map(|m| m.len()).unwrap_or(0);
             
-            if let Ok(_) = compress_file(entry.path(), algo) {
-                count += 1;
-                bytes_processed += file_size;
-                // Emit progress every 5 files to avoid flooding
-                if count % 5 == 0 {
-                     let _ = app.emit("compactor-progress", count);
-                     let _ = app.emit("compactor-bytes", bytes_processed);
+            // Try to compress, silently continue on error (don't crash on protected files)
+            match compress_file(entry.path(), algo) {
+                Ok(_) => {
+                    count += 1;
+                    bytes_processed += file_size;
+                    // Emit progress every 5 files to avoid flooding
+                    if count % 5 == 0 {
+                        let _ = app.emit("compactor-progress", count);
+                        let _ = app.emit("compactor-bytes", bytes_processed);
+                    }
+                }
+                Err(_) => {
+                    // Silently skip files that fail (e.g., permission denied, locked files)
+                    skipped += 1;
                 }
             }
         }
@@ -108,7 +177,7 @@ pub async fn compress_folder(
         }
     }
     
-    Ok(format!("Compressed {} files", count))
+    Ok(format!("Compressed {} files ({} skipped)", count, skipped))
 }
 
 #[tauri::command]
@@ -160,7 +229,7 @@ pub struct FolderStats {
 #[tauri::command]
 pub async fn get_folder_stats(path: String) -> Result<FolderStats, String> {
     let cancel = Arc::new(AtomicBool::new(false));
-    let result = scan_directory(&path, cancel).await;
+    let result = scan_directory(&path, cancel, None).await;
     Ok(FolderStats {
         path,
         total_size: result.total_size,

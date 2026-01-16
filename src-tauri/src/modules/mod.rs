@@ -1,3 +1,4 @@
+pub mod activation;
 pub mod cpu;
 pub mod debloat;
 pub mod display;

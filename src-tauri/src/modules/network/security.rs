@@ -6,7 +6,7 @@ pub fn get_security_tweaks() -> Vec<Tweak> {
     vec![
         Tweak {
             id: "net_disable_llmnr".to_string(),
-            category: TweakCategory::SecurityPrivacy,
+            category: TweakCategory::Network,
             name: "Disable LLMNR Protocol".to_string(),
             description: "Disable Link-Local Multicast Name Resolution (LLMNR).".to_string(),
             warning_level: WarningLevel::Safe,
@@ -33,7 +33,7 @@ pub fn get_security_tweaks() -> Vec<Tweak> {
         },
         Tweak {
             id: "net_restrict_anonymous_access".to_string(),
-            category: TweakCategory::SecurityPrivacy,
+            category: TweakCategory::Network,
             name: "Restrict Anonymous Access".to_string(),
             description: "Restricts anonymous access to named pipes and shares.".to_string(),
             warning_level: WarningLevel::Safe,
@@ -60,7 +60,7 @@ pub fn get_security_tweaks() -> Vec<Tweak> {
         },
         Tweak {
             id: "net_restrict_anonymous_enum".to_string(),
-            category: TweakCategory::SecurityPrivacy,
+            category: TweakCategory::Network,
             name: "Restrict Anonymous Enumeration".to_string(),
             description: "Restricts anonymous enumeration of shares and SAM accounts.".to_string(),
             warning_level: WarningLevel::Safe,
@@ -87,7 +87,7 @@ pub fn get_security_tweaks() -> Vec<Tweak> {
         },
         Tweak {
             id: "net_disable_smb_throttling".to_string(),
-            category: TweakCategory::SecurityPrivacy,
+            category: TweakCategory::Network,
             name: "Disable SMB Bandwidth Throttling".to_string(),
             description: "Disables SMB bandwidth throttling.".to_string(),
             warning_level: WarningLevel::Safe,
@@ -117,7 +117,7 @@ pub fn get_security_tweaks() -> Vec<Tweak> {
         },
         Tweak {
             id: "net_disable_netbios".to_string(),
-            category: TweakCategory::SecurityPrivacy,
+            category: TweakCategory::Network,
             name: "Disable NetBIOS over TCP/IP".to_string(),
             description: "Disables NetBIOS on all adapters. Reduces legacy broadcast noise. Avoid on LANs using NetBIOS names.".to_string(),
             warning_level: WarningLevel::Careful,

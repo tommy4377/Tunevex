@@ -6,6 +6,7 @@ use std::os::windows::ffi::OsStrExt;
 use windows::core::PCWSTR;
 use windows::Win32::Storage::FileSystem::{GetCompressedFileSizeW, INVALID_FILE_SIZE};
 use windows::Win32::Foundation::{SetLastError, GetLastError, NO_ERROR};
+use tauri::{AppHandle, Emitter};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileInfo {
@@ -22,7 +23,7 @@ pub struct ScanResult {
     pub file_count: usize,
 }
 
-pub async fn scan_directory(path: &str, cancel_token: Arc<AtomicBool>) -> ScanResult {
+pub async fn scan_directory(path: &str, cancel_token: Arc<AtomicBool>, app_handle: Option<AppHandle>) -> ScanResult {
     let path = path.to_string();
     let cancel = cancel_token.clone();
 
@@ -63,6 +64,16 @@ pub async fn scan_directory(path: &str, cancel_token: Arc<AtomicBool>) -> ScanRe
                     size,
                     compressed_size
                 });
+
+                if let Some(app) = &app_handle {
+                     let count = files.len();
+                     if count % 50 == 0 {
+                         let _ = app.emit("compactor-progress", count);
+                         let _ = app.emit("compactor-bytes", total_size);
+                         // Also emit the current file being scanned
+                         let _ = app.emit("compactor-file", entry.path().to_string_lossy().to_string());
+                     }
+                }
             }
         }
 

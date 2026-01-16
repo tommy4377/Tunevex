@@ -20,7 +20,9 @@ export type TweakCategory =
     | 'BackupRestore'
     | 'Privacy'
     | 'Programs'
-    | 'Restore';
+    | 'Restore'
+    | 'Activation'
+    | 'Home';
 
 export type TweakType = 'Toggle' | 'Action';
 

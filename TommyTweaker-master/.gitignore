@@ -1,0 +1,7 @@
+# Build Artifacts
+target/
+src-tauri/target/
+node_modules/
+.svelte-kit/
+build/
+dist/

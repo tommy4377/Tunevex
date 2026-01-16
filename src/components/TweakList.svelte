@@ -6,6 +6,9 @@
     export let tweaks: Tweak[] = [];
     export let showHeader = true;
 
+    // Track which tweaks are currently being toggled
+    let loadingIds: Set<string> = new Set();
+
     // Filter displayed tweaks based on active category
     let displayedTweaks: Tweak[] = [];
     let currentCategory: TweakCategory | null = null;
@@ -63,6 +66,8 @@
                 return "📊 System Monitoring";
             case "SecurityPrivacy":
                 return "🔒 Security & Privacy";
+            case "Activation":
+                return "🔑 Windows Activation";
             default:
                 return "Tweaks";
         }
@@ -81,25 +86,98 @@
         }
     }
 
+    import { onDestroy, onMount } from "svelte";
+    import TerminalModal from "./TerminalModal.svelte";
+    import { listen } from "@tauri-apps/api/event";
+
+    // Modal state
+    let showModal = false;
+    let modalTitle = "";
+    let modalLogs: string[] = [];
+    let processingTweakId: string | null = null;
+    let unlistenOutput: (() => void) | null = null;
+
+    onMount(async () => {
+        // Listen for streaming output
+        unlistenOutput = await listen<any>("tweak-output", (event) => {
+            const { id, type, line } = event.payload;
+            // Only show logs if we are processing this tweak
+            if (id === processingTweakId) {
+                // If modal is not open, open it (for cases where we didn't explicitly open it yet)
+                if (!showModal) {
+                    showModal = true;
+                    const tweak = tweaks.find((t) => t.id === id);
+                    modalTitle = tweak
+                        ? `Executing: ${tweak.name}`
+                        : "Execution Output";
+                }
+                modalLogs = [...modalLogs, line];
+            }
+        });
+    });
+
+    onDestroy(() => {
+        if (unlistenOutput) unlistenOutput();
+    });
+
     async function toggleTweak(tweak: Tweak) {
-        // In a real app we'd fetch current state.
-        // For MVP, we just toggle local state and call backend.
+        if (loadingIds.has(tweak.id)) return; // Already loading
+
+        // Add to loading set
+        loadingIds.add(tweak.id);
+        loadingIds = loadingIds; // Trigger reactivity
+
+        // Setup modal for Action types or Activation category
+        if (tweak.tweak_type === "Action" || tweak.category === "Activation") {
+            showModal = true;
+            modalTitle = `Executing: ${tweak.name}`;
+            modalLogs = [];
+            processingTweakId = tweak.id;
+        }
+
         try {
-            if (tweak.enabled) {
+            if (tweak.enabled && tweak.tweak_type !== "Action") {
                 await invoke("undo_tweak", { id: tweak.id });
                 tweak.enabled = false;
             } else {
                 await invoke("apply_tweak", { id: tweak.id });
-                tweak.enabled = true;
+                if (tweak.tweak_type !== "Action") {
+                    tweak.enabled = true;
+                }
             }
             tweaks = tweaks; // Trigger reactivity
         } catch (e) {
             console.error("Failed to toggle tweak:", e);
-            // Optionally revert the optimistic UI or show a toast here
-            // For now, we just ensure it doesn't crash the console
+            modalLogs = [...modalLogs, `Error: ${e}`];
+        } finally {
+            // Remove from loading set
+            loadingIds.delete(tweak.id);
+            loadingIds = loadingIds; // Trigger reactivity
+            processingTweakId = null; // Done processing
         }
     }
+
+    async function closeModal() {
+        if (processingTweakId) {
+            // If still processing, kill the process
+            try {
+                await invoke("kill_tweak_process", { id: processingTweakId });
+            } catch (e) {
+                console.error("Failed to kill process:", e);
+            }
+        }
+        showModal = false;
+        processingTweakId = null;
+    }
 </script>
+
+<TerminalModal
+    bind:show={showModal}
+    title={modalTitle}
+    logs={modalLogs}
+    processing={loadingIds.has(processingTweakId || "")}
+    on:close={closeModal}
+/>
 
 <div class="list-container">
     {#if showHeader && currentCategory}
@@ -132,9 +210,16 @@
                 <button
                     class="toggle-btn"
                     class:on={tweak.enabled}
+                    class:loading={loadingIds.has(tweak.id)}
+                    disabled={loadingIds.has(tweak.id)}
                     on:click={() => toggleTweak(tweak)}
                 >
-                    {tweak.enabled ? "Enabled" : "Disabled"}
+                    {#if loadingIds.has(tweak.id)}
+                        <span class="btn-spinner"></span>
+                        {tweak.enabled ? "Reverting..." : "Applying..."}
+                    {:else}
+                        {tweak.enabled ? "Enabled" : "Disabled"}
+                    {/if}
                 </button>
             </div>
         {/each}
@@ -186,21 +271,27 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 16px;
+        padding: 16px 20px;
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
+        border-radius: 16px; /* High rounding */
         margin-bottom: 12px;
-        transition: background 0.2s;
+        transition: all 0.2s;
+    }
+
+    .tweak-item:hover {
+        background: rgba(255, 255, 255, 0.04);
+        border-color: var(--accent-color);
+        transform: translateX(4px);
     }
 
     /* ... skipped ... */
 
     .badge {
         font-size: 10px;
-        padding: 2px 6px;
-        border-radius: var(--radius-sm);
-        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: 12px; /* Pill shape */
+        font-weight: 700;
         text-transform: uppercase;
     }
 
@@ -210,29 +301,35 @@
     .toggle-btn {
         min-width: 80px;
         padding: 8px 16px;
-        border-radius: var(--radius-sm);
+        border-radius: 10px; /* Rounded button */
         border: 1px solid var(--border-color);
         background: transparent;
         color: var(--text-muted);
         cursor: pointer;
         font-size: 13px;
-        font-weight: 500;
+        font-weight: 600;
         transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .toggle-btn:hover {
         border-color: var(--text-muted);
         color: var(--text-color);
+        background: rgba(255, 255, 255, 0.05);
     }
 
     .toggle-btn.on {
         background: var(--accent-color);
         border-color: var(--accent-color);
         color: white;
+        box-shadow: 0 4px 12px rgba(var(--accent-rgb), 0.2);
     }
 
     .toggle-btn.on:hover {
         background: var(--accent-hover);
+        transform: translateY(-1px);
     }
 
     .empty-state {
@@ -240,5 +337,34 @@
         text-align: center;
         color: var(--text-muted);
         font-style: italic;
+    }
+
+    /* Loading state for buttons */
+    .toggle-btn.loading {
+        opacity: 0.7;
+        cursor: wait;
+        pointer-events: none;
+    }
+
+    .toggle-btn:disabled {
+        cursor: not-allowed;
+    }
+
+    .btn-spinner {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border: 2px solid currentColor;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: btn-spin 0.8s linear infinite;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+
+    @keyframes btn-spin {
+        to {
+            transform: rotate(360deg);
+        }
     }
 </style>

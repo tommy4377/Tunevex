@@ -181,5 +181,62 @@ Write-Host "Scheduled defragmentation disabled" -ForegroundColor Green
                 }
             ],
         },
+        // ============================================
+        // Memory Usage & Tunneling (Migrated from filesystem)
+        // ============================================
+        Tweak {
+            id: "storage_ntfs_memory_usage".to_string(),
+            category: TweakCategory::FileSystem,
+            name: "Increase NTFS Memory Cache".to_string(),
+            description: "Increases NTFS paged pool memory usage for better metadata caching.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: true,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Control\\FileSystem".to_string(),
+                key: "NtfsMemoryUsage".to_string(),
+                expected_value: RegistryValue::DWord(2),
+            }),
+            revert_operations: Some(vec![TweakOperation::RegistryDelete {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Control\\FileSystem".to_string(),
+                key: "NtfsMemoryUsage".to_string(),
+            }]),
+            operations: vec![TweakOperation::RegistrySet {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Control\\FileSystem".to_string(),
+                key: "NtfsMemoryUsage".to_string(),
+                value: RegistryValue::DWord(2),
+            }],
+        },
+        Tweak {
+            id: "storage_ntfs_tunneling".to_string(),
+            category: TweakCategory::FileSystem,
+            name: "Disable NTFS File Tunneling".to_string(),
+            description: "Disables metadata preservation (tunneling) on file delete/recreate.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: true,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Control\\FileSystem".to_string(),
+                key: "MaximumTunnelEntries".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
+            revert_operations: Some(vec![TweakOperation::RegistryDelete {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Control\\FileSystem".to_string(),
+                key: "MaximumTunnelEntries".to_string(),
+            }]),
+            operations: vec![TweakOperation::RegistrySet {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Control\\FileSystem".to_string(),
+                key: "MaximumTunnelEntries".to_string(),
+                value: RegistryValue::DWord(0),
+            }],
+        },
     ]
 }

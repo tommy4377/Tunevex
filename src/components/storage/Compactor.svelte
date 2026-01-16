@@ -3,35 +3,33 @@
     import { onMount, onDestroy } from "svelte";
     import { invoke } from "@tauri-apps/api/core";
     import { open } from "@tauri-apps/plugin-dialog";
+    import { compactorStore, addLog } from "$lib/compactorStore";
 
-    let path = "C:\\Games";
-    let isScanning = false;
-    let isCompressing = false;
-    let scanResult: any = null;
-    let compressionAlgo = 1; // 1 = XPRESS8K default
+    // Use reactive store values
+    $: state = $compactorStore;
+
+    // Local UI state (transient)
     let isDropdownOpen = false;
+    let compressedFolders: string[] = [];
+    let folderStatsMap: Record<string, FolderStats> = {};
 
-    // Progress State
-    let progressCurrent = 0;
-    let progressTotal = 0; // We might need to estimate this
-    let showProgress = false;
-    let currentFile = ""; // Current file being processed
-    let bytesAnalyzed = 0; // Bytes processed so far
+    // Listeners
+    let unlistenProgress: () => void;
+    let unlistenStatus: () => void;
+    let unlistenFile: () => void;
+    let unlistenBytes: () => void;
 
     // Dropdown items
     const algorithms = [
-        { id: 0, label: "XPRESS 4K (Fastest)" },
-        { id: 1, label: "XPRESS 8K (Balanced)" },
-        { id: 2, label: "XPRESS 16K (Strong)" },
-        { id: 3, label: "LZX (Maximum / Slowest)" },
+        { id: 0, label: "XPRESS 4K — Fastest, Safest ✓" },
+        { id: 1, label: "XPRESS 8K — Balanced" },
+        { id: 2, label: "XPRESS 16K — Better Compression" },
+        { id: 3, label: "LZX — Maximum (High CPU ⚠️)" },
     ];
 
     $: selectedAlgoLabel =
-        algorithms.find((a) => a.id === compressionAlgo)?.label ||
+        algorithms.find((a) => a.id === state.compressionAlgo)?.label ||
         "Select Algorithm";
-
-    let statusMsg = "";
-    let statusType: "info" | "success" | "error" = "info";
 
     interface FolderStats {
         path: string;
@@ -39,13 +37,6 @@
         compressed_size: number;
         file_count: number;
     }
-
-    let compressedFolders: string[] = [];
-    let folderStatsMap: Record<string, FolderStats> = {};
-    let unlistenProgress: () => void;
-    let unlistenStatus: () => void;
-    let unlistenFile: () => void;
-    let unlistenBytes: () => void;
 
     function handleClickOutside(event: MouseEvent) {
         const target = event.target as HTMLElement;
@@ -58,27 +49,40 @@
         document.addEventListener("click", handleClickOutside);
         await refreshFolders();
 
-        // Listeners
+        // Listeners update the STORE
         unlistenProgress = await listen<number>(
             "compactor-progress",
             (event) => {
-                progressCurrent = event.payload;
-                // Auto-scale total if we exceed it (since estimate might be off)
-                if (progressCurrent > progressTotal && progressTotal > 0)
-                    progressTotal = progressCurrent + 10;
+                compactorStore.update((s) => {
+                    let total = s.progressTotal || 0;
+                    if (event.payload > total && total > 0)
+                        total = event.payload + 10;
+                    return {
+                        ...s,
+                        progressCurrent: event.payload,
+                        progressTotal: total,
+                    };
+                });
             },
         );
 
         unlistenStatus = await listen<string>("compactor-status", (event) => {
-            statusMsg = event.payload;
+            compactorStore.update((s) => ({ ...s, statusMsg: event.payload }));
+            addLog(event.payload);
         });
 
         unlistenFile = await listen<string>("compactor-file", (event) => {
-            currentFile = event.payload;
+            compactorStore.update((s) => ({
+                ...s,
+                currentFile: event.payload,
+            }));
         });
 
         unlistenBytes = await listen<number>("compactor-bytes", (event) => {
-            bytesAnalyzed = event.payload;
+            compactorStore.update((s) => ({
+                ...s,
+                bytesAnalyzed: event.payload,
+            }));
         });
     });
 
@@ -93,7 +97,6 @@
     async function refreshFolders() {
         try {
             compressedFolders = await invoke("get_compressed_folders");
-            // Fetch stats for each folder
             for (const f of compressedFolders) {
                 if (!folderStatsMap[f]) {
                     fetchStats(f);
@@ -120,10 +123,10 @@
             const selected = await open({
                 directory: true,
                 multiple: false,
-                defaultPath: path || undefined,
+                defaultPath: state.path || undefined,
             });
             if (selected && typeof selected === "string") {
-                path = selected;
+                compactorStore.update((s) => ({ ...s, path: selected }));
             }
         } catch (e) {
             console.error("Dialog error:", e);
@@ -133,83 +136,125 @@
     async function cancelOperation() {
         try {
             await invoke("cancel_compactor");
-            isScanning = false;
-            isCompressing = false;
-            statusMsg = "Operation cancelled by user";
-            statusType = "info";
+            compactorStore.update((s) => ({
+                ...s,
+                isScanning: false,
+                isCompressing: false,
+                statusMsg: "Operation cancelled by user",
+                statusType: "info",
+            }));
+            addLog("Operation cancelled by user");
         } catch (e) {
             console.error("Failed to cancel:", e);
         }
     }
 
     async function scan() {
-        if (!path) return;
-        isScanning = true;
-        statusMsg = "Scanning directory structure...";
-        statusType = "info";
+        if (!state.path) return;
+        compactorStore.update((s) => ({
+            ...s,
+            isScanning: true,
+            statusMsg: "Scanning directory structure...",
+            statusType: "info",
+            scanResult: null,
+            progressCurrent: 0,
+            progressTotal: 0,
+            bytesAnalyzed: 0,
+        }));
+
         try {
-            scanResult = await invoke("scan_storage", { path });
-            statusMsg = `Scan Complete: Found ${scanResult.file_count} files (${formatBytes(scanResult.total_size)})`;
-            statusType = "success";
-            // Set total for progress bar
-            progressTotal = scanResult.file_count;
+            const res: any = await invoke("scan_storage", { path: state.path });
+            compactorStore.update((s) => ({
+                ...s,
+                scanResult: res,
+                progressTotal: res.file_count,
+                statusMsg: `Scan Complete: Found ${res.file_count} files (${formatBytes(res.total_size)})`,
+                statusType: "success",
+            }));
         } catch (e) {
-            // Check if it was cancelled
             if (e.toString().includes("Cancelled")) {
-                statusMsg = "Scan Cancelled";
+                compactorStore.update((s) => ({
+                    ...s,
+                    statusMsg: "Scan Cancelled",
+                }));
             } else {
-                statusMsg = "Scan Error: " + e;
-                statusType = "error";
+                compactorStore.update((s) => ({
+                    ...s,
+                    statusMsg: "Scan Error: " + e,
+                    statusType: "error",
+                }));
             }
         } finally {
-            isScanning = false;
+            compactorStore.update((s) => ({ ...s, isScanning: false }));
         }
     }
 
     async function compress() {
-        if (!path) return;
-        isCompressing = true;
-        statusMsg = "Compressing files... (This may take a while)";
-        statusType = "info";
+        if (!state.path) return;
+        compactorStore.update((s) => ({
+            ...s,
+            isCompressing: true,
+            statusMsg: "Compressing files... (This may take a while)",
+            statusType: "info",
+        }));
+
         try {
             const res = await invoke("compress_folder", {
-                path,
-                algoIdx: compressionAlgo,
+                path: state.path,
+                algoIdx: state.compressionAlgo,
             });
             if (res === "Cancelled") {
-                statusMsg = "Compression Cancelled";
-                statusType = "info";
+                compactorStore.update((s) => ({
+                    ...s,
+                    statusMsg: "Compression Cancelled",
+                    statusType: "info",
+                }));
             } else {
-                statusMsg = "Compression Complete: " + res;
-                statusType = "success";
+                compactorStore.update((s) => ({
+                    ...s,
+                    statusMsg: "Compression Complete: " + res,
+                    statusType: "success",
+                }));
                 await refreshFolders();
             }
         } catch (e) {
-            statusMsg = "Compression Error: " + e;
-            statusType = "error";
+            compactorStore.update((s) => ({
+                ...s,
+                statusMsg: "Compression Error: " + e,
+                statusType: "error",
+            }));
         } finally {
-            isCompressing = false;
+            compactorStore.update((s) => ({ ...s, isCompressing: false }));
         }
     }
 
     async function decompress(target: string) {
-        if (isCompressing) return;
-        isCompressing = true;
-        statusMsg = `Decompressing ${target}...`;
-        statusType = "info";
+        if (state.isCompressing) return;
+        compactorStore.update((s) => ({
+            ...s,
+            isCompressing: true,
+            statusMsg: `Decompressing ${target}...`,
+            statusType: "info",
+        }));
+
         try {
             const res = await invoke("decompress_folder", { path: target });
-            statusMsg = "Decompression Complete: " + res;
-            statusType = "success";
+            compactorStore.update((s) => ({
+                ...s,
+                statusMsg: "Decompression Complete: " + res,
+                statusType: "success",
+            }));
             await refreshFolders();
-            // Remove stats for deleted/unpacked folder
             delete folderStatsMap[target];
-            folderStatsMap = folderStatsMap; // Reactivity trigger
+            folderStatsMap = folderStatsMap;
         } catch (e) {
-            statusMsg = "Decompression Error: " + e;
-            statusType = "error";
+            compactorStore.update((s) => ({
+                ...s,
+                statusMsg: "Decompression Error: " + e,
+                statusType: "error",
+            }));
         } finally {
-            isCompressing = false;
+            compactorStore.update((s) => ({ ...s, isCompressing: false }));
         }
     }
 
@@ -226,7 +271,6 @@
 
     function getCompressionRatio(original: number, compressed: number) {
         if (original === 0) return 0;
-        // Width of the BAR (compressed part)
         return Math.max(0, Math.min(100, (compressed / original) * 100));
     }
 
@@ -241,7 +285,7 @@
     <div class="section-header">
         <div class="title-group">
             <span class="icon">🗜️</span>
-            <h3>CompactOS Tools</h3>
+            <h3>Compactor</h3>
         </div>
     </div>
 
@@ -259,14 +303,19 @@
                     <input
                         id="target-path"
                         type="text"
-                        bind:value={path}
+                        value={state.path}
+                        on:input={(e) =>
+                            compactorStore.update((s) => ({
+                                ...s,
+                                path: e.currentTarget.value,
+                            }))}
                         placeholder="e.g. C:\Games"
-                        disabled={isScanning || isCompressing}
+                        disabled={state.isScanning || state.isCompressing}
                     />
                     <button
                         class="btn-icon"
                         on:click={selectFolder}
-                        disabled={isScanning || isCompressing}
+                        disabled={state.isScanning || state.isCompressing}
                         title="Browse Folder"
                         aria-label="Browse Folder"
                     >
@@ -275,10 +324,10 @@
                 </div>
                 <button
                     class="btn-secondary"
-                    on:click={isScanning ? cancelOperation : scan}
-                    disabled={isCompressing && !isScanning}
+                    on:click={state.isScanning ? cancelOperation : scan}
+                    disabled={state.isCompressing && !state.isScanning}
                 >
-                    {isScanning ? "🛑 Stop" : "Scan"}
+                    {state.isScanning ? "🛑 Stop" : "Scan"}
                 </button>
             </div>
         </div>
@@ -293,10 +342,10 @@
                         id="compression-trigger"
                         class="select-trigger"
                         on:click={() => {
-                            if (!isScanning && !isCompressing)
+                            if (!state.isScanning && !state.isCompressing)
                                 isDropdownOpen = !isDropdownOpen;
                         }}
-                        disabled={isScanning || isCompressing}
+                        disabled={state.isScanning || state.isCompressing}
                         class:active={isDropdownOpen}
                     >
                         <span>{selectedAlgoLabel}</span>
@@ -308,14 +357,21 @@
                             {#each algorithms as algo}
                                 <div
                                     class="select-option"
-                                    class:selected={compressionAlgo === algo.id}
+                                    class:selected={state.compressionAlgo ===
+                                        algo.id}
                                     on:click={() => {
-                                        compressionAlgo = algo.id;
+                                        compactorStore.update((s) => ({
+                                            ...s,
+                                            compressionAlgo: algo.id,
+                                        }));
                                         isDropdownOpen = false;
                                     }}
                                     on:keydown={(e) =>
                                         e.key === "Enter" &&
-                                        ((compressionAlgo = algo.id),
+                                        (compactorStore.update((s) => ({
+                                            ...s,
+                                            compressionAlgo: algo.id,
+                                        })),
                                         (isDropdownOpen = false))}
                                     role="button"
                                     tabindex="0"
@@ -329,94 +385,106 @@
 
                 <button
                     class="btn-primary"
-                    on:click={isCompressing ? cancelOperation : compress}
-                    disabled={!path || (isScanning && !isCompressing)}
+                    on:click={state.isCompressing ? cancelOperation : compress}
+                    disabled={!state.path ||
+                        (state.isScanning && !state.isCompressing)}
                 >
-                    {isCompressing ? "🛑 Stop" : "Compress Now"}
+                    {state.isCompressing ? "🛑 Stop" : "Compress Now"}
                 </button>
             </div>
         </div>
     </div>
 
-    {#if statusMsg}
+    {#if state.statusMsg}
         <div
             class="status-bar"
-            class:error={statusType === "error"}
-            class:success={statusType === "success"}
+            class:error={state.statusType === "error"}
+            class:success={state.statusType === "success"}
         >
-            {statusMsg}
+            {state.statusMsg}
         </div>
     {/if}
 
-    {#if isScanning || isCompressing || (scanResult && !isScanning)}
+    {#if state.isScanning || state.isCompressing || (state.scanResult && !state.isScanning)}
         <div class="live-progress">
             <!-- Status Header -->
             <div class="progress-header">
                 <span class="progress-label">
-                    {#if isScanning}
+                    {#if state.isScanning}
                         🔍 Scanning files...
-                    {:else if isCompressing}
+                    {:else if state.isCompressing}
                         🗜️ Compressing files...
-                    {:else if scanResult}
+                    {:else if state.scanResult}
                         ✅ Scan complete
                     {/if}
                 </span>
-                {#if progressTotal > 0}
+                {#if state.progressTotal > 0}
                     <span class="progress-count">
-                        {progressCurrent} / {progressTotal} files
+                        {state.progressCurrent} / {state.progressTotal} files
+                    </span>
+                {:else if state.isScanning || state.isCompressing}
+                    <span class="progress-count">
+                        {state.progressCurrent} files
+                        {#if state.bytesAnalyzed > 0}
+                            ({formatBytes(state.bytesAnalyzed)})
+                        {/if}
                     </span>
                 {/if}
             </div>
 
             <!-- Main Progress Bar -->
-            {#if isScanning || isCompressing}
+            {#if state.isScanning || state.isCompressing}
                 <div class="progress-bar-track main-bar">
                     <div
                         class="progress-bar-fill"
-                        style="width: {progressTotal > 0
+                        class:indeterminate={state.progressTotal === 0}
+                        style="width: {state.progressTotal > 0
                             ? Math.min(
                                   100,
-                                  (progressCurrent / progressTotal) * 100,
+                                  (state.progressCurrent /
+                                      state.progressTotal) *
+                                      100,
                               )
-                            : 0}%"
+                            : 100}%"
                     ></div>
                 </div>
             {/if}
 
             <!-- Current File Being Processed -->
-            {#if (isScanning || isCompressing) && currentFile}
+            {#if (state.isScanning || state.isCompressing) && state.currentFile}
                 <div class="current-file-display">
                     <span class="file-icon">📄</span>
-                    <span class="file-name" title={currentFile}>
-                        {currentFile.length > 60
-                            ? "..." + currentFile.slice(-57)
-                            : currentFile}
+                    <span class="file-name" title={state.currentFile}>
+                        {state.currentFile.length > 60
+                            ? "..." + state.currentFile.slice(-57)
+                            : state.currentFile}
                     </span>
                 </div>
             {/if}
 
             <!-- Detailed Stats Panel -->
-            {#if scanResult}
+            {#if state.scanResult}
                 <div class="detailed-stats">
                     <!-- Total Saved -->
                     <div class="stat-summary">
-                        {#if scanResult.compressed_size && scanResult.compressed_size < scanResult.total_size}
+                        {#if state.scanResult.compressed_size && state.scanResult.compressed_size < state.scanResult.total_size}
                             <span class="saved-info">
                                 💾 {formatBytes(
-                                    scanResult.total_size -
-                                        scanResult.compressed_size,
-                                )} of {formatBytes(scanResult.total_size)} saved
-                                ({(
-                                    ((scanResult.total_size -
-                                        scanResult.compressed_size) /
-                                        scanResult.total_size) *
+                                    state.scanResult.total_size -
+                                        state.scanResult.compressed_size,
+                                )} of {formatBytes(state.scanResult.total_size)}
+                                saved ({(
+                                    ((state.scanResult.total_size -
+                                        state.scanResult.compressed_size) /
+                                        state.scanResult.total_size) *
                                     100
                                 ).toFixed(1)}%)
                             </span>
                         {:else}
                             <span class="saved-info">
-                                📊 {formatBytes(scanResult.total_size)} total in
-                                {scanResult.file_count} files
+                                📊 {formatBytes(state.scanResult.total_size)} total
+                                in
+                                {state.scanResult.file_count} files
                             </span>
                         {/if}
                     </div>
@@ -426,24 +494,29 @@
                         <div class="legend-item">
                             <span class="legend-color compressed"></span>
                             <span class="legend-text">
-                                {formatBytes(scanResult.compressed_size || 0)} compressed
+                                {formatBytes(
+                                    state.scanResult.compressed_size || 0,
+                                )} compressed
                             </span>
                         </div>
                         <div class="legend-item">
                             <span class="legend-color compressible"></span>
                             <span class="legend-text">
                                 {formatBytes(
-                                    scanResult.compressible_size ||
-                                        scanResult.total_size -
-                                            (scanResult.compressed_size || 0),
+                                    state.scanResult.compressible_size ||
+                                        state.scanResult.total_size -
+                                            (state.scanResult.compressed_size ||
+                                                0),
                                 )} compressible
                             </span>
                         </div>
-                        {#if scanResult.excluded_size}
+                        {#if state.scanResult.excluded_size}
                             <div class="legend-item">
                                 <span class="legend-color excluded"></span>
                                 <span class="legend-text">
-                                    {formatBytes(scanResult.excluded_size)} excluded
+                                    {formatBytes(
+                                        state.scanResult.excluded_size,
+                                    )} excluded
                                 </span>
                             </div>
                         {/if}
@@ -451,28 +524,31 @@
 
                     <!-- Stacked Bar Chart -->
                     <div class="stacked-bar">
-                        {#if scanResult.total_size > 0}
+                        {#if state.scanResult.total_size > 0}
                             <div
                                 class="bar-segment compressed"
-                                style="width: {((scanResult.compressed_size ||
-                                    0) /
-                                    scanResult.total_size) *
+                                style="width: {((state.scanResult
+                                    .compressed_size || 0) /
+                                    state.scanResult.total_size) *
                                     100}%"
                             ></div>
                             <div
                                 class="bar-segment compressible"
-                                style="width: {((scanResult.compressible_size ||
-                                    scanResult.total_size -
-                                        (scanResult.compressed_size || 0) -
-                                        (scanResult.excluded_size || 0)) /
-                                    scanResult.total_size) *
+                                style="width: {((state.scanResult
+                                    .compressible_size ||
+                                    state.scanResult.total_size -
+                                        (state.scanResult.compressed_size ||
+                                            0) -
+                                        (state.scanResult.excluded_size || 0)) /
+                                    state.scanResult.total_size) *
                                     100}%"
                             ></div>
-                            {#if scanResult.excluded_size}
+                            {#if state.scanResult.excluded_size}
                                 <div
                                     class="bar-segment excluded"
-                                    style="width: {(scanResult.excluded_size /
-                                        scanResult.total_size) *
+                                    style="width: {(state.scanResult
+                                        .excluded_size /
+                                        state.scanResult.total_size) *
                                         100}%"
                                 ></div>
                             {/if}
@@ -482,23 +558,25 @@
             {/if}
 
             <!-- Bytes Analyzed (during scan) -->
-            {#if (isScanning || isCompressing) && bytesAnalyzed > 0}
+            {#if (state.isScanning || state.isCompressing) && state.bytesAnalyzed > 0}
                 <div class="bytes-analyzed">
-                    ⚡ {formatBytes(bytesAnalyzed)} processed
+                    ⚡ {formatBytes(state.bytesAnalyzed)} processed
                 </div>
             {/if}
         </div>
     {/if}
 
-    {#if scanResult}
+    {#if state.scanResult}
         <div class="stats-card">
             <div class="stat">
                 <span class="label">Files Found</span>
-                <span class="value">{scanResult.file_count}</span>
+                <span class="value">{state.scanResult.file_count}</span>
             </div>
             <div class="stat">
                 <span class="label">Total Size</span>
-                <span class="value">{formatBytes(scanResult.total_size)}</span>
+                <span class="value"
+                    >{formatBytes(state.scanResult.total_size)}</span
+                >
             </div>
         </div>
     {/if}
@@ -568,7 +646,7 @@
                             class="revert-btn"
                             title="Decompress and revert to normal"
                             on:click={() => decompress(folder)}
-                            disabled={isCompressing}
+                            disabled={state.isCompressing}
                         >
                             ↩ Unpack / Cancel
                         </button>
@@ -1040,9 +1118,20 @@
         transition: width 0.3s ease;
     }
 
+    .progress-bar-fill.indeterminate {
+        width: 30% !important;
+        animation: indeterminate 2s infinite linear;
+        background: linear-gradient(90deg, var(--accent-color), #ffffff);
+    }
 
-
-
+    @keyframes indeterminate {
+        0% {
+            transform: translateX(-150%);
+        }
+        100% {
+            transform: translateX(350%);
+        }
+    }
 
     .bytes-analyzed {
         font-size: 12px;

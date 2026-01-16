@@ -8,8 +8,12 @@
     export let allTweaks: Tweak[] = [];
 
     // Navigation state
-    let currentView: "dashboard" | "filesystem" | "nvme" | "maintenance" =
-        "dashboard";
+    let currentView:
+        | "dashboard"
+        | "filesystem"
+        | "nvme"
+        | "maintenance"
+        | "compactor" = "dashboard";
 
     // --- Filters ---
 
@@ -104,8 +108,26 @@
             >
                 <div class="card-icon">🧹</div>
                 <h3>Maintenance Tools</h3>
-                <p>CompactOS compression and cleanup utilities.</p>
+                <p>Hibernation, storage sense, and cleanup utilities.</p>
                 <div class="status">{maintenanceTweaks.length} tweaks</div>
+            </div>
+
+            <!-- Compactor Card - Featured / Direct Access -->
+            <div
+                class="card featured"
+                role="button"
+                tabindex="0"
+                on:click={() => (currentView = "compactor")}
+                on:keydown={(e) =>
+                    e.key === "Enter" && (currentView = "compactor")}
+            >
+                <div class="card-icon">🗜️</div>
+                <h3>Compactor</h3>
+                <p>
+                    Compress folders with Windows transparent compression. Safe
+                    for games and apps.
+                </p>
+                <div class="status featured">Space Saver</div>
             </div>
         </div>
     {:else}
@@ -157,7 +179,7 @@
                     <div class="section-header">
                         <div class="header-text">
                             <h2>🧹 Maintenance Tools</h2>
-                            <p>System compression and cleanup.</p>
+                            <p>Hibernation, storage sense, and cleanup.</p>
                         </div>
                         <button
                             class="optimize-btn safe"
@@ -166,22 +188,38 @@
                             ✅ Apply Safe Tweaks
                         </button>
                     </div>
-                    <!-- Custom layout for Maintenance to include Compactor -->
                     <div class="tweaks-wrapper">
-                        <!-- Compactor Tool Section -->
-                        <div class="tool-section">
-                            <h3>CompactOS Compression</h3>
-                            <Compactor />
-                        </div>
-
-                        <!-- Other Maintenance Tweaks -->
                         {#if maintenanceTweaks.length > 0}
-                            <div class="tweaks-divider"></div>
                             <TweakList
                                 tweaks={maintenanceTweaks}
                                 showHeader={false}
                             />
+                        {:else}
+                            <div class="empty-state">
+                                No maintenance tweaks available.
+                            </div>
                         {/if}
+                    </div>
+                {:else if currentView === "compactor"}
+                    <div class="section-header">
+                        <div class="header-text">
+                            <h2>🗜️ Compactor</h2>
+                            <p>
+                                Compress folders using Windows transparent
+                                compression.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="info-banner">
+                        <span class="info-icon">ℹ️</span>
+                        <div class="info-content">
+                            <strong>Safe Compression:</strong> Already-compressed
+                            files (images, videos, archives) and system files are
+                            automatically skipped to prevent issues.
+                        </div>
+                    </div>
+                    <div class="tweaks-wrapper">
+                        <Compactor />
                     </div>
                 {/if}
             </div>
@@ -315,6 +353,7 @@
         overflow-y: auto; /* Allow scrolling for mixed content */
         display: flex;
         flex-direction: column;
+        min-height: 0; /* Fix for flex scrolling */
     }
 
     .back-btn {
@@ -347,5 +386,60 @@
         height: 1px;
         background: var(--border-color);
         margin: 24px 0;
+    }
+
+    /* Featured Card Styles */
+    .card.featured {
+        background: linear-gradient(
+            135deg,
+            rgba(59, 130, 246, 0.1) 0%,
+            rgba(139, 92, 246, 0.1) 100%
+        );
+        border-color: rgba(59, 130, 246, 0.4);
+    }
+
+    .card.featured:hover {
+        border-color: var(--accent-color);
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+    }
+
+    .status.featured {
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        color: white;
+    }
+
+    /* Info Banner Styles */
+    .info-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 16px;
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    .info-icon {
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+
+    .info-content {
+        font-size: 13px;
+        color: var(--text-color);
+        line-height: 1.5;
+    }
+
+    .info-content strong {
+        color: #10b981;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-muted);
+        font-size: 14px;
     }
 </style>

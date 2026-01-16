@@ -188,6 +188,7 @@
         /* Moved padding here so content scrolls 'into' the padding, not clipped by parent */
         padding: 24px;
         padding-top: 4px; /* Small top padding for hover clearance */
+        min-height: 0;
     }
 
     .card {

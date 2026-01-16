@@ -2,9 +2,11 @@ pub mod commands;
 pub mod modules;
 
 use crate::commands::TweakContext;
+use crate::modules::activation::get_activation_tweaks;
 use crate::modules::cpu::get_cpu_tweaks;
 use crate::modules::debloat::get_debloat_tweaks;
 use crate::modules::display::get_display_tweaks;
+// use crate::modules::filesystem::get_filesystem_tweaks; // Migrated to storage
 use crate::modules::gaming::get_gaming_tweaks;
 use crate::modules::gpu::get_gpu_tweaks;
 // use crate::modules::hardware::get_hardware_tweaks; // Removed
@@ -35,6 +37,8 @@ pub fn run() {
     // all_tweaks.extend(get_hardware_tweaks()); // Removed
     all_tweaks.extend(get_storage_tweaks());
     all_tweaks.extend(get_interface_tweaks());
+    // all_tweaks.extend(get_filesystem_tweaks()); // Migrated to storage
+    all_tweaks.extend(get_activation_tweaks());
 
     // Load initial state
     let state_path = crate::modules::utils::dirs::get_state_path()
@@ -49,11 +53,20 @@ pub fn run() {
         .manage(Mutex::new(
             crate::modules::storage::state::CompactorState::default(),
         ))
+        .manage(Mutex::new(
+            crate::modules::system::monitoring::SystemMonitor::new(),
+        ))
+        .manage(Mutex::new(
+            crate::modules::utils::process_manager::ProcessManager::new(),
+        ))
         .invoke_handler(tauri::generate_handler![
             commands::check_is_admin,
             commands::get_tweaks,
+            commands::get_tweaks_fast,
+            commands::check_category,
             commands::apply_tweak,
             commands::undo_tweak,
+            commands::kill_tweak_process,
             commands::benchmark_dns,
             commands::apply_dns_server,
             commands::scan_startup,
@@ -70,7 +83,13 @@ pub fn run() {
             crate::modules::packages::winget::install_packages_bulk,
             crate::modules::packages::winget::search_packages,
             crate::modules::packages::winget::get_popular_packages,
-            crate::modules::system::restore::create_restore_point
+            crate::modules::system::restore::create_restore_point,
+            crate::modules::system::restore::open_restore_ui,
+            crate::modules::system::monitoring::get_system_stats,
+            crate::modules::system::maintenance::empty_recycle_bin,
+            crate::modules::system::maintenance::clear_temp_files,
+            crate::modules::system::maintenance::flush_dns_cache,
+            crate::modules::system::maintenance::reset_network
         ])
         .setup(|app| {
             #[cfg(target_os = "windows")]

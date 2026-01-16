@@ -191,5 +191,6 @@ if (($speed.MouseSpeed -eq 0) -and ($thresh1.MouseThreshold1 -eq 0) -and ($thres
                     value: RegistryValue::String("0".to_string()),
                 },
             ]
+        },
     ]
 }

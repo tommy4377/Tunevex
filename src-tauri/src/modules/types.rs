@@ -27,7 +27,9 @@ pub enum TweakCategory {
     Advanced,
     Monitoring,
     BackupRestore,
-    Privacy, // Phase 4: Privacy & Telemetry
+    Privacy,
+    Activation, // Windows/Office activation
+    Home,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

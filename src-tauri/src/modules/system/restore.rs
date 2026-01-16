@@ -23,3 +23,11 @@ pub async fn create_restore_point(description: String) -> Result<String, String>
         Err(String::from_utf8_lossy(&output.stderr).to_string())
     }
 }
+
+#[command]
+pub async fn open_restore_ui() -> Result<(), String> {
+    Command::new("rstrui.exe")
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}

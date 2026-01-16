@@ -23,7 +23,8 @@ pub fn get_network_tweaks() -> Vec<Tweak> {
     tweaks.extend(adapter::get_adapter_tweaks());
     tweaks.extend(security::get_security_tweaks());
     tweaks.extend(dns::get_dns_tweaks());
-    tweaks.extend(maintenance::get_maintenance_tweaks());
+    // actions moved to Home dashboard
+    // tweaks.extend(maintenance::get_maintenance_tweaks());
     tweaks.extend(msi::get_network_msi_tweaks());
 
     tweaks
