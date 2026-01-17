@@ -24,6 +24,7 @@ impl SystemMonitor {
 
         // Spawn background thread for GPU monitoring via typeperf
         thread::spawn(move || {
+            let mut first_run = true;
             loop {
                 {
                     // Run typeperf for 1 sample (effectively current snapshot)
@@ -34,34 +35,57 @@ impl SystemMonitor {
                         .creation_flags(0x08000000)
                         .output();
 
-                    if let Ok(out) = output {
-                        let stdout = String::from_utf8_lossy(&out.stdout);
-                        // Output format:
-                        // "Timestamp","value","value"...
-                        // "01/16/2026...", "0.00", "5.00"...
+                    match output {
+                        Ok(out) => {
+                            let stdout = String::from_utf8_lossy(&out.stdout);
+                            let stderr = String::from_utf8_lossy(&out.stderr);
 
-                        let lines: Vec<&str> = stdout.trim().lines().collect();
-                        if lines.len() >= 2 {
-                            let csv_line = lines.last().unwrap(); // Get the data line
-                                                                  // Parse CSV line
-                                                                  // Split by comma, strip quotes
-                            let sum: f32 = csv_line
-                                .split(',')
-                                .skip(1) // Skip timestamp
-                                .filter_map(|s| {
-                                    let s = s.trim().trim_matches('"');
-                                    // Handle both dot and comma decimals depending on locale
-                                    let clean_s = s.replace(',', ".");
-                                    clean_s.parse::<f32>().ok()
-                                })
-                                .sum();
-
-                            // Cap at 100%
-                            let usage = if sum > 100.0 { 100.0 } else { sum };
-
-                            if let Ok(mut g) = gpu_usage_clone.lock() {
-                                *g = usage;
+                            // Debug: Log first run output
+                            if first_run {
+                                println!(
+                                    "[GPU Monitor] typeperf stdout: {}",
+                                    stdout.chars().take(500).collect::<String>()
+                                );
+                                if !stderr.is_empty() {
+                                    eprintln!("[GPU Monitor] typeperf stderr: {}", stderr);
+                                }
+                                first_run = false;
                             }
+
+                            let lines: Vec<&str> = stdout.trim().lines().collect();
+                            if lines.len() >= 2 {
+                                let csv_line = lines.last().unwrap();
+                                // Parse CSV line
+                                // Split by comma, strip quotes
+                                let sum: f32 = csv_line
+                                    .split(',')
+                                    .skip(1) // Skip timestamp
+                                    .filter_map(|s| {
+                                        let s = s.trim().trim_matches('"');
+                                        // Handle both dot and comma decimals depending on locale
+                                        let clean_s = s.replace(',', ".");
+                                        clean_s.parse::<f32>().ok()
+                                    })
+                                    .sum();
+
+                                // Cap at 100%
+                                let usage = if sum > 100.0 { 100.0 } else { sum };
+
+                                if let Ok(mut g) = gpu_usage_clone.lock() {
+                                    *g = usage;
+                                }
+                            } else {
+                                // Log if no data
+                                if first_run {
+                                    eprintln!(
+                                        "[GPU Monitor] typeperf returned insufficient lines: {}",
+                                        lines.len()
+                                    );
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("[GPU Monitor] typeperf failed: {:?}", e);
                         }
                     }
                 }
@@ -76,6 +100,8 @@ impl SystemMonitor {
             // Fallback to wmic command if WMI crate fails
             get_gpu_name_wmic().unwrap_or_else(|| "Unknown GPU".to_string())
         });
+
+        println!("[GPU Monitor] Detected GPU: {}", gpu_name);
 
         Self {
             sys: System::new_with_specifics(
@@ -135,11 +161,36 @@ struct Win32VideoController {
 /// Get GPU name using WMI crate (Best Practice)
 fn get_gpu_name_wmi() -> Option<String> {
     // Initialize COM library
-    let com_con = COMLibrary::new().ok()?;
-    let wmi_con = WMIConnection::new(com_con).ok()?;
+    let com_con = match COMLibrary::new() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("WMI COM init failed: {:?}", e);
+            return None;
+        }
+    };
 
-    // Query all video controllers
-    let results: Vec<Win32VideoController> = wmi_con.query().ok()?;
+    let wmi_con = match WMIConnection::new(com_con) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("WMI connection failed: {:?}", e);
+            return None;
+        }
+    };
+
+    // Query all video controllers with explicit query
+    let results: Vec<Win32VideoController> =
+        match wmi_con.raw_query("SELECT Name FROM Win32_VideoController") {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!("WMI query failed: {:?}", e);
+                return None;
+            }
+        };
+
+    println!("WMI found {} GPU(s)", results.len());
+    for (i, gpu) in results.iter().enumerate() {
+        println!("  GPU {}: {:?}", i, gpu.name);
+    }
 
     if results.is_empty() {
         return None;
