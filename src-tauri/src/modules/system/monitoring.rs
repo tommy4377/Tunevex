@@ -10,6 +10,7 @@ pub struct SystemMonitor {
     sys: System,
     disks: Disks,
     gpu_usage: Arc<Mutex<f32>>,
+    gpu_name: String,
 }
 
 impl SystemMonitor {
@@ -66,6 +67,9 @@ impl SystemMonitor {
             }
         });
 
+        // Fetch GPU name once
+        let gpu_name = get_gpu_name().unwrap_or_else(|| "Unknown GPU".to_string());
+
         Self {
             sys: System::new_with_specifics(
                 RefreshKind::nothing()
@@ -74,6 +78,7 @@ impl SystemMonitor {
             ),
             disks: Disks::new_with_refreshed_list(),
             gpu_usage,
+            gpu_name,
         }
     }
 
@@ -83,34 +88,6 @@ impl SystemMonitor {
         self.disks.refresh(true);
     }
 }
-
-#[derive(serde::Serialize)]
-pub struct DiskStats {
-    name: String,
-    mount_point: String,
-    total_space: u64,
-    available_space: u64,
-    is_removable: bool,
-}
-
-#[derive(serde::Serialize)]
-pub struct GpuStats {
-    name: String,
-    usage: f32,
-}
-
-#[derive(serde::Serialize)]
-pub struct SystemStats {
-    cpu_usage: f32,
-    ram_usage: u64,
-    ram_total: u64,
-    uptime: u64,
-    username: String,
-    disks: Vec<DiskStats>,
-    gpu: Option<GpuStats>,
-}
-
-use tauri::Manager; // Import Manager trait for .state()
 
 fn get_gpu_name() -> Option<String> {
     // Use wmic to get GPU name
@@ -169,9 +146,12 @@ pub async fn get_quick_stats(app: tauri::AppHandle) -> Result<SystemStats, Strin
             uptime: sysinfo::System::uptime(),
             username,
             disks: Vec::new(), // Return empty, fetched separately
-            gpu: get_gpu_name().map(|name| {
+            gpu: Some({
                 let usage = *monitor.gpu_usage.lock().unwrap();
-                GpuStats { name, usage }
+                GpuStats {
+                    name: monitor.gpu_name.clone(), // Use cached name
+                    usage,
+                }
             }),
         }
     })

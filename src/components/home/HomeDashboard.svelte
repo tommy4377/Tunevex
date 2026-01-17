@@ -166,7 +166,7 @@
         <div class="section-container storage-section">
             <h2>Storage Drives</h2>
             <div class="drives-grid">
-                {#each stats.disks as disk}
+                {#each stats.disks.sort( (a, b) => a.mount_point.localeCompare(b.mount_point), ) as disk}
                     <div class="drive-card">
                         <div class="drive-icon"><HardDrive size={20} /></div>
                         <div class="drive-info">
