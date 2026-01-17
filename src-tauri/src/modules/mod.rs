@@ -7,6 +7,8 @@ pub mod gaming;
 pub mod gpu;
 pub mod input;
 pub mod interface;
+pub mod legacy_vibrancy; // Explicitly expose it for direct use if needed, or via interface
+
 pub mod network;
 pub mod packages;
 pub mod privacy;

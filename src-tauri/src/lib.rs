@@ -118,18 +118,21 @@ pub fn run() {
                         }
                     }
 
-                    // Apply Blur effect (Persistent)
-                    use window_vibrancy::apply_blur;
-                    // Apply blur behind. Acrylic often disappears on focus loss on Windows 11.
-                    if let Err(e) = apply_blur(&window, Some((18, 18, 18, 125))) {
-                        eprintln!("Blur failed: {}", e);
-                        // Fallback to Mica
-                        use window_vibrancy::apply_mica;
-                        if let Err(e) = apply_mica(&window, Some(true)) {
-                            eprintln!("Mica fallback failed: {}", e);
+                    // Try Legacy Acrylic (Force Persistence via Undocumented API)
+                    use crate::modules::legacy_vibrancy::apply_legacy_acrylic;
+                    // Color: Dark Gray with high transparency (18,18,18, 150 alpha) for tint
+                    if let Err(e) = apply_legacy_acrylic(&window, (10, 10, 10, 200)) {
+                        eprintln!("Legacy Acrylic failed: {}", e);
+
+                        // Fallback to Standard Modern Acrylic (Transient)
+                        use window_vibrancy::apply_acrylic;
+                        if let Err(e) = apply_acrylic(&window, Some((18, 18, 18, 125))) {
+                            eprintln!("Modern Acrylic failed: {}", e);
+                            use window_vibrancy::apply_mica;
+                            let _ = apply_mica(&window, Some(true));
                         }
                     } else {
-                        println!("Persistent Blur effect applied.");
+                        println!("Legacy Acrylic applied (Persistent).");
                     }
                 }
             }
