@@ -6,6 +6,10 @@ use std::time::Duration;
 use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
 use tauri::command;
 
+// WMI for robust GPU detection
+use serde::Deserialize;
+use wmi::{COMLibrary, WMIConnection};
+
 pub struct SystemMonitor {
     sys: System,
     disks: Disks,
@@ -18,7 +22,7 @@ impl SystemMonitor {
         let gpu_usage = Arc::new(Mutex::new(0.0));
         let gpu_usage_clone = gpu_usage.clone();
 
-        // Spawn background thread for GPU monitoring
+        // Spawn background thread for GPU monitoring via typeperf
         thread::spawn(move || {
             loop {
                 {
@@ -67,8 +71,11 @@ impl SystemMonitor {
             }
         });
 
-        // Fetch GPU name once
-        let gpu_name = get_gpu_name().unwrap_or_else(|| "Unknown GPU".to_string());
+        // Fetch GPU name via WMI (robust, cross-vendor)
+        let gpu_name = get_gpu_name_wmi().unwrap_or_else(|| {
+            // Fallback to wmic command if WMI crate fails
+            get_gpu_name_wmic().unwrap_or_else(|| "Unknown GPU".to_string())
+        });
 
         Self {
             sys: System::new_with_specifics(
@@ -117,8 +124,57 @@ pub struct SystemStats {
     gpu: Option<GpuStats>,
 }
 
-fn get_gpu_name() -> Option<String> {
-    // Use wmic to get GPU name
+// WMI struct for Win32_VideoController
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+struct Win32VideoController {
+    name: Option<String>,
+    adapter_ram: Option<u64>,
+}
+
+/// Get GPU name using WMI crate (Best Practice)
+fn get_gpu_name_wmi() -> Option<String> {
+    // Initialize COM library
+    let com_con = COMLibrary::new().ok()?;
+    let wmi_con = WMIConnection::new(com_con).ok()?;
+
+    // Query all video controllers
+    let results: Vec<Win32VideoController> = wmi_con.query().ok()?;
+
+    if results.is_empty() {
+        return None;
+    }
+
+    // Prioritize discrete GPUs (NVIDIA, AMD Radeon RX, Intel Arc)
+    let discrete_keywords = ["nvidia", "geforce", "rtx", "gtx", "radeon", "rx", "arc"];
+    let integrated_keywords = ["intel", "uhd", "iris", "vega", "amd"];
+
+    // First pass: look for discrete
+    for gpu in &results {
+        if let Some(ref name) = gpu.name {
+            let lower = name.to_lowercase();
+            if discrete_keywords.iter().any(|k| lower.contains(k)) {
+                return Some(name.clone());
+            }
+        }
+    }
+
+    // Second pass: look for integrated
+    for gpu in &results {
+        if let Some(ref name) = gpu.name {
+            let lower = name.to_lowercase();
+            if integrated_keywords.iter().any(|k| lower.contains(k)) {
+                return Some(name.clone());
+            }
+        }
+    }
+
+    // Fallback: return first found
+    results.first().and_then(|g| g.name.clone())
+}
+
+/// Fallback: Get GPU name using wmic command (Legacy)
+fn get_gpu_name_wmic() -> Option<String> {
     let output = Command::new("wmic")
         .args(&["path", "win32_videocontroller", "get", "name"])
         .creation_flags(0x08000000) // CREATE_NO_WINDOW
@@ -135,16 +191,16 @@ fn get_gpu_name() -> Option<String> {
         .collect();
 
     if names.is_empty() {
-        return Some("Unknown GPU".to_string());
+        return None;
     }
 
-    // Prioritize discrete GPUs first, then integrated
+    // Prioritize discrete GPUs
     let keywords = [
         "nvidia", "geforce", "rtx", "gtx", // NVIDIA discrete
         "radeon", "rx",  // AMD discrete
         "arc", // Intel Arc discrete
         "intel", "uhd", "iris", // Intel integrated
-        "vega", "amd", // AMD integrated (Vega, etc.)
+        "vega", "amd", // AMD integrated
     ];
 
     // Try to find a match for keywords
