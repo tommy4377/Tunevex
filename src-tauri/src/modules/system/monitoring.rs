@@ -89,6 +89,34 @@ impl SystemMonitor {
     }
 }
 
+use tauri::Manager; // Import Manager trait for .state()
+
+#[derive(serde::Serialize)]
+pub struct DiskStats {
+    name: String,
+    mount_point: String,
+    total_space: u64,
+    available_space: u64,
+    is_removable: bool,
+}
+
+#[derive(serde::Serialize)]
+pub struct GpuStats {
+    name: String,
+    usage: f32,
+}
+
+#[derive(serde::Serialize)]
+pub struct SystemStats {
+    cpu_usage: f32,
+    ram_usage: u64,
+    ram_total: u64,
+    uptime: u64,
+    username: String,
+    disks: Vec<DiskStats>,
+    gpu: Option<GpuStats>,
+}
+
 fn get_gpu_name() -> Option<String> {
     // Use wmic to get GPU name
     let output = Command::new("wmic")
