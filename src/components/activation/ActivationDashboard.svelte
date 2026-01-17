@@ -201,9 +201,10 @@
     }
 
     .card {
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--surface-1);
+        backdrop-filter: blur(12px);
         border: 1px solid var(--border-color);
-        border-radius: 20px; /* High rounding */
+        border-radius: var(--radius);
         overflow: hidden;
         transition:
             transform 0.2s,

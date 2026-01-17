@@ -29,7 +29,7 @@
         on:click|self={close}
         on:keydown={(e) => e.key === "Escape" && close()}
     >
-        <div class="modal">
+        <div class="modal-content">
             <div class="header">
                 <h3>{title}</h3>
                 <button class="close-btn" on:click={close}>
@@ -76,17 +76,23 @@
         backdrop-filter: blur(4px);
     }
 
-    .modal {
-        width: 80%;
+    .modal-content {
+        width: 90%;
         max-width: 800px;
-        height: 70%;
-        background: #1e1e1e;
+        height: 80vh;
+        background: rgba(
+            30,
+            41,
+            59,
+            0.95
+        ); /* Nearly opaque for terminal readability */
+        backdrop-filter: blur(16px);
+        border-radius: var(--radius);
         border: 1px solid var(--border-color);
-        border-radius: 20px; /* High rounding */
         display: flex;
         flex-direction: column;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-        overflow: hidden; /* Ensure rounded corners clip content */
+        overflow: hidden;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     }
 
     .header {
@@ -95,7 +101,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        background: #252526;
+        background: rgba(0, 0, 0, 0.2);
     }
 
     h3 {
@@ -139,7 +145,7 @@
     .footer {
         padding: 16px 24px;
         border-top: 1px solid var(--border-color);
-        background: #252526;
+        background: rgba(0, 0, 0, 0.2);
         display: flex;
         justify-content: space-between;
         align-items: center;

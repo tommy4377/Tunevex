@@ -258,6 +258,19 @@
         padding-bottom: 24px; /* Ensure last item is visible */
     }
 
+    .server-card {
+        background: var(--surface-1);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius);
+        padding: 16px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--shadow-card);
+    }
     .result-row {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid var(--border-color);

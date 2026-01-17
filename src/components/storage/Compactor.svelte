@@ -808,7 +808,8 @@
         top: calc(100% + 4px);
         left: 0;
         right: 0;
-        background: #1e1e1e;
+        background: var(--surface-1);
+        backdrop-filter: blur(12px);
         border: 1px solid var(--border-color);
         border-radius: 8px;
         overflow: hidden;
