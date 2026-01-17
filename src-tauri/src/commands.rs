@@ -3,7 +3,6 @@ use crate::modules::registry::operations::apply_registry_tweak;
 use crate::modules::types::{RegistryValue, Tweak, TweakCheck, TweakOperation};
 use crate::modules::utils::privileges::is_admin;
 use crate::modules::utils::state::AppState;
-#[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 use std::process::Command;
 use std::sync::Mutex;
@@ -31,7 +30,6 @@ fn check_tweak_enabled(check: &TweakCheck) -> bool {
 }
 
 /// Check if a registry value matches the expected value
-#[cfg(target_os = "windows")]
 fn check_registry_value(
     root_key: &str,
     path: &str,
@@ -78,18 +76,7 @@ fn check_registry_value(
 
 }
 
-#[cfg(not(target_os = "windows"))]
-fn check_registry_value(
-    _root_key: &str,
-    _path: &str,
-    _key: &str,
-    _expected_value: &RegistryValue,
-) -> bool {
-    false // Registry checks not available on non-Windows
-}
-
 /// Check if PowerShell script output matches expected value
-#[cfg(target_os = "windows")]
 fn check_powershell_output(script: &str, expected_output: &str) -> bool {
     let output = Command::new("powershell")
         .args(&["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script])
@@ -104,11 +91,6 @@ fn check_powershell_output(script: &str, expected_output: &str) -> bool {
         }
         Err(_) => false,
     }
-}
-
-#[cfg(not(target_os = "windows"))]
-fn check_powershell_output(_script: &str, _expected_output: &str) -> bool {
-    false // PowerShell checks not available on non-Windows
 }
 
 #[tauri::command]
@@ -533,20 +515,10 @@ pub fn kill_tweak_process(
 
     if let Some(pid) = pid {
         println!("[PROCESS KILL] Killing process PID {} for tweak {}", pid, id);
-        #[cfg(target_os = "windows")]
-        {
-            let _ = Command::new("taskkill")
-                .args(&["/F", "/PID", &pid.to_string(), "/T"]) // /T kills child processes (important for powershell -> script)
-                .creation_flags(0x08000000)
-                .output();
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-             let _ = Command::new("kill")
-                .arg("-9")
-                .arg(pid.to_string())
-                .output();
-        }
+        let _ = Command::new("taskkill")
+            .args(&["/F", "/PID", &pid.to_string(), "/T"])
+            .creation_flags(0x08000000)
+            .output();
     } else {
         println!("[PROCESS KILL] No active PID found for tweak {}", id);
     }
