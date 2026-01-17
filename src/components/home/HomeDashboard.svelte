@@ -85,7 +85,25 @@
         if (isUpdating) return;
         isUpdating = true;
         try {
-            stats = await invoke("get_system_stats");
+            // 1. Fetch vital signs (Fast)
+            const quickStats = await invoke<SystemStats>("get_quick_stats");
+
+            // Merge but preserve existing disks if new ones haven't arrived
+            stats = {
+                ...quickStats,
+                disks: stats.disks.length > 0 ? stats.disks : [],
+            };
+
+            // 2. Fetch disks separately (Slower)
+            // We don't await this to block the CPU/RAM UI update, but since we are in a single async function
+            // effectively we want to update UI *now* with quick stats, then update again with disks.
+            // However, Svelte reactivity triggers on assignment.
+
+            invoke<DiskStats[]>("get_disk_stats")
+                .then((disks) => {
+                    stats = { ...stats, disks };
+                })
+                .catch((e) => console.error("Disk fetch error:", e));
         } catch (e) {
             console.error("Stats error:", e);
         } finally {

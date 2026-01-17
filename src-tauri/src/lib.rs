@@ -86,13 +86,14 @@ pub fn run() {
             crate::modules::system::restore::create_restore_point,
             crate::modules::system::restore::open_restore_ui,
             crate::modules::system::monitoring::get_system_stats,
+            crate::modules::system::monitoring::get_quick_stats,
+            crate::modules::system::monitoring::get_disk_stats,
             crate::modules::system::maintenance::empty_recycle_bin,
             crate::modules::system::maintenance::clear_temp_files,
             crate::modules::system::maintenance::flush_dns_cache,
             crate::modules::system::maintenance::reset_network
         ])
         .setup(|app| {
-            #[cfg(target_os = "windows")]
             {
                 use tauri::Manager;
                 use windows::Win32::Graphics::Dwm::{
