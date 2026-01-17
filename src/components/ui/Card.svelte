@@ -46,6 +46,7 @@
 
 <style>
     .card {
+        box-sizing: border-box;
         background: var(--layer-card);
         backdrop-filter: blur(12px) saturate(150%); /* Glassmorphism */
         -webkit-backdrop-filter: blur(12px) saturate(150%);
