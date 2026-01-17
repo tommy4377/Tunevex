@@ -118,7 +118,11 @@ pub fn run() {
                     // Apply Mica effect (Windows 11 only)
                     use window_vibrancy::apply_mica;
                     // Some(true) for dark mode, Some(false) for light mode, None for system
-                    let _ = apply_mica(&window, Some(true));
+                    if let Err(e) = apply_mica(&window, Some(true)) {
+                        eprintln!("Failed to apply Mica effect: {}", e);
+                    } else {
+                        println!("Mica effect applied successfully.");
+                    }
                 }
             }
 
