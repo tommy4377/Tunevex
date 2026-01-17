@@ -138,8 +138,14 @@ fn get_gpu_name() -> Option<String> {
         return Some("Unknown GPU".to_string());
     }
 
-    // Prioritize discrete GPUs
-    let keywords = ["nvidia", "amd", "radeon", "geforce", "rtx", "gtx", "arc"];
+    // Prioritize discrete GPUs first, then integrated
+    let keywords = [
+        "nvidia", "geforce", "rtx", "gtx", // NVIDIA discrete
+        "radeon", "rx",  // AMD discrete
+        "arc", // Intel Arc discrete
+        "intel", "uhd", "iris", // Intel integrated
+        "vega", "amd", // AMD integrated (Vega, etc.)
+    ];
 
     // Try to find a match for keywords
     let best_match = names.iter().find(|name| {
