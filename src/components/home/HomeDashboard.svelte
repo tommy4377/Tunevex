@@ -14,41 +14,17 @@
         Save,
     } from "lucide-svelte";
 
-    interface DiskStats {
-        name: string;
-        mount_point: string;
-        total_space: number;
-        available_space: number;
-        is_removable: boolean;
-    }
+    import type { SystemStats } from "$lib/systemStore";
 
-    interface GpuStats {
-        name: string;
-        usage: number;
-    }
+    import { systemStats, refreshStatsIfNeeded } from "$lib/systemStore";
 
-    interface SystemStats {
-        cpu_usage: number;
-        ram_usage: number;
-        ram_total: number;
-        uptime: number;
-        username: string;
-        disks: DiskStats[];
-        gpu: GpuStats | null;
-    }
-
-    let stats: SystemStats = {
-        cpu_usage: 0,
-        ram_usage: 0,
-        ram_total: 1,
-        uptime: 0,
-        username: "User",
-        disks: [],
-        gpu: null,
-    };
+    let stats: SystemStats;
+    // Subscribe to store
+    const unsubscribe = systemStats.subscribe((value) => {
+        stats = value;
+    });
 
     let interval: any;
-    let isUpdating = false;
 
     // Status messages for quick actions
     let trashMsg = "";
@@ -70,46 +46,16 @@
     let restoreSuccess = false;
 
     onMount(() => {
-        // Delay initial fetch to allow UI to render first
-        setTimeout(() => {
-            updateStats();
-            interval = setInterval(updateStats, 2000);
-        }, 500);
+        // Initial fetch if needed, otherwise uses cached value immediately
+        refreshStatsIfNeeded();
+        // Poll every 2s
+        interval = setInterval(refreshStatsIfNeeded, 2000);
     });
 
     onDestroy(() => {
         if (interval) clearInterval(interval);
+        unsubscribe(); // Unsubscribe to prevent memory leaks
     });
-
-    async function updateStats() {
-        if (isUpdating) return;
-        isUpdating = true;
-        try {
-            // 1. Fetch vital signs (Fast)
-            const quickStats = await invoke<SystemStats>("get_quick_stats");
-
-            // Merge but preserve existing disks if new ones haven't arrived
-            stats = {
-                ...quickStats,
-                disks: stats.disks.length > 0 ? stats.disks : [],
-            };
-
-            // 2. Fetch disks separately (Slower)
-            // We don't await this to block the CPU/RAM UI update, but since we are in a single async function
-            // effectively we want to update UI *now* with quick stats, then update again with disks.
-            // However, Svelte reactivity triggers on assignment.
-
-            invoke<DiskStats[]>("get_disk_stats")
-                .then((disks) => {
-                    stats = { ...stats, disks };
-                })
-                .catch((e) => console.error("Disk fetch error:", e));
-        } catch (e) {
-            console.error("Stats error:", e);
-        } finally {
-            isUpdating = false;
-        }
-    }
 
     function formatBytes(bytes: number) {
         if (bytes === 0) return "0 B";
