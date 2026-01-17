@@ -31,7 +31,7 @@
 >
     {#if icon}
         <div class="card-icon">
-            <svelte:component this={icon} size={24} />
+            <svelte:component this={icon} size={20} />
         </div>
     {/if}
     <h3>{title}</h3>
@@ -50,8 +50,8 @@
         backdrop-filter: blur(12px) saturate(150%); /* Glassmorphism */
         -webkit-backdrop-filter: blur(12px) saturate(150%);
         border: var(--border-glass);
-        border-radius: 16px;
-        padding: 24px;
+        border-radius: 12px; /* Slightly tighter radius for compact cards */
+        padding: 16px; /* REDUCED from 24px */
         position: relative;
         z-index: 1;
         display: flex;
@@ -98,7 +98,7 @@
 
     .card-icon {
         color: var(--accent-color);
-        margin-bottom: 16px;
+        margin-bottom: 12px; /* REDUCED from 16px */
         filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.3));
         transition: transform 0.3s ease;
     }
@@ -109,18 +109,18 @@
     }
 
     h3 {
-        margin: 0 0 8px 0;
-        font-size: 18px;
+        margin: 0 0 6px 0; /* REDUCED from 8px */
+        font-size: 15px; /* REDUCED from 18px */
         font-weight: 600;
         color: var(--text-color);
         width: 100%;
     }
 
     p {
-        margin: 0 0 24px 0;
+        margin: 0 0 16px 0; /* REDUCED from 24px */
         color: var(--text-muted);
-        font-size: 14px;
-        line-height: 1.6;
+        font-size: 13px; /* REDUCED from 14px */
+        line-height: 1.5;
         flex-grow: 1;
         width: 100%;
         display: -webkit-box;
@@ -130,13 +130,13 @@
     }
 
     .status {
-        font-size: 11px;
+        font-size: 10px; /* REDUCED from 11px */
         font-weight: 600;
         letter-spacing: 0.025em;
         text-transform: uppercase;
         color: var(--accent-color);
         background: rgba(59, 130, 246, 0.15);
-        padding: 4px 10px;
+        padding: 3px 8px; /* REDUCED from 4px 10px */
         border-radius: 999px;
         display: inline-flex;
         align-items: center;

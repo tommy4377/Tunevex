@@ -1,6 +1,6 @@
 <script lang="ts">
     export let columns: string = "repeat(auto-fill, minmax(240px, 1fr))";
-    export let gap: string = "20px";
+    export let gap: string = "24px";
 </script>
 
 <div class="card-grid" style="--columns: {columns}; --gap: {gap};">
