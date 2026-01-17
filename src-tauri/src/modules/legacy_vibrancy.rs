@@ -1,11 +1,11 @@
 use std::ffi::c_void;
 use tauri::Runtime;
 use tauri::WebviewWindow;
-use windows::Win32::Foundation::{BOOL, HWND};
+use windows::Win32::Foundation::HWND;
 use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_USE_IMMERSIVE_DARK_MODE};
 
 // Undocumented APIs
-use windows::core::{s, PCSTR};
+use windows::core::s;
 use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryA};
 
 #[repr(C)]
@@ -25,7 +25,7 @@ struct AccentPolicy {
 
 const WCA_ACCENT_POLICY: u32 = 19;
 const ACCENT_ENABLE_ACRYLICBLURBEHIND: u32 = 4;
-const ACCENT_ENABLE_BLURBEHIND: u32 = 3;
+// const ACCENT_ENABLE_BLURBEHIND: u32 = 3;
 
 pub fn apply_legacy_acrylic<R: Runtime>(
     window: &WebviewWindow<R>,
@@ -36,18 +36,20 @@ pub fn apply_legacy_acrylic<R: Runtime>(
 
     unsafe {
         // Enforce basic DWM Rounding/Dark Mode first just in case
-        let use_dark_mode = BOOL::from(true);
+        let use_dark_mode: i32 = 1; // BOOL = TRUE
         let _ = DwmSetWindowAttribute(
             hwnd,
             DWMWA_USE_IMMERSIVE_DARK_MODE,
             &use_dark_mode as *const _ as *const _,
-            std::mem::size_of::<BOOL>() as u32,
+            std::mem::size_of::<i32>() as u32,
         );
 
         // Load user32.dll for SetWindowCompositionAttribute
         let user32 = LoadLibraryA(s!("user32.dll"))?;
+
+        // Define function pointer using i32 instead of BOOL to avoid import issues
         let set_window_composition_attribute: Option<
-            unsafe extern "system" fn(HWND, *const WindowCompositionAttributeData) -> BOOL,
+            unsafe extern "system" fn(HWND, *const WindowCompositionAttributeData) -> i32,
         > = std::mem::transmute(GetProcAddress(user32, s!("SetWindowCompositionAttribute")));
 
         if let Some(set_window_composition_attribute) = set_window_composition_attribute {
