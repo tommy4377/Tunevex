@@ -118,20 +118,18 @@ pub fn run() {
                         }
                     }
 
-                    // Apply Acrylic effect (Stronger glass blur)
-                    use window_vibrancy::apply_acrylic;
-                    // Some(true) for dark mode
-                    if let Err(e) = apply_acrylic(&window, Some((18, 18, 18, 125))) {
-                        eprintln!("Acrylic failed (falling back to Mica): {}", e);
-                        // Fallback to Mica if Acrylic fails (e.g. not supported)
+                    // Apply Blur effect (Persistent)
+                    use window_vibrancy::apply_blur;
+                    // Apply blur behind. Acrylic often disappears on focus loss on Windows 11.
+                    if let Err(e) = apply_blur(&window, Some((18, 18, 18, 125))) {
+                        eprintln!("Blur failed: {}", e);
+                        // Fallback to Mica
                         use window_vibrancy::apply_mica;
                         if let Err(e) = apply_mica(&window, Some(true)) {
-                            eprintln!("Mica also failed: {}", e);
-                        } else {
-                            println!("Mica fallback applied.");
+                            eprintln!("Mica fallback failed: {}", e);
                         }
                     } else {
-                        println!("Acrylic effect applied successfully.");
+                        println!("Persistent Blur effect applied.");
                     }
                 }
             }
