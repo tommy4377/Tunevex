@@ -1,34 +1,30 @@
 <script lang="ts">
+    import { Flame } from "lucide-svelte";
+    import { SectionHeader } from "../ui";
     import TweakList from "../TweakList.svelte";
-    import { invoke } from "@tauri-apps/api/core";
     import type { Tweak } from "$lib/types";
+    import { invoke } from "@tauri-apps/api/core";
+
     export let tweaks: Tweak[] = [];
 
-    async function applySafe() {
+    async function applyAllSafe() {
         for (const tweak of tweaks.filter((t) => t.warning_level === "Safe")) {
             if (!tweak.enabled) {
-                try {
-                    await invoke("apply_tweak", { id: tweak.id });
-                    tweak.enabled = true;
-                } catch (e) {
-                    console.error(e);
-                }
+                await invoke("apply_tweak", { id: tweak.id });
+                tweak.enabled = true;
             }
         }
-        tweaks = tweaks;
     }
 </script>
 
 <div class="section-container">
-    <div class="header">
-        <h2>🔥 Windows Firewall</h2>
-        <p>
-            Control Windows Firewall settings, notifications, and network rules.
-        </p>
-        <button class="optimize-btn safe" on:click={applySafe}>
-            ✅ Apply Safe Tweaks
-        </button>
-    </div>
+    <SectionHeader
+        icon={Flame}
+        title="Windows Firewall"
+        description="Configure firewall rules, profiles, and network protection settings."
+        actionLabel="Apply Safe Tweaks"
+        onAction={applyAllSafe}
+    />
     <div class="tweaks-wrapper">
         <TweakList {tweaks} showHeader={false} />
     </div>
@@ -39,37 +35,6 @@
         display: flex;
         flex-direction: column;
         height: 100%;
-    }
-    .header {
-        margin-bottom: 24px;
-        padding-bottom: 16px;
-        border-bottom: 1px solid var(--border-color);
-        /* display: block is default */
-    }
-    h2 {
-        font-size: 20px;
-        margin-bottom: 8px;
-    }
-    p {
-        color: var(--text-muted);
-        font-size: 14px;
-        margin: 0 0 16px 0;
-    }
-    .optimize-btn {
-        border: none;
-        padding: 8px 16px;
-        border-radius: 6px;
-        font-weight: 500;
-        cursor: pointer;
-        color: white;
-        white-space: nowrap;
-        margin: 0;
-    }
-    .optimize-btn.safe {
-        background: #10b981;
-    }
-    .optimize-btn.safe:hover {
-        background: #059669;
     }
     .tweaks-wrapper {
         flex: 1;
