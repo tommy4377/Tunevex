@@ -780,27 +780,18 @@
 
     .status-msg {
         position: absolute;
-        top: 8px;
-        right: 8px;
-        font-size: 11px;
+        top: 6px;
+        right: 6px;
+        font-size: 10px;
         font-weight: 600;
         color: var(--accent-color);
-        background: rgba(0, 0, 0, 0.7);
-        padding: 5px 10px;
-        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.75);
+        padding: 3px 7px;
+        border-radius: 6px;
         z-index: 10;
-        animation: statusFadeIn 0.25s ease-out;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-    }
-
-    @keyframes statusFadeIn {
-        from {
-            opacity: 0;
-            transform: scale(0.9);
-        }
-        to {
-            opacity: 1;
-            transform: scale(1);
-        }
+        max-width: 120px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 </style>
