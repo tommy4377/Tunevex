@@ -55,8 +55,7 @@
   .titlebar {
     height: var(--titlebar-height, 32px);
     width: 100%;
-    background: var(--sidebar-bg, #1e1e1e);
-    border-bottom: 1px solid var(--border-color, #333);
+    background: transparent;
     user-select: none;
     display: flex;
     justify-content: space-between;

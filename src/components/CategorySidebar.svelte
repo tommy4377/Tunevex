@@ -63,7 +63,7 @@
 <style>
     .sidebar {
         width: 240px;
-        background: var(--sidebar-bg);
+        background: var(--layer-nav);
         border-right: 1px solid var(--border-color);
         padding: 16px 0;
         display: flex;

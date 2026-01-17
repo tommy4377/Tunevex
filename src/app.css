@@ -1,33 +1,41 @@
 /* 
-  MICA / GLASSMORPHISM SYSTEM (REBUILT) 
+  MICA / ACRYLIC GLASS SYSTEM (DEEP GLASS PALETTE)
   Based on Windows 11 Fluent Design Best Practices for Tauri v2
 */
 
 :root {
-  /* 1. Base Transparency - CRITICAL for Mica to show through */
+  /* 1. Base Transparency - CRITICAL for Acrylic to show through */
   --bg-transparent: rgba(0, 0, 0, 0);
 
-  /* 2. Content Layers - semi-transparent surfaces */
-  /* Dark Mode Defaults */
-  --layer-base: rgba(32, 32, 32, 0.3);
-  /* Very subtle tint */
-  --layer-card: rgba(255, 255, 255, 0.05);
-  /* Glass cards */
-  --layer-hover: rgba(255, 255, 255, 0.08);
+  /* 2. Content Layers - semi-transparent glass surfaces */
+  /* Ultra-subtle tint for cards to let the blur shine */
+  --layer-card: rgba(255, 255, 255, 0.03);
+  /* Slightly more visible on hover */
+  --layer-hover: rgba(255, 255, 255, 0.06);
+  /* Sidebar/Nav darker tint */
+  --layer-nav: rgba(0, 0, 0, 0.2);
 
   /* 3. Typography - Segoe UI Variable for Windows 11 */
   --font-base: "Segoe UI Variable Text", "Segoe UI", sans-serif;
   --text-primary: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-secondary: rgba(255, 255, 255, 0.75);
+  --text-muted: rgba(255, 255, 255, 0.5);
 
-  /* 4. Accents */
+  /* 4. Accents - Neon Cyan for high contrast on dark glass */
   --accent: #60cdff;
-  /* System Blue */
+  --accent-hover: #99ebff;
+  --success: #6ccf8e;
+  --danger: #ff6b6b;
+  --warning: #facc15;
 
-  /* 5. Borders */
+  /* 5. Borders - Thin, crisp glass edges */
   --border-glass: 1px solid rgba(255, 255, 255, 0.08);
+  --border-active: 1px solid rgba(96, 205, 255, 0.3);
+
+  /* 6. Dimensions */
   --radius-window: 12px;
   --radius-card: 8px;
+  --radius-sm: 4px;
 }
 
 /* GLOBAL RESET */
@@ -45,6 +53,9 @@ body {
   color: var(--text-primary);
   user-select: none;
   cursor: default;
+  /* Improve font rendering on dark backgrounds */
+  -webkit-font-smoothing: antialiased;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 /* Main App Container */
@@ -53,19 +64,24 @@ body {
   width: 100%;
   display: flex;
   flex-direction: column;
-  /* 
-     We do NOT put a background here.
-     The window itself is the background (Mica).
-  */
+  /* No background here either - let Acrylic shine through */
 }
 
-/* Re-introducing utilities one by one */
+/* UTILITIES */
 .glass-card {
   background: var(--layer-card);
   border: var(--border-glass);
   backdrop-filter: blur(20px);
-  /* Internal blur for content, distinct from window Mica */
+  /* Internal blur for content stacking */
   border-radius: var(--radius-card);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  background: var(--layer-hover);
+  border: var(--border-active);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
 }
 
 /* Scrollbar Hiding */

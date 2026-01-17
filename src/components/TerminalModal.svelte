@@ -131,7 +131,9 @@
 
     .terminal {
         flex: 1;
-        background: #0c0c0c;
+        background: var(--layer-nav);
+        backdrop-filter: blur(40px);
+        border: var(--border-glass);
         padding: 24px;
         overflow-y: auto;
         font-family: "JetBrains Mono", "Courier New", monospace;
