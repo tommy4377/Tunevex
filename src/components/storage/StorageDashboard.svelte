@@ -372,22 +372,6 @@
         color: var(--text-color);
     }
 
-    .tool-section {
-        margin-bottom: 24px;
-    }
-
-    .tool-section h3 {
-        margin-bottom: 16px;
-        font-size: 16px;
-        color: var(--accent-color);
-    }
-
-    .tweaks-divider {
-        height: 1px;
-        background: var(--border-color);
-        margin: 24px 0;
-    }
-
     /* Featured Card Styles */
     .card.featured {
         background: linear-gradient(

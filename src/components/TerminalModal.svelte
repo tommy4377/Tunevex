@@ -23,7 +23,12 @@
 </script>
 
 {#if show}
-    <div class="modal-backdrop" on:click|self={close}>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+        class="modal-backdrop"
+        on:click|self={close}
+        on:keydown={(e) => e.key === "Escape" && close()}
+    >
         <div class="modal">
             <div class="header">
                 <h3>{title}</h3>

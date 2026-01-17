@@ -510,14 +510,6 @@
         text-overflow: ellipsis;
     }
 
-    .sm-value {
-        font-size: 16px; /* Smaller font for long GPU names */
-        margin-top: 4px;
-        margin-bottom: 4px;
-        white-space: normal;
-        line-height: 1.2;
-    }
-
     .sub-text {
         font-size: 12px;
         color: var(--text-muted);

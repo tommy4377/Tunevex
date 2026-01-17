@@ -49,22 +49,6 @@
         margin-bottom: 16px;
         align-self: flex-start;
     }
-    .optimize-btn {
-        border: none;
-        padding: 8px 16px;
-        border-radius: 6px;
-        font-weight: 500;
-        cursor: pointer;
-        color: white;
-        white-space: nowrap;
-        margin: 0;
-    }
-    .optimize-btn.safe {
-        background: #10b981;
-    }
-    .optimize-btn.safe:hover {
-        background: #059669;
-    }
     .tweaks-wrapper {
         flex: 1;
         overflow: hidden;
