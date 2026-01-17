@@ -1,12 +1,14 @@
 <script lang="ts">
     import { invoke } from "@tauri-apps/api/core";
     import { fade } from "svelte/transition";
+    import { Target, Moon, Folder, Settings, Palette } from "lucide-svelte";
+    import { Card, CardGrid, BackButton } from "../ui";
     import TweakCard from "../TweakCard.svelte";
     import type { Tweak } from "$lib/types";
 
     export let allTweaks: Tweak[] = [];
 
-    // Filter UI tweaks (both legacy ui. and new interface_ prefixes)
+    // Filter UI tweaks
     $: uiTweaks = allTweaks.filter((t) => t.category === "InterfaceUx");
 
     // Organize by section
@@ -23,8 +25,6 @@
             t.id.includes("compact") ||
             t.id.includes("hidden"),
     );
-
-    // Fallback: Tweaks not in above sections
     $: otherTweaks = uiTweaks.filter(
         (t) =>
             !taskbarTweaks.includes(t) &&
@@ -32,58 +32,51 @@
             !explorerTweaks.includes(t),
     );
 
-    interface Section {
-        title: string;
-        icon: string;
-        color: string;
-        tweaks: Tweak[];
-        description: string;
-    }
-
-    $: sections = [
+    const sectionsMeta = [
         {
+            id: "taskbar",
+            icon: Target,
             title: "Taskbar",
-            icon: "🎯",
-            color: "#3b82f6",
-            tweaks: taskbarTweaks,
-            description: "Taskbar layout & behavior",
+            desc: "Taskbar layout & behavior",
+            tweaks: () => taskbarTweaks,
         },
         {
+            id: "appearance",
+            icon: Moon,
             title: "Appearance",
-            icon: "🌙",
-            color: "#8b5cf6",
-            tweaks: visualTweaks,
-            description: "Dark mode & context menus",
+            desc: "Dark mode & context menus",
+            tweaks: () => visualTweaks,
         },
         {
+            id: "explorer",
+            icon: Folder,
             title: "Explorer",
-            icon: "📁",
-            color: "#10b981",
-            tweaks: explorerTweaks,
-            description: "File Explorer tweaks",
+            desc: "File Explorer tweaks",
+            tweaks: () => explorerTweaks,
         },
         {
+            id: "other",
+            icon: Settings,
             title: "Other",
-            icon: "⚙️",
-            color: "#6b7280",
-            tweaks: otherTweaks,
-            description: "Additional tweaks",
+            desc: "Additional tweaks",
+            tweaks: () => otherTweaks,
         },
-    ].filter((s) => s.tweaks.length > 0) as Section[];
+    ] as const;
+
+    $: sections = sectionsMeta.filter((s) => s.tweaks().length > 0);
 
     type View = "dashboard" | "detail";
     let currentView: View = "dashboard";
-    let selectedSection = "";
-    let selectedTweaks: Tweak[] = [];
+    let selectedSection: (typeof sectionsMeta)[number] | null = null;
 
-    function openSection(section: Section) {
-        selectedSection = section.title;
-        selectedTweaks = section.tweaks;
+    function openSection(section: (typeof sectionsMeta)[number]) {
+        selectedSection = section;
         currentView = "detail";
     }
 
     function goBack() {
         currentView = "dashboard";
+        selectedSection = null;
     }
 
     async function applyTweak(tweak: Tweak) {
@@ -110,32 +103,28 @@
 <div class="ui-dashboard" in:fade>
     {#if currentView === "dashboard"}
         <div class="header">
-            <h2>🎨 Interface Tweaks</h2>
+            <div class="header-icon"><Palette size={28} /></div>
+            <h2>Interface Tweaks</h2>
             <p class="subtitle">Customize Windows appearance and behavior</p>
         </div>
 
-        <div class="dashboard-grid">
+        <CardGrid columns="repeat(auto-fill, minmax(200px, 1fr))" gap="16px">
             {#each sections as section}
-                <button
-                    class="section-card"
-                    style="--accent: {section.color}"
-                    on:click={() => openSection(section)}
-                >
-                    <div class="card-header">
-                        <span class="card-icon">{section.icon}</span>
-                        <h3>{section.title}</h3>
-                    </div>
-                    <p class="card-desc">{section.description}</p>
-                    <span class="count">{section.tweaks.length} options</span>
-                </button>
+                <Card
+                    icon={section.icon}
+                    title={section.title}
+                    description={section.desc}
+                    status="{section.tweaks().length} options"
+                    onclick={() => openSection(section)}
+                />
             {/each}
-        </div>
-    {:else}
+        </CardGrid>
+    {:else if selectedSection}
         <div class="detail-view">
-            <button class="back-btn" on:click={goBack}>← Back</button>
-            <h2>{selectedSection}</h2>
+            <BackButton onclick={goBack} label="Back" />
+            <h2>{selectedSection.title}</h2>
             <div class="tweak-list">
-                {#each selectedTweaks as tweak}
+                {#each selectedSection.tweaks() as tweak}
                     <TweakCard
                         {tweak}
                         on:apply={() => applyTweak(tweak)}
@@ -161,6 +150,11 @@
         text-align: center;
     }
 
+    .header-icon {
+        color: var(--accent-color);
+        margin-bottom: 8px;
+    }
+
     .header h2 {
         margin: 0;
         font-size: 28px;
@@ -173,84 +167,12 @@
         font-size: 14px;
     }
 
-    .dashboard-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 16px;
-        align-content: start;
-    }
-
-    .section-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius);
-        padding: 20px;
-        text-align: left;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .section-card:hover {
-        background: rgba(255, 255, 255, 0.06);
-        border-color: var(--accent);
-        transform: translateY(-2px);
-    }
-
-    .card-header {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 8px;
-    }
-
-    .card-icon {
-        font-size: 24px;
-    }
-
-    .section-card h3 {
-        margin: 0;
-        font-size: 16px;
-        color: var(--text-color);
-    }
-
-    .card-desc {
-        margin: 0;
-        font-size: 12px;
-        color: var(--text-muted);
-    }
-
-    .count {
-        display: inline-block;
-        margin-top: 8px;
-        font-size: 11px;
-        color: var(--accent);
-        background: rgba(59, 130, 246, 0.1);
-        padding: 2px 8px;
-        border-radius: 10px;
-    }
-
     .detail-view {
         height: 100%;
         display: flex;
         flex-direction: column;
         gap: 16px;
         overflow: hidden;
-    }
-
-    .back-btn {
-        background: transparent;
-        border: 1px solid var(--border-color);
-        color: var(--text-muted);
-        padding: 8px 16px;
-        border-radius: var(--radius-md);
-        cursor: pointer;
-        align-self: flex-start;
-        transition: all 0.2s;
-    }
-
-    .back-btn:hover {
-        background: rgba(255, 255, 255, 0.05);
-        color: var(--text-color);
     }
 
     .detail-view h2 {
