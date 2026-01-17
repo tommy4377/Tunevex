@@ -24,6 +24,7 @@
 
     interface GpuStats {
         name: string;
+        usage: number;
     }
 
     interface SystemStats {
@@ -439,6 +440,7 @@
         font-weight: 700;
         margin-bottom: 8px;
         background: linear-gradient(to right, #fff, #aaa);
+        background-clip: text;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
