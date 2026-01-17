@@ -101,6 +101,7 @@ pub fn run() {
 
                 // It's possible get_webview_window returns None if window is not yet created, but usually fine in setup
                 if let Some(window) = app.get_webview_window("main") {
+                    // Apply rounded corners
                     if let Ok(hwnd) = window.hwnd() {
                         unsafe {
                             let preference = DWMWCP_ROUND;
@@ -112,6 +113,11 @@ pub fn run() {
                             );
                         }
                     }
+
+                    // Apply Mica effect (Windows 11 only)
+                    use window_vibrancy::apply_mica;
+                    // Some(true) for dark mode, Some(false) for light mode, None for system
+                    let _ = apply_mica(&window, Some(true));
                 }
             }
 

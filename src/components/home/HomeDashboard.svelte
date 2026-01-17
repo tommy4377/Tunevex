@@ -459,16 +459,16 @@
     }
 
     .stat-card {
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--surface-1);
+        backdrop-filter: blur(12px);
         border: 1px solid var(--border-color);
-        border-radius: 20px;
+        border-radius: var(--radius);
         padding: 24px;
         display: flex;
         align-items: center;
         gap: 20px;
-        transition:
-            transform 0.2s,
-            background 0.2s;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--shadow-card);
     }
 
     .stat-card:hover {
@@ -546,13 +546,13 @@
     }
 
     .section-container {
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--surface-1);
+        backdrop-filter: blur(12px);
         border: 1px solid var(--border-color);
-        border-radius: 20px;
+        border-radius: var(--radius);
         padding: 24px;
-        transition:
-            transform 0.2s,
-            background 0.2s; /* Added transition */
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--shadow-card);
     }
 
     /* Added hover effect for storage/restore containers */
@@ -687,15 +687,17 @@
     }
 
     .action-card {
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--surface-1);
+        backdrop-filter: blur(12px);
         border: 1px solid var(--border-color);
-        border-radius: 20px; /* High rounding */
+        border-radius: var(--radius);
         padding: 24px;
         display: flex;
         align-items: flex-start;
         gap: 16px;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--shadow-card);
         position: relative;
         overflow: hidden;
         /* Reset button styles */
