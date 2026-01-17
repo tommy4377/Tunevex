@@ -92,7 +92,7 @@
         display: flex;
         flex-direction: column;
         gap: 24px;
-        color: var(--text-color);
+        color: var(--text-primary);
         max-width: 600px;
         margin: 0 auto;
     }
@@ -102,20 +102,20 @@
         margin: 0 0 8px 0;
     }
     .header p {
-        color: var(--text-muted);
+        color: var(--text-secondary);
         margin: 0;
     }
 
     .restore-card {
-        background: var(--surface-1);
-        backdrop-filter: blur(12px);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius);
+        background: var(--layer-card);
+        backdrop-filter: blur(20px);
+        border: var(--border-glass);
+        border-radius: var(--radius-card);
         padding: 24px;
         display: flex;
         flex-direction: column;
         gap: 20px;
-        box-shadow: var(--shadow-card);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 
     .input-group {
@@ -127,21 +127,21 @@
     label {
         font-size: 14px;
         font-weight: 500;
-        color: var(--text-muted);
+        color: var(--text-secondary);
     }
 
     input {
         background: rgba(0, 0, 0, 0.2);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-sm);
+        border: var(--border-glass);
+        border-radius: 8px;
         padding: 10px 14px;
-        color: var(--text-color);
+        color: var(--text-primary);
         font-size: 14px;
         outline: none;
         transition: border-color 0.2s;
     }
     input:focus {
-        border-color: var(--accent-color);
+        border-color: var(--accent);
     }
     input:disabled {
         opacity: 0.6;
@@ -149,11 +149,11 @@
     }
 
     .create-btn {
-        background: var(--accent-color);
+        background: var(--accent);
         color: white;
         border: none;
         padding: 12px;
-        border-radius: var(--radius-sm);
+        border-radius: 8px;
         font-weight: 600;
         cursor: pointer;
         transition: opacity 0.2s;
@@ -166,13 +166,13 @@
         opacity: 0.9;
     }
     .create-btn:disabled {
-        background: var(--text-muted);
+        background: var(--text-secondary);
         cursor: not-allowed;
     }
 
     .status-msg {
         padding: 12px;
-        border-radius: var(--radius-sm);
+        border-radius: 8px;
         font-size: 13px;
         line-height: 1.4;
     }
@@ -189,7 +189,7 @@
 
     .info-box {
         background: rgba(59, 130, 246, 0.05); /* Blue tint */
-        border-radius: var(--radius);
+        border-radius: var(--radius-card);
         padding: 16px;
         font-size: 13px;
     }
@@ -200,7 +200,7 @@
     }
     .info-box p {
         margin: 4px 0;
-        color: var(--text-muted);
+        color: var(--text-secondary);
     }
     code {
         background: rgba(0, 0, 0, 0.3);

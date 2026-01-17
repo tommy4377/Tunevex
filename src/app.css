@@ -1,124 +1,78 @@
+/* 
+  MICA / GLASSMORPHISM SYSTEM (REBUILT) 
+  Based on Windows 11 Fluent Design Best Practices for Tauri v2
+*/
+
 :root {
-  /* Mica Base - Transparent for system blur to show through */
-  /* We use a very translucent dark blue/slate to tint the blurred background */
-  /* CRITICAL: Keep alpha low (e.g. 0.2 or 0) to let Mica effect show through! */
-  --bg-color: rgba(15, 23, 42, 0.2);
-  /* Slate 950 with high transparency */
-  --bg-mica-solid: #0f172a;
-  /* Fallback */
+  /* 1. Base Transparency - CRITICAL for Mica to show through */
+  --bg-transparent: rgba(0, 0, 0, 0);
 
-  /* Surface Layers (glassmorphism/acrylic) */
-  --surface-1: rgba(30, 41, 59, 0.4);
-  /* Slate 800 - Cards */
-  --surface-2: rgba(51, 65, 85, 0.4);
-  /* Slate 700 - Hover */
-  --surface-3: rgba(71, 85, 105, 0.3);
-  /* Slate 600 - Active */
+  /* 2. Content Layers - semi-transparent surfaces */
+  /* Dark Mode Defaults */
+  --layer-base: rgba(32, 32, 32, 0.3);
+  /* Very subtle tint */
+  --layer-card: rgba(255, 255, 255, 0.05);
+  /* Glass cards */
+  --layer-hover: rgba(255, 255, 255, 0.08);
 
-  --sidebar-bg: rgba(15, 23, 42, 0.4);
-  /* Transparent for sidebar */
-  --content-bg: transparent;
+  /* 3. Typography - Segoe UI Variable for Windows 11 */
+  --font-base: "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.7);
 
-  /* Typography - High Contrast for Glass */
-  --text-color: #f8fafc;
-  /* Slate 50 - Primary */
-  --text-muted: rgba(203, 213, 225, 0.75);
-  /* Slate 300 - Secondary */
+  /* 4. Accents */
+  --accent: #60cdff;
+  /* System Blue */
 
-  /* Accents */
-  --accent-color: #3b82f6;
-  /* Blue 500 */
-  --accent-hover: #2563eb;
-  /* Blue 600 */
-  --accent-glow: rgba(59, 130, 246, 0.5);
-
-  /* Functional Colors */
-  --danger-color: #ef4444;
-  --warning-color: #f59e0b;
-  --success-color: #10b981;
-
-  /* Glass Borders */
-  --border-color: rgba(148, 163, 184, 0.1);
-  /* Subtle border */
-  --border-hover: rgba(148, 163, 184, 0.25);
-  /* Brighter on hover */
-
-  /* Layout */
-  --radius: 12px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --titlebar-height: 32px;
-
-  /* Shadows */
-  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-glow: 0 0 15px rgba(59, 130, 246, 0.15);
+  /* 5. Borders */
+  --border-glass: 1px solid rgba(255, 255, 255, 0.08);
+  --radius-window: 12px;
+  --radius-card: 8px;
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-  background-color: transparent;
-  /* CRITICAL for Mica */
-}
-
+/* GLOBAL RESET */
+html,
 body {
+  background: transparent !important;
+  /* FORCE transparency */
   margin: 0;
   padding: 0;
-  background-color: transparent;
-  /* CRITICAL for Mica */
-  color: var(--text-color);
-  font-family: 'Segoe UI', 'Inter', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-  overflow: hidden;
   height: 100%;
   width: 100%;
+  overflow: hidden;
+  /* App handles scrolling internally */
+  font-family: var(--font-base);
+  color: var(--text-primary);
   user-select: none;
-  /* Improve text readability on glass */
-  -webkit-font-smoothing: antialiased;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  cursor: default;
 }
 
-/* Custom Scrollbar - Hidden but scrollable */
-::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  background: transparent;
-}
-
-* {
-  scrollbar-width: none;
-  /* Firefox */
-  -ms-overflow-style: none;
-  /* IE/Edge */
-}
-
-/* Utilities */
-.rounded-window {
-  /* No solid background here, handled by Mica! */
-  background-color: var(--bg-color);
-  /* Tint only */
+/* Main App Container */
+#app-mount {
   height: 100%;
   width: 100%;
   display: flex;
   flex-direction: column;
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--radius);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  /* Window border */
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 10px 30px rgba(0, 0, 0, 0.5);
-  /* Deep shadow */
+  /* 
+     We do NOT put a background here.
+     The window itself is the background (Mica).
+  */
 }
 
-/* Icons */
-.lucide {
-  stroke-width: 1.5px;
+/* Re-introducing utilities one by one */
+.glass-card {
+  background: var(--layer-card);
+  border: var(--border-glass);
+  backdrop-filter: blur(20px);
+  /* Internal blur for content, distinct from window Mica */
+  border-radius: var(--radius-card);
+}
+
+/* Scrollbar Hiding */
+::-webkit-scrollbar {
+  display: none;
+}
+
+* {
+  scrollbar-width: none;
 }

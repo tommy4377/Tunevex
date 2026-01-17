@@ -46,10 +46,10 @@
 
 <style>
     .card {
-        background: var(--surface-1);
+        background: var(--layer-card);
         backdrop-filter: blur(12px) saturate(150%); /* Glassmorphism */
         -webkit-backdrop-filter: blur(12px) saturate(150%);
-        border: 1px solid var(--border-color);
+        border: var(--border-glass);
         border-radius: 16px;
         padding: 24px;
         position: relative;
@@ -58,7 +58,7 @@
         flex-direction: column;
         align-items: flex-start;
         transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-        box-shadow: var(--shadow-card);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         height: 100%;
         width: 100%;
         overflow: hidden;
@@ -89,8 +89,8 @@
     }
 
     .card:hover {
-        background: var(--surface-2);
-        border-color: var(--border-hover);
+        background: var(--layer-hover);
+        border-color: var(--accent);
         transform: translateY(-4px);
         box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.3);
         z-index: 10;

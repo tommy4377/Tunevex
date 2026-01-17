@@ -166,7 +166,7 @@
 <style>
     .dns-tweaks-area {
         margin-top: 24px;
-        border-top: 1px solid var(--border-color);
+        border-top: var(--border-glass);
         padding-top: 24px;
     }
 
@@ -180,13 +180,13 @@
     .header-text h3 {
         margin: 0 0 4px 0;
         font-size: 16px;
-        color: var(--text-color);
+        color: var(--text-primary);
         font-weight: 600;
     }
     .header-text p {
         margin: 0;
         font-size: 13px;
-        color: var(--text-muted);
+        color: var(--text-secondary);
     }
 
     .optimize-btn.safe {
@@ -212,7 +212,7 @@
 
     .header {
         margin-bottom: 16px;
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: var(--border-glass);
         padding-bottom: 16px;
         flex-shrink: 0;
     }
@@ -223,13 +223,13 @@
     }
 
     p {
-        color: var(--text-muted);
+        color: var(--text-secondary);
         font-size: 14px;
         margin-bottom: 16px;
     }
 
     .benchmark-btn {
-        background: var(--accent-color);
+        background: var(--accent);
         color: white;
         border: none;
         padding: 10px 20px;
@@ -240,7 +240,7 @@
     }
 
     .benchmark-btn:hover {
-        background: var(--accent-hover);
+        background: #4eb0fa; /* Brighter accent */
     }
 
     .benchmark-btn:disabled {
@@ -259,21 +259,21 @@
     }
 
     .server-card {
-        background: var(--surface-1);
-        backdrop-filter: blur(12px);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius);
+        background: var(--layer-card);
+        backdrop-filter: blur(20px);
+        border: var(--border-glass);
+        border-radius: var(--radius-card);
         padding: 16px;
         cursor: pointer;
         display: flex;
         justify-content: space-between;
         align-items: center;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: var(--shadow-card);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
     .result-row {
         background: rgba(255, 255, 255, 0.03);
-        border: 1px solid var(--border-color);
+        border: var(--border-glass);
         padding: 12px 16px;
         border-radius: 8px;
         display: flex;
@@ -289,7 +289,7 @@
     }
 
     .result-row.selected {
-        border-color: var(--accent-color);
+        border-color: var(--accent);
         background: rgba(59, 130, 246, 0.1);
     }
 
@@ -313,13 +313,13 @@
 
     .ips {
         font-size: 12px;
-        color: var(--text-muted);
+        color: var(--text-secondary);
         font-family: monospace;
     }
 
     .description {
         font-size: 12px;
-        color: var(--text-muted);
+        color: var(--text-secondary);
         font-style: italic;
     }
 
@@ -377,7 +377,7 @@
 
     .selected-badge {
         font-size: 12px;
-        color: var(--accent-color);
+        color: var(--accent);
         font-weight: 600;
         margin-left: 8px;
     }
@@ -385,9 +385,9 @@
     .placeholder {
         text-align: center;
         padding: 40px;
-        color: var(--text-muted);
+        color: var(--text-secondary);
         font-style: italic;
-        border: 2px dashed var(--border-color);
+        border: 2px dashed var(--border-glass);
         border-radius: 12px;
     }
 </style>

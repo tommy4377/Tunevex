@@ -663,8 +663,8 @@
 
 <style>
     .compactor-section {
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
+        background: var(--layer-card);
+        border: var(--border-glass);
         border-radius: 12px;
         padding: 24px;
         display: flex;
@@ -692,12 +692,12 @@
         margin: 0;
         font-size: 18px;
         font-weight: 600;
-        color: var(--text-color);
+        color: var(--text-primary);
     }
 
     .description {
         margin: 0;
-        color: var(--text-muted);
+        color: var(--text-secondary);
         font-size: 14px;
         line-height: 1.5;
     }
@@ -736,8 +736,8 @@
     input[type="text"] {
         flex: 1;
         background: var(--bg-input, rgba(0, 0, 0, 0.2));
-        border: 1px solid var(--border-color);
-        color: var(--text-color);
+        border: var(--border-glass);
+        color: var(--text-primary);
         padding: 10px 12px;
         border-radius: 8px;
         font-size: 14px;
@@ -746,13 +746,13 @@
 
     input[type="text"]:focus {
         outline: none;
-        border-color: var(--accent-color);
+        border-color: var(--accent);
     }
 
     .btn-icon {
         background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        color: var(--text-color);
+        border: var(--border-glass);
+        color: var(--text-primary);
         padding: 0 12px;
         border-radius: 8px;
         cursor: pointer;
@@ -764,7 +764,7 @@
     }
 
     .btn-icon:hover {
-        background: var(--bg-hover, rgba(255, 255, 255, 0.1));
+        background: var(--layer-hover);
     }
 
     /* --- Custom Select CSS --- */
@@ -777,8 +777,8 @@
     .select-trigger {
         width: 100%;
         background: var(--bg-input, rgba(0, 0, 0, 0.2));
-        border: 1px solid var(--border-color);
-        color: var(--text-color);
+        border: var(--border-glass);
+        color: var(--text-primary);
         padding: 10px 12px;
         border-radius: 8px;
         font-size: 14px;
@@ -792,7 +792,7 @@
 
     .select-trigger:focus,
     .select-trigger.active {
-        border-color: var(--accent-color);
+        border-color: var(--accent);
         outline: none;
     }
 
@@ -812,9 +812,9 @@
         top: calc(100% + 4px);
         left: 0;
         right: 0;
-        background: var(--surface-1);
+        background: var(--layer-card);
         backdrop-filter: blur(12px);
-        border: 1px solid var(--border-color);
+        border: var(--border-glass);
         border-radius: 8px;
         overflow: hidden;
         z-index: 100;

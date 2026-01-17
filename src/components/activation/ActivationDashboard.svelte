@@ -201,10 +201,10 @@
     }
 
     .card {
-        background: var(--surface-1);
+        background: var(--layer-card);
         backdrop-filter: blur(12px);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius);
+        border: var(--border-glass);
+        border-radius: var(--radius-card);
         overflow: hidden;
         transition:
             transform 0.2s,

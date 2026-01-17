@@ -270,8 +270,8 @@
 
     .search-input {
         background: rgba(255, 255, 255, 0.05);
-        border: 1px solid var(--border-color);
-        color: var(--text-color);
+        border: var(--border-glass);
+        color: var(--text-primary);
         padding: 8px 12px;
         border-radius: 20px;
         font-size: 13px;
@@ -281,7 +281,7 @@
     }
 
     .search-input:focus {
-        border-color: var(--accent-color);
+        border-color: var(--accent);
         background: rgba(255, 255, 255, 0.08);
         width: 240px;
     }
@@ -290,7 +290,7 @@
         display: flex;
         padding: 16px 24px;
         gap: 8px;
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: var(--border-glass);
         overflow-x: auto;
         align-items: center;
         flex-shrink: 0;
@@ -306,14 +306,14 @@
     }
 
     .tabs::-webkit-scrollbar-thumb {
-        background: var(--border-color);
+        background: rgba(255, 255, 255, 0.1);
         border-radius: 4px;
     }
 
     .tabs button {
         background: transparent;
         border: 1px solid transparent;
-        color: var(--text-muted);
+        color: var(--text-secondary);
         padding: 8px 16px;
         border-radius: 20px;
         cursor: pointer;
@@ -325,11 +325,11 @@
 
     .tabs button:hover {
         background: rgba(255, 255, 255, 0.05);
-        color: var(--text-color);
+        color: var(--text-primary);
     }
 
     .tabs button.active {
-        background: var(--accent-color);
+        background: var(--accent);
         color: white;
     }
 
@@ -344,10 +344,10 @@
     }
 
     .card {
-        background: var(--surface-1);
-        backdrop-filter: blur(12px);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius);
+        background: var(--layer-card);
+        backdrop-filter: blur(20px);
+        border: var(--border-glass);
+        border-radius: var(--radius-card);
         padding: 16px;
         display: flex;
         flex-direction: column;
@@ -360,13 +360,13 @@
     }
 
     .card.selected {
-        border-color: var(--accent-color);
+        border-color: var(--accent);
         background: rgba(59, 130, 246, 0.05);
     }
 
     .card:hover {
-        border-color: var(--accent-color);
-        background: rgba(255, 255, 255, 0.06);
+        border-color: var(--accent);
+        background: var(--layer-hover);
     }
 
     .card-content {
@@ -383,7 +383,7 @@
     }
 
     .card-header-row input[type="checkbox"] {
-        accent-color: var(--accent-color);
+        accent-color: var(--accent);
         cursor: pointer;
         flex-shrink: 0;
     }
@@ -395,14 +395,14 @@
         justify-content: center;
         gap: 12px;
         padding: 48px;
-        color: var(--text-muted);
+        color: var(--text-secondary);
         font-size: 16px;
     }
 
     .card-content h3 {
         margin: 0;
         font-size: 15px;
-        color: var(--text-color);
+        color: var(--text-primary);
         font-weight: 600;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -412,7 +412,7 @@
 
     .desc {
         font-size: 13px;
-        color: var(--text-muted);
+        color: var(--text-secondary);
         margin: 0 0 8px 0;
         line-height: 1.4;
         display: -webkit-box;
@@ -423,7 +423,7 @@
 
     .pkg-id {
         font-size: 11px;
-        color: var(--text-muted);
+        color: var(--text-secondary);
         background: rgba(0, 0, 0, 0.2);
         padding: 2px 6px;
         border-radius: 4px;
@@ -457,7 +457,7 @@
     }
     .action-btn.uninstall {
         background: rgba(255, 255, 255, 0.1);
-        color: var(--text-color);
+        color: var(--text-primary);
     }
     .action-btn:hover {
         opacity: 0.9;
@@ -468,7 +468,7 @@
         text-align: center;
         font-size: 12px;
         font-weight: 500;
-        color: var(--accent-color);
+        color: var(--accent);
         padding: 6px;
     }
 </style>

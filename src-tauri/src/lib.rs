@@ -106,12 +106,15 @@ pub fn run() {
                     if let Ok(hwnd) = window.hwnd() {
                         unsafe {
                             let preference = DWMWCP_ROUND;
-                            let _ = DwmSetWindowAttribute(
+                            let result = DwmSetWindowAttribute(
                                 hwnd,
                                 DWMWA_WINDOW_CORNER_PREFERENCE,
                                 &preference as *const _ as *const _,
                                 std::mem::size_of::<u32>() as u32,
                             );
+                            if let Err(e) = result {
+                                eprintln!("DWM Rounding Failed: {:?}", e);
+                            }
                         }
                     }
 

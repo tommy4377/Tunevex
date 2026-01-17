@@ -423,21 +423,21 @@
     }
 
     .stat-card {
-        background: var(--surface-1);
-        backdrop-filter: blur(12px);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius);
+        background: var(--layer-card);
+        backdrop-filter: blur(20px);
+        border: var(--border-glass);
+        border-radius: var(--radius-card);
         padding: 24px;
         display: flex;
         align-items: center;
         gap: 20px;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: var(--shadow-card);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 
     .stat-card:hover {
         transform: translateY(-2px);
-        background: rgba(255, 255, 255, 0.05);
+        background: var(--layer-hover);
     }
 
     .icon-circle {
@@ -448,7 +448,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        color: var(--accent-color);
+        color: var(--accent);
     }
 
     .stat-info {
@@ -461,7 +461,7 @@
         font-size: 12px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        color: var(--text-muted);
+        color: var(--text-secondary);
         margin-bottom: 4px;
         font-weight: 600;
     }
@@ -478,7 +478,7 @@
 
     .sub-text {
         font-size: 12px;
-        color: var(--text-muted);
+        color: var(--text-secondary);
         margin-bottom: 8px;
     }
 
@@ -491,7 +491,7 @@
 
     .bar-fill {
         height: 100%;
-        background: var(--accent-color);
+        background: var(--accent);
         transition: width 0.5s ease;
         border-radius: 3px;
     }
@@ -510,18 +510,18 @@
     }
 
     .section-container {
-        background: var(--surface-1);
-        backdrop-filter: blur(12px);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius);
+        background: var(--layer-card);
+        backdrop-filter: blur(20px);
+        border: var(--border-glass);
+        border-radius: var(--radius-card);
         padding: 24px;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: var(--shadow-card);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 
     /* Added hover effect for storage/restore containers */
     .section-container:hover {
-        background: rgba(255, 255, 255, 0.05);
+        background: var(--layer-hover);
         transform: translateY(-2px);
     }
 
@@ -529,7 +529,7 @@
         font-size: 18px;
         font-weight: 600;
         margin-bottom: 16px;
-        color: var(--text-color);
+        color: var(--text-primary);
     }
 
     /* Storage Section */
@@ -554,7 +554,7 @@
     }
 
     .drive-icon {
-        color: var(--text-muted);
+        color: var(--text-secondary);
     }
 
     .drive-info {
@@ -570,10 +570,10 @@
 
     .drive-name {
         font-weight: 500;
-        color: var(--text-color);
+        color: var(--text-primary);
     }
     .drive-usage {
-        color: var(--text-muted);
+        color: var(--text-secondary);
     }
 
     /* Restore Section */
@@ -591,23 +591,23 @@
     .input-row input {
         flex: 1;
         background: rgba(0, 0, 0, 0.2);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-sm);
+        border: var(--border-glass);
+        border-radius: 6px;
         padding: 10px 14px;
-        color: var(--text-color);
+        color: var(--text-primary);
         font-size: 13px;
         outline: none;
     }
     .input-row input:focus {
-        border-color: var(--accent-color);
+        border-color: var(--accent);
     }
 
     .restore-btn {
-        background: var(--accent-color);
+        background: var(--accent);
         color: white;
         border: none;
         width: 42px;
-        border-radius: var(--radius-sm);
+        border-radius: 6px;
         cursor: pointer;
         display: flex;
         align-items: center;
@@ -651,17 +651,17 @@
     }
 
     .action-card {
-        background: var(--surface-1);
-        backdrop-filter: blur(12px);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius);
+        background: var(--layer-card);
+        backdrop-filter: blur(20px);
+        border: var(--border-glass);
+        border-radius: var(--radius-card);
         padding: 24px;
         display: flex;
         align-items: flex-start;
         gap: 16px;
         cursor: pointer;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: var(--shadow-card);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         position: relative;
         overflow: hidden;
         /* Reset button styles */
@@ -673,8 +673,8 @@
     }
 
     .action-card:hover:not(:disabled) {
-        background: rgba(255, 255, 255, 0.06);
-        border-color: var(--accent-color);
+        background: var(--layer-hover);
+        border-color: var(--accent);
         transform: translateY(-2px);
     }
 
@@ -689,7 +689,7 @@
     }
 
     .action-card.busy {
-        border-color: var(--accent-color);
+        border-color: var(--accent);
     }
 
     .spinner-sm {
@@ -728,12 +728,12 @@
         font-size: 16px;
         font-weight: 600;
         margin: 0 0 4px 0;
-        color: var(--text-color);
+        color: var(--text-primary);
     }
 
     .action-details p {
         font-size: 13px;
-        color: var(--text-muted);
+        color: var(--text-secondary);
         margin: 0;
         line-height: 1.4;
     }
@@ -744,7 +744,7 @@
         right: 6px;
         font-size: 10px;
         font-weight: 600;
-        color: var(--accent-color);
+        color: var(--accent);
         background: rgba(0, 0, 0, 0.75);
         padding: 3px 7px;
         border-radius: 6px;
