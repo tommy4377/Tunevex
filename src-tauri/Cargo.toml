@@ -44,11 +44,13 @@ features = [
     "Win32_Foundation",
     "Win32_Graphics_Dwm",
     "Win32_UI_Controls",
+    "Win32_UI_Shell",
     "Win32_Storage_FileSystem",
     "Win32_System_IO",
     "Win32_System_Ioctl", 
     "Win32_System_Console",
     "Win32_Security",
+    "Win32_NetworkManagement_IpHelper",
 ]
 
 [profile.release]

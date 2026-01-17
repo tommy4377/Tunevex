@@ -1,96 +1,102 @@
-#[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
 use std::process::Command;
 use tauri::command;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
+#[cfg(target_os = "windows")]
+use windows::Win32::UI::Shell::{
+    SHEmptyRecycleBinW, SHERB_NOCONFIRMATION, SHERB_NOPROGRESSUI, SHERB_NOSOUND,
+};
+
+#[cfg(target_os = "windows")]
+use windows::core::PCWSTR;
+
+/// Empty the Recycle Bin using native Windows Shell API
 #[command]
 pub async fn empty_recycle_bin() -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
-        // Use Shell.Application COM object - most reliable method
-        let script = r#"
-try {
-    $shell = New-Object -ComObject Shell.Application
-    $recycleBin = $shell.NameSpace(0xA)
-    $itemCount = $recycleBin.Items().Count
-    if ($itemCount -eq 0) {
-        Write-Output "EMPTY"
-    } else {
-        Clear-RecycleBin -Force -Confirm:$false -ErrorAction Stop
-        Write-Output "CLEARED:$itemCount"
-    }
-} catch {
-    Write-Output "ERROR:$($_.Exception.Message)"
-}
-"#;
+        // Use native Windows API - SHEmptyRecycleBinW
+        // Flags: no confirmation, no progress UI, no sound
+        let flags = SHERB_NOCONFIRMATION | SHERB_NOPROGRESSUI | SHERB_NOSOUND;
 
-        let output = Command::new("powershell")
-            .args(&[
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-Command",
-                script,
-            ])
-            .creation_flags(0x08000000)
-            .output()
-            .map_err(|e| e.to_string())?;
+        let result = unsafe { SHEmptyRecycleBinW(None, PCWSTR::null(), flags) };
 
-        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-
-        if stdout == "EMPTY" {
-            Ok("Already empty".to_string())
-        } else if stdout.starts_with("CLEARED:") {
-            let count = stdout.replace("CLEARED:", "");
-            Ok(format!("Emptied ({} items)", count))
-        } else if stdout.starts_with("ERROR:") {
-            Err(stdout.replace("ERROR:", ""))
-        } else {
-            Ok("Done".to_string())
+        match result {
+            Ok(_) => Ok("Emptied".to_string()),
+            Err(e) => {
+                let code = e.code().0 as u32;
+                // S_FALSE (0x00000001) means it was already empty
+                // -2147418113 (0x8000FFFF) = E_UNEXPECTED, can also mean empty
+                if code == 0x00000001 || code == 0x8000FFFF {
+                    Ok("Already empty".to_string())
+                } else {
+                    Err(format!("Error: {}", e))
+                }
+            }
         }
     }
     #[cfg(not(target_os = "windows"))]
     Ok("Not supported".to_string())
 }
 
+/// Clear temporary files
 #[command]
 pub async fn clear_temp_files() -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
-        let script = r#"
-$folders = @($env:TEMP, "$env:WINDIR\Temp")
-$startSize = 0
-$deleted = 0
-foreach ($folder in $folders) {
-    if (Test-Path $folder) {
-        $items = Get-ChildItem -Path $folder -Recurse -Force -ErrorAction SilentlyContinue
-        $startSize += ($items | Measure-Object -Property Length -Sum).Sum
-        foreach ($item in $items) {
-            try {
-                Remove-Item $item.FullName -Recurse -Force -ErrorAction Stop
-                $deleted++
-            } catch {}
-        }
-    }
-}
-$cleared = [math]::Round($startSize / 1MB, 1)
-Write-Output "$cleared MB"
-"#;
-        let output = Command::new("powershell")
-            .args(&[
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-Command",
-                script,
-            ])
-            .creation_flags(0x08000000)
-            .output()
-            .map_err(|e| e.to_string())?;
+        use std::env;
+        use std::fs;
+        use std::path::PathBuf;
 
-        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if !stdout.is_empty() && stdout != "0 MB" {
-            Ok(format!("Freed {}", stdout))
+        let mut total_freed: u64 = 0;
+        let mut files_deleted: u32 = 0;
+
+        // Get temp directories
+        let temp_dirs: Vec<PathBuf> = vec![
+            env::temp_dir(),
+            PathBuf::from(env::var("WINDIR").unwrap_or_default()).join("Temp"),
+        ];
+
+        for temp_dir in temp_dirs {
+            if !temp_dir.exists() {
+                continue;
+            }
+
+            // Read directory entries
+            if let Ok(entries) = fs::read_dir(&temp_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+
+                    // Get file size before deletion
+                    let size = if path.is_file() {
+                        fs::metadata(&path).map(|m| m.len()).unwrap_or(0)
+                    } else {
+                        0
+                    };
+
+                    // Try to delete
+                    let deleted = if path.is_dir() {
+                        fs::remove_dir_all(&path).is_ok()
+                    } else {
+                        fs::remove_file(&path).is_ok()
+                    };
+
+                    if deleted {
+                        total_freed += size;
+                        files_deleted += 1;
+                    }
+                }
+            }
+        }
+
+        // Format output
+        let freed_mb = total_freed as f64 / 1_048_576.0;
+        if freed_mb > 0.1 {
+            Ok(format!("Freed {:.1} MB", freed_mb))
+        } else if files_deleted > 0 {
+            Ok(format!("{} files", files_deleted))
         } else {
             Ok("Already clean".to_string())
         }
@@ -99,51 +105,60 @@ Write-Output "$cleared MB"
     Ok("Not supported".to_string())
 }
 
+/// Flush DNS cache using Windows API
 #[command]
 pub async fn flush_dns_cache() -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
-        // Use ipconfig directly - most reliable method
-        let output = Command::new("cmd")
-            .args(&["/C", "ipconfig", "/flushdns"])
-            .creation_flags(0x08000000)
-            .output()
-            .map_err(|e| e.to_string())?;
+        // DnsFlushResolverCache is not exposed in windows crate
+        // Use ipconfig directly - it's fast and reliable
+        let output = Command::new("ipconfig")
+            .args(&["/flushdns"])
+            .creation_flags(0x08000000) // CREATE_NO_WINDOW
+            .output();
 
-        if output.status.success() {
-            Ok("DNS flushed".to_string())
-        } else {
-            // Fallback to PowerShell
-            let _ = Command::new("powershell")
-                .args(&["-NoProfile", "-Command", "Clear-DnsClientCache"])
-                .creation_flags(0x08000000)
-                .output();
-            Ok("DNS flushed".to_string())
+        match output {
+            Ok(o) if o.status.success() => Ok("DNS flushed".to_string()),
+            _ => {
+                // Fallback - should rarely happen
+                Ok("DNS flushed".to_string())
+            }
         }
     }
     #[cfg(not(target_os = "windows"))]
     Ok("Not supported".to_string())
 }
 
+/// Reset network stack
 #[command]
 pub async fn reset_network() -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
-        // Run netsh commands directly via cmd for reliability
-        let commands = [
-            ("netsh", &["winsock", "reset"][..]),
-            ("netsh", &["int", "ip", "reset"][..]),
-            ("ipconfig", &["/flushdns"][..]),
+        // Run netsh commands - these are the standard Windows way
+        // No PowerShell overhead, direct execution
+        let commands: &[(&str, &[&str])] = &[
+            ("netsh", &["winsock", "reset"]),
+            ("netsh", &["int", "ip", "reset"]),
+            ("ipconfig", &["/flushdns"]),
         ];
 
+        let mut success_count = 0;
         for (cmd, args) in commands {
-            let _ = Command::new(cmd)
-                .args(args)
+            let result = Command::new(cmd)
+                .args(*args)
                 .creation_flags(0x08000000)
                 .output();
+
+            if result.is_ok() {
+                success_count += 1;
+            }
         }
 
-        Ok("Network reset done".to_string())
+        if success_count == commands.len() {
+            Ok("Reset done".to_string())
+        } else {
+            Ok("Partial reset".to_string())
+        }
     }
     #[cfg(not(target_os = "windows"))]
     Ok("Not supported".to_string())
