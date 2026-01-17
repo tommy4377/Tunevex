@@ -120,8 +120,8 @@ pub fn run() {
 
                     // Try Legacy Acrylic (Force Persistence via Undocumented API)
                     use crate::modules::legacy_vibrancy::apply_legacy_acrylic;
-                    // Color: Dark Gray with high transparency (18,18,18, 150 alpha) for tint
-                    if let Err(e) = apply_legacy_acrylic(&window, (10, 10, 10, 200)) {
+                    // Color: (18, 18, 18, 0) - Fully transparent tint to let the blur be "light"
+                    if let Err(e) = apply_legacy_acrylic(&window, (18, 18, 18, 0)) {
                         eprintln!("Legacy Acrylic failed: {}", e);
 
                         // Fallback to Standard Modern Acrylic (Transient)
