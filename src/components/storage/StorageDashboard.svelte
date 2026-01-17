@@ -1,13 +1,20 @@
 <script lang="ts">
     import { fade } from "svelte/transition";
+    import { Folder, HardDrive, Brush, Archive } from "lucide-svelte";
+    import { invoke } from "@tauri-apps/api/core";
+    import {
+        Card,
+        CardGrid,
+        BackButton,
+        SectionHeader,
+        InfoBanner,
+    } from "../ui";
     import Compactor from "./Compactor.svelte";
     import TweakList from "../TweakList.svelte";
-    import { invoke } from "@tauri-apps/api/core";
     import type { Tweak } from "$lib/types";
 
     export let allTweaks: Tweak[] = [];
 
-    // Navigation state
     let currentView:
         | "dashboard"
         | "filesystem"
@@ -15,9 +22,7 @@
         | "maintenance"
         | "compactor" = "dashboard";
 
-    // --- Filters ---
-
-    // NTFS / Filesystem
+    // Filters
     $: filesystemTweaks = allTweaks.filter(
         (t) =>
             t.category === "FileSystem" &&
@@ -27,7 +32,6 @@
                 t.id.includes("shortname")),
     );
 
-    // NVMe / SSD / Power
     $: nvmeTweaks = allTweaks.filter(
         (t) =>
             t.category === "FileSystem" &&
@@ -39,7 +43,6 @@
                 t.id.includes("msi")),
     );
 
-    // Maintenance / Cleanup / Hibernation
     $: maintenanceTweaks = allTweaks.filter(
         (t) =>
             t.category === "FileSystem" &&
@@ -49,7 +52,6 @@
                 t.id.includes("prefetch")),
     );
 
-    // Helper for "Apply Safe Tweaks"
     async function applySafeTweaks(tweaks: Tweak[]) {
         for (const tweak of tweaks.filter((t) => t.warning_level === "Safe")) {
             if (!tweak.enabled) {
@@ -61,98 +63,56 @@
                 }
             }
         }
-        allTweaks = allTweaks; // Trigger updates
+        allTweaks = allTweaks;
     }
 </script>
 
 <div class="storage-container">
     {#if currentView === "dashboard"}
-        <div class="dashboard-grid" in:fade>
-            <!-- Filesystem Card -->
-            <div
-                class="card"
-                role="button"
-                tabindex="0"
-                on:click={() => (currentView = "filesystem")}
-                on:keydown={(e) =>
-                    e.key === "Enter" && (currentView = "filesystem")}
-            >
-                <div class="card-icon">📁</div>
-                <h3>Filesystem (NTFS)</h3>
-                <p>Optimize metadata, timestamps, and search indexing.</p>
-                <div class="status">{filesystemTweaks.length} tweaks</div>
-            </div>
-
-            <!-- NVMe & SSD Card -->
-            <div
-                class="card"
-                role="button"
-                tabindex="0"
-                on:click={() => (currentView = "nvme")}
-                on:keydown={(e) => e.key === "Enter" && (currentView = "nvme")}
-            >
-                <div class="card-icon">💾</div>
-                <h3>NVMe & SSD</h3>
-                <p>Power settings, MSI mode, and write caching.</p>
-                <div class="status">{nvmeTweaks.length} tweaks</div>
-            </div>
-
-            <!-- Maintenance Card -->
-            <div
-                class="card"
-                role="button"
-                tabindex="0"
-                on:click={() => (currentView = "maintenance")}
-                on:keydown={(e) =>
-                    e.key === "Enter" && (currentView = "maintenance")}
-            >
-                <div class="card-icon">🧹</div>
-                <h3>Maintenance Tools</h3>
-                <p>Hibernation, storage sense, and cleanup utilities.</p>
-                <div class="status">{maintenanceTweaks.length} tweaks</div>
-            </div>
-
-            <!-- Compactor Card - Featured / Direct Access -->
-            <div
-                class="card featured"
-                role="button"
-                tabindex="0"
-                on:click={() => (currentView = "compactor")}
-                on:keydown={(e) =>
-                    e.key === "Enter" && (currentView = "compactor")}
-            >
-                <div class="card-icon">🗜️</div>
-                <h3>Compactor</h3>
-                <p>
-                    Compress folders with Windows transparent compression. Safe
-                    for games and apps.
-                </p>
-                <div class="status featured">Space Saver</div>
-            </div>
-        </div>
+        <CardGrid>
+            <Card
+                icon={Folder}
+                title="Filesystem (NTFS)"
+                description="Optimize metadata, timestamps, and search indexing."
+                status="{filesystemTweaks.length} tweaks"
+                onclick={() => (currentView = "filesystem")}
+            />
+            <Card
+                icon={HardDrive}
+                title="NVMe & SSD"
+                description="Power settings, MSI mode, and write caching."
+                status="{nvmeTweaks.length} tweaks"
+                onclick={() => (currentView = "nvme")}
+            />
+            <Card
+                icon={Brush}
+                title="Maintenance Tools"
+                description="Hibernation, storage sense, and cleanup utilities."
+                status="{maintenanceTweaks.length} tweaks"
+                onclick={() => (currentView = "maintenance")}
+            />
+            <Card
+                icon={Archive}
+                title="Compactor"
+                description="Compress folders with Windows transparent compression. Safe for games and apps."
+                status="Space Saver"
+                featured={true}
+                onclick={() => (currentView = "compactor")}
+            />
+        </CardGrid>
     {:else}
         <div class="detail-view" in:fade>
-            <button
-                class="back-btn"
-                on:click={() => (currentView = "dashboard")}
-            >
-                ← Back to Dashboard
-            </button>
+            <BackButton onclick={() => (currentView = "dashboard")} />
 
             <div class="section-content">
                 {#if currentView === "filesystem"}
-                    <div class="section-header">
-                        <div class="header-text">
-                            <h2>📁 Filesystem Optimization</h2>
-                            <p>Improve NTFS performance and reduce overhead.</p>
-                        </div>
-                        <button
-                            class="optimize-btn safe"
-                            on:click={() => applySafeTweaks(filesystemTweaks)}
-                        >
-                            ✅ Apply Safe Tweaks
-                        </button>
-                    </div>
+                    <SectionHeader
+                        icon={Folder}
+                        title="Filesystem Optimization"
+                        description="Improve NTFS performance and reduce overhead."
+                        actionLabel="Apply Safe Tweaks"
+                        onAction={() => applySafeTweaks(filesystemTweaks)}
+                    />
                     <div class="tweaks-wrapper">
                         <TweakList
                             tweaks={filesystemTweaks}
@@ -160,34 +120,24 @@
                         />
                     </div>
                 {:else if currentView === "nvme"}
-                    <div class="section-header">
-                        <div class="header-text">
-                            <h2>💾 NVMe & SSD</h2>
-                            <p>Maximize drive throughput and responsiveness.</p>
-                        </div>
-                        <button
-                            class="optimize-btn safe"
-                            on:click={() => applySafeTweaks(nvmeTweaks)}
-                        >
-                            ✅ Apply Safe Tweaks
-                        </button>
-                    </div>
+                    <SectionHeader
+                        icon={HardDrive}
+                        title="NVMe & SSD"
+                        description="Maximize drive throughput and responsiveness."
+                        actionLabel="Apply Safe Tweaks"
+                        onAction={() => applySafeTweaks(nvmeTweaks)}
+                    />
                     <div class="tweaks-wrapper">
                         <TweakList tweaks={nvmeTweaks} showHeader={false} />
                     </div>
                 {:else if currentView === "maintenance"}
-                    <div class="section-header">
-                        <div class="header-text">
-                            <h2>🧹 Maintenance Tools</h2>
-                            <p>Hibernation, storage sense, and cleanup.</p>
-                        </div>
-                        <button
-                            class="optimize-btn safe"
-                            on:click={() => applySafeTweaks(maintenanceTweaks)}
-                        >
-                            ✅ Apply Safe Tweaks
-                        </button>
-                    </div>
+                    <SectionHeader
+                        icon={Brush}
+                        title="Maintenance Tools"
+                        description="Hibernation, storage sense, and cleanup."
+                        actionLabel="Apply Safe Tweaks"
+                        onAction={() => applySafeTweaks(maintenanceTweaks)}
+                    />
                     <div class="tweaks-wrapper">
                         {#if maintenanceTweaks.length > 0}
                             <TweakList
@@ -201,23 +151,16 @@
                         {/if}
                     </div>
                 {:else if currentView === "compactor"}
-                    <div class="section-header">
-                        <div class="header-text">
-                            <h2>🗜️ Compactor</h2>
-                            <p>
-                                Compress folders using Windows transparent
-                                compression.
-                            </p>
-                        </div>
-                    </div>
-                    <div class="info-banner">
-                        <span class="info-icon">ℹ️</span>
-                        <div class="info-content">
-                            <strong>Safe Compression:</strong> Already-compressed
-                            files (images, videos, archives) and system files are
-                            automatically skipped to prevent issues.
-                        </div>
-                    </div>
+                    <SectionHeader
+                        icon={Archive}
+                        title="Compactor"
+                        description="Compress folders using Windows transparent compression."
+                    />
+                    <InfoBanner variant="info" message="">
+                        <strong>Safe Compression:</strong> Already-compressed files
+                        (images, videos, archives) and system files are automatically
+                        skipped to prevent issues.
+                    </InfoBanner>
                     <div class="tweaks-wrapper">
                         <Compactor />
                     </div>
@@ -236,68 +179,6 @@
         flex-direction: column;
     }
 
-    .dashboard-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 24px;
-        margin-top: 20px;
-        overflow-y: auto;
-        flex: 1;
-        padding: 24px;
-        padding-top: 4px;
-    }
-
-    .card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius);
-        padding: 24px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        position: relative;
-        z-index: 1;
-    }
-
-    .card:hover {
-        background: rgba(255, 255, 255, 0.06);
-        transform: translateY(-2px);
-        border-color: var(--accent-color);
-        z-index: 10;
-        position: relative;
-    }
-
-    .card-icon {
-        font-size: 32px;
-        margin-bottom: 16px;
-    }
-
-    h3 {
-        margin: 0 0 8px 0;
-        font-size: 18px;
-        font-weight: 600;
-        color: var(--text-color);
-    }
-
-    p {
-        margin: 0 0 24px 0;
-        color: var(--text-muted);
-        font-size: 14px;
-        line-height: 1.5;
-        flex-grow: 1;
-    }
-
-    .status {
-        font-size: 12px;
-        font-weight: 500;
-        color: var(--accent-color);
-        background: rgba(59, 130, 246, 0.1);
-        padding: 6px 12px;
-        border-radius: 20px;
-    }
-
     .detail-view {
         height: 100%;
         display: flex;
@@ -312,114 +193,14 @@
         flex-direction: column;
     }
 
-    .section-header {
-        margin-bottom: 24px;
-        padding-bottom: 16px;
-        border-bottom: 1px solid var(--border-color);
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .header-text h2 {
-        font-size: 20px;
-        margin: 0 0 8px 0;
-        color: var(--text-color);
-    }
-    .header-text p {
-        margin: 0 0 16px 0;
-        color: var(--text-muted);
-        font-size: 14px;
-    }
-
-    .optimize-btn {
-        border: none;
-        padding: 8px 16px;
-        border-radius: var(--radius-sm);
-        font-weight: 500;
-        cursor: pointer;
-        color: white;
-        white-space: nowrap;
-    }
-    .optimize-btn.safe {
-        background: #10b981;
-    }
-    .optimize-btn.safe:hover {
-        background: #059669;
-    }
-
     .tweaks-wrapper {
         flex: 1;
-        overflow-y: auto; /* Allow scrolling for mixed content */
+        overflow-y: auto;
         display: flex;
         flex-direction: column;
-        min-height: 0; /* Fix for flex scrolling */
+        min-height: 0;
     }
 
-    .back-btn {
-        align-self: flex-start;
-        background: none;
-        border: none;
-        color: var(--text-muted);
-        font-size: 14px;
-        cursor: pointer;
-        padding: 8px 0;
-        margin-bottom: 16px;
-        transition: color 0.2s;
-    }
-
-    .back-btn:hover {
-        color: var(--text-color);
-    }
-
-    /* Featured Card Styles */
-    .card.featured {
-        background: linear-gradient(
-            135deg,
-            rgba(59, 130, 246, 0.1) 0%,
-            rgba(139, 92, 246, 0.1) 100%
-        );
-        border-color: rgba(59, 130, 246, 0.4);
-    }
-
-    .card.featured:hover {
-        border-color: var(--accent-color);
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
-    }
-
-    .status.featured {
-        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-        color: white;
-    }
-
-    /* Info Banner Styles */
-    .info-banner {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        padding: 14px 16px;
-        background: rgba(16, 185, 129, 0.1);
-        border: 1px solid rgba(16, 185, 129, 0.3);
-        border-radius: 8px;
-        margin-bottom: 20px;
-    }
-
-    .info-icon {
-        font-size: 18px;
-        flex-shrink: 0;
-    }
-
-    .info-content {
-        font-size: 13px;
-        color: var(--text-color);
-        line-height: 1.5;
-    }
-
-    .info-content strong {
-        color: #10b981;
-    }
-
-    /* Empty State */
     .empty-state {
         text-align: center;
         padding: 40px 20px;
