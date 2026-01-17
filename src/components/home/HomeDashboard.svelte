@@ -52,13 +52,13 @@
     // Status messages for quick actions
     let trashMsg = "";
     let isCleaningTrash = false;
-    
+
     let tempMsg = "";
     let isCleaningTemp = false;
-    
+
     let dnsMsg = "";
     let isFlushingDns = false;
-    
+
     let netMsg = "";
     let isResettingNet = false;
 
@@ -203,17 +203,29 @@
             <div class="drives-grid">
                 {#each stats.disks as disk}
                     <div class="drive-card">
-                        <div class="drive-icon"><HardDrive size={20}/></div>
+                        <div class="drive-icon"><HardDrive size={20} /></div>
                         <div class="drive-info">
                             <div class="drive-header">
-                                <span class="drive-name">{disk.name || "Local Disk"} ({disk.mount_point})</span>
-                                <span class="drive-usage">{formatBytes(disk.total_space - disk.available_space)} / {formatBytes(disk.total_space)}</span>
+                                <span class="drive-name"
+                                    >{disk.name || "Local Disk"} ({disk.mount_point})</span
+                                >
+                                <span class="drive-usage"
+                                    >{formatBytes(
+                                        disk.total_space - disk.available_space,
+                                    )} / {formatBytes(disk.total_space)}</span
+                                >
                             </div>
                             <div class="bar-bg">
                                 <div
                                     class="bar-fill"
-                                    class:warning={(disk.total_space - disk.available_space) / disk.total_space > 0.9}
-                                    style="width: {((disk.total_space - disk.available_space) / disk.total_space) * 100}%"
+                                    class:warning={(disk.total_space -
+                                        disk.available_space) /
+                                        disk.total_space >
+                                        0.9}
+                                    style="width: {((disk.total_space -
+                                        disk.available_space) /
+                                        disk.total_space) *
+                                        100}%"
                                 ></div>
                             </div>
                         </div>
@@ -227,25 +239,38 @@
 
         <!-- Quick Restore Point -->
         <div class="section-container restore-section">
-            <h2><Shield size={18} style="margin-right: 8px; vertical-align: text-bottom;"/>Quick Restore Point</h2>
+            <h2>
+                <Shield
+                    size={18}
+                    style="margin-right: 8px; vertical-align: text-bottom;"
+                />Quick Restore Point
+            </h2>
             <div class="restore-layout">
                 <div class="input-row">
-                    <input 
-                        type="text" 
-                        bind:value={restoreDesc} 
+                    <input
+                        type="text"
+                        bind:value={restoreDesc}
                         placeholder="Restore Point Description"
                         disabled={isCreatingRestore}
                     />
-                    <button class="restore-btn" on:click={createRestorePoint} disabled={isCreatingRestore}>
-                         {#if isCreatingRestore}
+                    <button
+                        class="restore-btn"
+                        on:click={createRestorePoint}
+                        disabled={isCreatingRestore}
+                    >
+                        {#if isCreatingRestore}
                             <div class="spinner-sm"></div>
-                         {:else}
+                        {:else}
                             <Save size={18} />
-                         {/if}
+                        {/if}
                     </button>
                 </div>
                 {#if restoreMsg}
-                    <div class="restore-status" class:success={restoreSuccess} class:error={!restoreSuccess}>
+                    <div
+                        class="restore-status"
+                        class:success={restoreSuccess}
+                        class:error={!restoreSuccess}
+                    >
                         {restoreMsg}
                     </div>
                 {/if}
@@ -302,7 +327,9 @@
                 <span class="label">GPU Usage</span>
                 {#if stats.gpu}
                     <span class="value">{stats.gpu.usage.toFixed(1)}%</span>
-                    <div class="sub-text" title={stats.gpu.name}>{stats.gpu.name}</div>
+                    <div class="sub-text" title={stats.gpu.name}>
+                        {stats.gpu.name}
+                    </div>
                     <div class="bar-bg">
                         <div
                             class="bar-fill"
@@ -317,12 +344,16 @@
         </div>
     </div>
 
-
     <!-- Quick Actions Section -->
     <div class="actions-section">
         <h2>Quick Maintenance</h2>
         <div class="quick-actions-grid">
-            <button class="action-card" on:click={cleanTrash} disabled={isCleaningTrash} class:busy={isCleaningTrash}>
+            <button
+                class="action-card"
+                on:click={cleanTrash}
+                disabled={isCleaningTrash}
+                class:busy={isCleaningTrash}
+            >
                 <div class="icon-box warning">
                     <Trash2 size={24} />
                 </div>
@@ -335,7 +366,12 @@
                 {/if}
             </button>
 
-            <button class="action-card" on:click={cleanTemp} disabled={isCleaningTemp} class:busy={isCleaningTemp}>
+            <button
+                class="action-card"
+                on:click={cleanTemp}
+                disabled={isCleaningTemp}
+                class:busy={isCleaningTemp}
+            >
                 <div class="icon-box info">
                     <Files size={24} />
                 </div>
@@ -348,7 +384,12 @@
                 {/if}
             </button>
 
-            <button class="action-card" on:click={flushDns} disabled={isFlushingDns} class:busy={isFlushingDns}>
+            <button
+                class="action-card"
+                on:click={flushDns}
+                disabled={isFlushingDns}
+                class:busy={isFlushingDns}
+            >
                 <div class="icon-box success">
                     <Wifi size={24} />
                 </div>
@@ -361,7 +402,12 @@
                 {/if}
             </button>
 
-            <button class="action-card" on:click={resetNetwork} disabled={isResettingNet} class:busy={isResettingNet}>
+            <button
+                class="action-card"
+                on:click={resetNetwork}
+                disabled={isResettingNet}
+                class:busy={isResettingNet}
+            >
                 <div class="icon-box warning">
                     <Router size={24} />
                 </div>
@@ -418,7 +464,9 @@
         display: flex;
         align-items: center;
         gap: 20px;
-        transition: transform 0.2s, background 0.2s;
+        transition:
+            transform 0.2s,
+            background 0.2s;
     }
 
     .stat-card:hover {
@@ -461,7 +509,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
     }
-    
+
     .sm-value {
         font-size: 16px; /* Smaller font for long GPU names */
         margin-top: 4px;
@@ -499,7 +547,7 @@
     }
     @media (max-width: 900px) {
         .split-section {
-             grid-template-columns: 1fr;
+            grid-template-columns: 1fr;
         }
     }
 
@@ -508,9 +556,11 @@
         border: 1px solid var(--border-color);
         border-radius: 20px;
         padding: 24px;
-        transition: transform 0.2s, background 0.2s; /* Added transition */
+        transition:
+            transform 0.2s,
+            background 0.2s; /* Added transition */
     }
-    
+
     /* Added hover effect for storage/restore containers */
     .section-container:hover {
         background: rgba(255, 255, 255, 0.05);
@@ -539,7 +589,7 @@
         border-radius: 12px; /* Added radius for hover effect */
         transition: background 0.2s; /* Added transition */
     }
-    
+
     /* Added hover for individual drives too */
     .drive-card:hover {
         background: rgba(255, 255, 255, 0.05);
@@ -574,7 +624,7 @@
         flex-direction: column;
         gap: 12px;
     }
-    
+
     .input-row {
         display: flex;
         gap: 12px;
@@ -677,15 +727,15 @@
         opacity: 0.7;
         background: rgba(255, 255, 255, 0.01);
     }
-    
+
     .action-card.busy {
         border-color: var(--accent-color);
     }
-    
+
     .spinner-sm {
         width: 18px;
         height: 18px;
-        border: 2px solid rgba(255,255,255,0.2);
+        border: 2px solid rgba(255, 255, 255, 0.2);
         border-top-color: white;
         border-radius: 50%;
         animation: spin 1s linear infinite;
@@ -730,13 +780,27 @@
 
     .status-msg {
         position: absolute;
-        top: 24px;
-        right: 24px;
-        font-size: 12px;
+        top: 8px;
+        right: 8px;
+        font-size: 11px;
         font-weight: 600;
         color: var(--accent-color);
-        background: rgba(0, 0, 0, 0.5);
-        padding: 4px 8px;
-        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 5px 10px;
+        border-radius: 10px;
+        z-index: 10;
+        animation: statusFadeIn 0.25s ease-out;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    @keyframes statusFadeIn {
+        from {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
     }
 </style>
