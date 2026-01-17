@@ -118,13 +118,20 @@ pub fn run() {
                         }
                     }
 
-                    // Apply Mica effect (Windows 11 only)
-                    use window_vibrancy::apply_mica;
-                    // Some(true) for dark mode, Some(false) for light mode, None for system
-                    if let Err(e) = apply_mica(&window, Some(true)) {
-                        eprintln!("Failed to apply Mica effect: {}", e);
+                    // Apply Acrylic effect (Stronger glass blur)
+                    use window_vibrancy::apply_acrylic;
+                    // Some(true) for dark mode
+                    if let Err(e) = apply_acrylic(&window, Some((18, 18, 18, 125))) {
+                        eprintln!("Acrylic failed (falling back to Mica): {}", e);
+                        // Fallback to Mica if Acrylic fails (e.g. not supported)
+                        use window_vibrancy::apply_mica;
+                        if let Err(e) = apply_mica(&window, Some(true)) {
+                            eprintln!("Mica also failed: {}", e);
+                        } else {
+                            println!("Mica fallback applied.");
+                        }
                     } else {
-                        println!("Mica effect applied successfully.");
+                        println!("Acrylic effect applied successfully.");
                     }
                 }
             }
