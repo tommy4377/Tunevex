@@ -50,6 +50,7 @@
         await refreshFolders();
 
         // Listeners update the STORE
+        // @ts-ignore
         unlistenProgress = await listen<number>(
             "compactor-progress",
             (event) => {
@@ -66,11 +67,13 @@
             },
         );
 
+        // @ts-ignore
         unlistenStatus = await listen<string>("compactor-status", (event) => {
             compactorStore.update((s) => ({ ...s, statusMsg: event.payload }));
             addLog(event.payload);
         });
 
+        // @ts-ignore
         unlistenFile = await listen<string>("compactor-file", (event) => {
             compactorStore.update((s) => ({
                 ...s,
@@ -78,6 +81,7 @@
             }));
         });
 
+        // @ts-ignore
         unlistenBytes = await listen<number>("compactor-bytes", (event) => {
             compactorStore.update((s) => ({
                 ...s,

@@ -7,6 +7,8 @@ export interface CompactorState {
     scanResult: any;
     compressionAlgo: number;
     progressCurrent: number;
+    progressTotal: number;
+    bytesAnalyzed: number;
     showProgress: boolean;
     currentFile: string;
     statusMsg: string;
@@ -21,6 +23,8 @@ const initialState: CompactorState = {
     scanResult: null,
     compressionAlgo: 0, // XPRESS4K
     progressCurrent: 0,
+    progressTotal: 0,
+    bytesAnalyzed: 0,
     showProgress: false,
     currentFile: "",
     statusMsg: "",
