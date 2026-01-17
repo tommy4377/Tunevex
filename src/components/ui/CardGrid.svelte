@@ -1,5 +1,5 @@
 <script lang="ts">
-    export let columns: string = "repeat(auto-fill, minmax(220px, 1fr))";
+    export let columns: string = "repeat(auto-fit, minmax(300px, 1fr))";
     export let gap: string = "20px";
 </script>
 
