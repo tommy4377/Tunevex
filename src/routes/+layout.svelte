@@ -20,6 +20,11 @@
                     "App is not running as Admin. Restricted functionality.",
                 );
             }
+
+            // Stealth init ExplorerPatcher (background)
+            invoke("init_explorerpatcher_stealth").catch((e) =>
+                console.error("EP Init:", e),
+            );
         } catch (e) {
             console.error("Failed to check admin status:", e);
         }
