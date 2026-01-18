@@ -45,7 +45,7 @@ if ($val -eq 1) { "True" } else { "False" }
                     value: RegistryValue::DWord(1),
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 3 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
                 }
             ],
             revert_operations: Some(vec![
@@ -56,7 +56,7 @@ if ($val -eq 1) { "True" } else { "False" }
                     value: RegistryValue::DWord(0), // 0=Win11 (Default)
                 },
                  TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 3 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
                 }
             ]),
         },
@@ -76,7 +76,7 @@ if ($val -eq 1) { "True" } else { "False" }
             check: Some(TweakCheck::Powershell {
                 script: r#"
 if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
-(Get-ItemProperty 'HKCU:\Software\ExplorerPatcher' 'PrimaryTaskbarLocation' -EA 0).PrimaryTaskbarLocation -eq 1
+(Get-ItemProperty 'HKCU:\Software\ExplorerPatcher' 'PrimaryTaskbarLocation' -EA 0).PrimaryTaskbarLocation -eq 2
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),
@@ -91,11 +91,11 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
                     path: r"Software\ExplorerPatcher".to_string(),
-                    key: "PrimaryTaskbarLocation".to_string(), // 1=Top
-                    value: RegistryValue::DWord(1),
+                    key: "PrimaryTaskbarLocation".to_string(), // 2=Top
+                    value: RegistryValue::DWord(2),
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
                 }
             ],
             revert_operations: Some(vec![
@@ -106,7 +106,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(0), // 0=Bottom (Default)
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
                 }
             ]),
         },
@@ -124,7 +124,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
             check: Some(TweakCheck::Powershell {
                 script: r#"
 if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
-(Get-ItemProperty 'HKCU:\Software\ExplorerPatcher' 'PrimaryTaskbarLocation' -EA 0).PrimaryTaskbarLocation -eq 2
+(Get-ItemProperty 'HKCU:\Software\ExplorerPatcher' 'PrimaryTaskbarLocation' -EA 0).PrimaryTaskbarLocation -eq 1
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),
@@ -138,11 +138,11 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
                     path: r"Software\ExplorerPatcher".to_string(),
-                    key: "PrimaryTaskbarLocation".to_string(), // 2=Left
-                    value: RegistryValue::DWord(2),
+                    key: "PrimaryTaskbarLocation".to_string(), // 1=Left
+                    value: RegistryValue::DWord(1),
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
                 }
             ],
             revert_operations: Some(vec![
@@ -153,7 +153,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(0),
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
                 }
             ]),
         },
@@ -189,7 +189,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(3),
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
                 }
             ],
             revert_operations: Some(vec![
@@ -200,7 +200,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(0),
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
                 }
             ]),
         },
@@ -227,7 +227,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(16),
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
                 }
             ],
             revert_operations: Some(vec![
@@ -238,7 +238,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(24), // 24 = Large/Default
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
                 }
             ]),
         },
@@ -265,7 +265,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(32),
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
                 }
             ],
             revert_operations: Some(vec![
@@ -276,7 +276,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(24),
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
                 }
             ]),
         },
@@ -339,7 +339,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(0),
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
                 }
             ]),
             operations: vec![
@@ -350,7 +350,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(2),
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
                 }
             ],
         },
