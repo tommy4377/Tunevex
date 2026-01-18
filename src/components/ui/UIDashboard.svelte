@@ -1,7 +1,7 @@
 <script lang="ts">
     import { invoke } from "@tauri-apps/api/core";
     import { fade } from "svelte/transition";
-    import { Target, Moon, Folder, Settings } from "lucide-svelte";
+    import { Target, Moon, Folder, Menu, LayoutTemplate } from "lucide-svelte";
     import { Card, CardGrid, BackButton } from "../ui";
     import TweakCard from "../TweakCard.svelte";
     import type { Tweak } from "$lib/types";
@@ -12,54 +12,61 @@
     $: uiTweaks = allTweaks.filter((t) => t.category === "InterfaceUx");
 
     // Organize by section
+    // Organize by section
     $: taskbarTweaks = uiTweaks.filter(
-        (t) => t.id.includes("taskbar") || t.id.includes("TaskbarGlomLevel"),
+        (t) =>
+            t.id.startsWith("taskbar_") ||
+            t.id.includes("interface_taskbar_") ||
+            t.id.includes("end_task"),
     );
-    $: visualTweaks = uiTweaks.filter(
-        (t) => t.id.includes("context") || t.id.includes("dark"),
+
+    $: contextTweaks = uiTweaks.filter(
+        (t) =>
+            t.id.includes("context_menu") ||
+            t.id.includes("take_ownership") ||
+            t.id.includes("context"),
     );
+
     $: explorerTweaks = uiTweaks.filter(
         (t) =>
             t.id.includes("extension") ||
-            t.id.includes("file") ||
             t.id.includes("compact") ||
-            t.id.includes("hidden"),
+            t.id.includes("hidden") ||
+            t.id.includes("system_files"),
     );
-    $: otherTweaks = uiTweaks.filter(
-        (t) =>
-            !taskbarTweaks.includes(t) &&
-            !visualTweaks.includes(t) &&
-            !explorerTweaks.includes(t),
+
+    $: appearanceTweaks = uiTweaks.filter(
+        (t) => t.id.includes("dark_mode") || t.id.includes("theme"),
     );
 
     const sectionsMeta = [
         {
             id: "taskbar",
-            icon: Target,
+            icon: LayoutTemplate,
             title: "Taskbar",
-            desc: "Taskbar layout & behavior",
+            desc: "Alignment, size, and position.",
             tweaks: () => taskbarTweaks,
+        },
+        {
+            id: "context",
+            icon: Menu,
+            title: "Context Menu",
+            desc: "Classic menu and right-click options.",
+            tweaks: () => contextTweaks,
+        },
+        {
+            id: "explorer",
+            icon: Folder,
+            title: "File Explorer",
+            desc: "Extensions, hidden files, compact mode.",
+            tweaks: () => explorerTweaks,
         },
         {
             id: "appearance",
             icon: Moon,
             title: "Appearance",
-            desc: "Dark mode & context menus",
-            tweaks: () => visualTweaks,
-        },
-        {
-            id: "explorer",
-            icon: Folder,
-            title: "Explorer",
-            desc: "File Explorer tweaks",
-            tweaks: () => explorerTweaks,
-        },
-        {
-            id: "other",
-            icon: Settings,
-            title: "Other",
-            desc: "Additional tweaks",
-            tweaks: () => otherTweaks,
+            desc: "Dark mode and visual themes.",
+            tweaks: () => appearanceTweaks,
         },
     ] as const;
 

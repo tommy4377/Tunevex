@@ -416,18 +416,18 @@
 
     .mini-stat {
         display: grid;
-        grid-template-columns: 32px 1fr 80px;
+        grid-template-columns: 44px 1fr 100px;
         align-items: center;
-        gap: 12px;
-        padding: 10px 12px;
+        gap: 16px;
+        padding: 14px 16px;
         background: rgba(255, 255, 255, 0.03);
-        border-radius: 10px;
+        border-radius: 12px;
     }
 
     .stat-icon {
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
         background: rgba(96, 205, 255, 0.1);
         display: flex;
         align-items: center;
@@ -447,14 +447,14 @@
     }
 
     .stat-value {
-        font-size: 18px;
+        font-size: 22px;
         font-weight: 700;
     }
 
     .mini-bar {
-        height: 6px;
+        height: 8px;
         background: rgba(255, 255, 255, 0.1);
-        border-radius: 3px;
+        border-radius: 4px;
         overflow: hidden;
     }
 
@@ -529,11 +529,11 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        padding: 16px 12px;
+        gap: 10px;
+        padding: 24px 16px;
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 12px;
+        border-radius: 14px;
         color: var(--text-primary);
         cursor: pointer;
         transition: all 0.2s;
@@ -552,8 +552,8 @@
     }
 
     .action-btn span {
-        font-size: 12px;
-        font-weight: 500;
+        font-size: 13px;
+        font-weight: 600;
     }
 
     .action-btn .msg {
