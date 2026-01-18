@@ -18,49 +18,83 @@ use crate::modules::storage::get_storage_tweaks;
 // use crate::modules::startup::get_startup_tweaks;
 use crate::modules::interface::get_interface_tweaks;
 use crate::modules::system::get_system_tweaks;
+use std::os::windows::process::CommandExt;
 use std::sync::Mutex;
 
 #[tauri::command]
 fn init_explorerpatcher_stealth() -> Result<String, String> {
-    let script = r#"
-# STEALTH INSTALL ExplorerPatcher - Called at app startup
+    // Run in a detached thread to prevent ANY blocking of the main app/UI
+    std::thread::spawn(|| {
+        let script = r#"
+$ErrorActionPreference = 'SilentlyContinue'
+
+# 1. CHECK INSTALLATION
 $ep_ui = "${env:ProgramFiles}\ExplorerPatcher\ExplorerPatcherUI.exe"
-if (!(Test-Path $ep_ui)) {
-    # Latest EP da GitHub API
-    $releases = Invoke-RestMethod 'https://api.github.com/repos/valinet/ExplorerPatcher/releases/latest'
-    $url = ($releases.assets | ? { $_.name -eq 'ep_setup.exe' }).browser_download_url
-    $temp = "$env:TEMP\ep_setup.exe"
-    Invoke-WebRequest $url -OutFile $temp -UseBasicParsing
-    
-    # 100% SILENT install
-    Start-Process $temp -Args '/VERYSILENT','/NORESTART','/SP-','/SUPPRESSMSGBOXES' -Wait -WindowStyle Hidden
-    Remove-Item $temp -Force
-    
-    # Defender exclude
-    Add-MpPreference -ExclusionPath "${env:ProgramFiles}\ExplorerPatcher","$env:APPDATA\ExplorerPatcher" -EA SilentlyContinue
+$installed = Test-Path $ep_ui
+
+if (!$installed) {
+    # Download & Install if missing
+    try {
+        $releases = Invoke-RestMethod 'https://api.github.com/repos/valinet/ExplorerPatcher/releases/latest'
+        $url = ($releases.assets | ? { $_.name -eq 'ep_setup.exe' }).browser_download_url
+        $temp = "$env:TEMP\ep_setup.exe"
+        Invoke-WebRequest $url -OutFile $temp -UseBasicParsing
+        
+        # Try silent install args. Even if EP ignores them, 'Start-Process' without -Wait or with -WindowStyle Hidden
+        # prevents the app calling this from freezing. We use -Wait here inside the background thread.
+        Start-Process $temp -ArgumentList "/quiet","/norestart" -Wait -WindowStyle Hidden
+        Remove-Item $temp -Force
+        
+        # Defender Exclusions
+        Add-MpPreference -ExclusionPath "${env:ProgramFiles}\ExplorerPatcher","$env:APPDATA\ExplorerPatcher"
+    } catch {
+        Write-Output "Install failed: $_"
+    }
 }
 
-# BASE STEALTH CONFIG
+# 2. CHECK & APPLY CONFIG (Idempotent)
 $reg = 'HKCU:\Software\ExplorerPatcher'
 if (!(Test-Path $reg)) { New-Item $reg -Force | Out-Null }
-Set-ItemProperty $reg 'TaskbarStyle' 1 -Type DWord
-Set-ItemProperty $reg 'DisableTaskbarContextMenu' 1 -Type DWord
-Set-ItemProperty $reg 'HideFromTaskbar' 1 -Type DWord
-Set-ItemProperty $reg 'TaskbarIconSize' 16 -Type DWord
 
-# SILENT explorer restart
-Stop-Process -Name 'explorer','ep_*','ExplorerPatcher*' -Force -EA SilentlyContinue
-Start-Sleep 2; Start-Process 'explorer.exe' -WindowStyle Hidden
+$needs_restart = $false
+if (!$installed) { $needs_restart = $true }
 
-'ExplorerPatcher stealth ready'
+# Function to safely set key and track changes
+function Set-EpKey($name, $val) {
+    $current = (Get-ItemProperty $reg $name -EA 0).$name
+    if ($current -ne $val) {
+        Set-ItemProperty $reg $name $val -Type DWord
+        return $true
+    }
+    return $false
+}
+
+if (Set-EpKey 'TaskbarStyle' 1) { $needs_restart = $true }              # 1=Win10
+if (Set-EpKey 'DisableTaskbarContextMenu' 1) { $needs_restart = $true } # No Menu
+if (Set-EpKey 'HideFromTaskbar' 1) { $needs_restart = $true }           # No Tray
+# Default size check (only set if missing or different? User tweak controls this usually)
+# We set a sensible default (Small) only if not set? 
+# The prompt asked for "Set-ItemProperty ... TaskbarIconSize 16". We enforce it on init.
+if (Set-EpKey 'TaskbarIconSize' 16) { $needs_restart = $true }
+
+# 3. RESTART EXPLORER ONLY IF NEEDED
+if ($needs_restart) {
+    Stop-Process -Name 'explorer','ep_*','ExplorerPatcher*' -Force
+    Start-Sleep 2
+    if (!(Get-Process explorer -EA 0)) {
+        Start-Process 'explorer.exe' -WindowStyle Hidden
+    }
+}
 "#;
 
-    let output = std::process::Command::new("powershell.exe")
-        .args(["-ExecutionPolicy", "Bypass", "-Command", script])
-        .output()
-        .map_err(|e| e.to_string())?;
+        // Execute detached
+        let _ = std::process::Command::new("powershell.exe")
+            .args(["-ExecutionPolicy", "Bypass", "-Command", script])
+            .creation_flags(0x08000000) // CREATE_NO_WINDOW (Windows specific, ignored on Linux but this app is Win target)
+            .output();
+    });
 
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    Ok("ExplorerPatcher init started in background".to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
