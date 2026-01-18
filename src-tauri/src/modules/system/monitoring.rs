@@ -128,43 +128,25 @@ pub struct SystemStats {
     gpu: Option<GpuStats>,
 }
 
-/// Get GPU name using wmic command (no COM conflict with Tauri)
+/// Get GPU name using PowerShell CIM (more robust than wmic)
 fn get_gpu_name() -> Option<String> {
-    let output = Command::new("wmic")
-        .args(&["path", "win32_videocontroller", "get", "name"])
+    let output = Command::new("powershell")
+        .args(&[
+            "-NoProfile",
+            "-Command",
+            "Get-CimInstance Win32_VideoController | Sort-Object -Property AdapterRAM -Descending | Select-Object -ExpandProperty Name | Select-Object -First 1",
+        ])
         .creation_flags(0x08000000)
         .output()
         .ok()?;
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    println!("[GPU Monitor] wmic output: {}", stdout.trim());
+    let name = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
-    let names: Vec<String> = stdout
-        .lines()
-        .map(|l| l.trim().to_string())
-        .filter(|l| !l.is_empty() && l.to_lowercase() != "name")
-        .collect();
-
-    if names.is_empty() {
+    if name.is_empty() {
         return None;
     }
 
-    // Prioritize discrete GPUs
-    let keywords = [
-        "nvidia", "geforce", "rtx", "gtx", "radeon", "rx", "arc", "intel", "uhd", "iris", "vega",
-        "amd",
-    ];
-
-    let best_match = names.iter().find(|name| {
-        let lower = name.to_lowercase();
-        keywords.iter().any(|&k| lower.contains(k))
-    });
-
-    if let Some(name) = best_match {
-        Some(name.clone())
-    } else {
-        Some(names[0].clone())
-    }
+    Some(name)
 }
 
 #[command]
