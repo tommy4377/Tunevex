@@ -2,7 +2,7 @@
     import { invoke } from "@tauri-apps/api/core";
     import { fade } from "svelte/transition";
     import { Target, Moon, Folder, Menu, LayoutTemplate } from "lucide-svelte";
-    import { Card, CardGrid, BackButton } from "../ui";
+    import { Card, CardGrid, BackButton, TaskbarSection } from "../ui";
     import TweakCard from "../TweakCard.svelte";
     import type { Tweak } from "$lib/types";
 
@@ -11,7 +11,6 @@
     // Filter UI tweaks
     $: uiTweaks = allTweaks.filter((t) => t.category === "InterfaceUx");
 
-    // Organize by section
     // Organize by section
     $: taskbarTweaks = uiTweaks.filter(
         (t) =>
@@ -125,13 +124,17 @@
             <BackButton onclick={goBack} label="Back" />
             <h2>{selectedSection.title}</h2>
             <div class="tweak-list">
-                {#each selectedSection.tweaks() as tweak}
-                    <TweakCard
-                        {tweak}
-                        on:apply={() => applyTweak(tweak)}
-                        on:revert={() => revertTweak(tweak)}
-                    />
-                {/each}
+                {#if selectedSection.id === "taskbar"}
+                    <TaskbarSection tweaks={selectedSection.tweaks()} />
+                {:else}
+                    {#each selectedSection.tweaks() as tweak}
+                        <TweakCard
+                            {tweak}
+                            on:apply={() => applyTweak(tweak)}
+                            on:revert={() => revertTweak(tweak)}
+                        />
+                    {/each}
+                {/if}
             </div>
         </div>
     {/if}

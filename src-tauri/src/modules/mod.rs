@@ -10,7 +10,6 @@ pub mod interface;
 pub mod legacy_vibrancy; // Explicitly expose it for direct use if needed, or via interface
 
 pub mod network;
-pub mod packages;
 pub mod privacy;
 pub mod registry;
 pub mod security;

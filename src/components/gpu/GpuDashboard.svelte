@@ -129,7 +129,7 @@
         flex: 1;
         display: flex;
         flex-direction: column;
-        max-width: 800px;
+        max-width: 600px;
         margin: 0 auto;
         width: 100%;
     }

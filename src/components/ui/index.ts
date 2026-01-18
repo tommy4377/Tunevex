@@ -6,3 +6,4 @@ export { default as SectionHeader } from './SectionHeader.svelte';
 export { default as CardGrid } from './CardGrid.svelte';
 export { default as InfoBanner } from './InfoBanner.svelte';
 export { default as Badge } from './Badge.svelte';
+export { default as TaskbarSection } from './TaskbarSection.svelte';

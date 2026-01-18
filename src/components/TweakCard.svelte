@@ -103,8 +103,7 @@
     }
 
     .tweak-card.enabled {
-        border-color: var(--toggle-on-border);
-        /* background: var(--toggle-on-bg); Removed per user request */
+        /* No border/background change on card body */
     }
 
     .header {
