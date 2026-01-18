@@ -17,7 +17,7 @@
   import GpuDashboard from "../components/gpu/GpuDashboard.svelte";
   import SystemDashboard from "../components/system/SystemDashboard.svelte";
   import InputDashboard from "../components/input/InputDashboard.svelte";
-  import ProgramsDashboard from "../components/programs/ProgramsDashboard.svelte";
+
   import UIDashboard from "../components/ui/UIDashboard.svelte";
   import TweakList from "../components/TweakList.svelte";
   import type { Tweak } from "$lib/types";
@@ -168,8 +168,6 @@
         <SystemDashboard allTweaks={tweaks} />
       {:else if currentCat === "MouseInput"}
         <InputDashboard allTweaks={tweaks} />
-      {:else if currentCat === "Programs"}
-        <ProgramsDashboard />
       {:else if currentCat === "InterfaceUx"}
         <UIDashboard allTweaks={tweaks} />
       {:else if currentCat === "Activation"}
