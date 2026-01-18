@@ -1,9 +1,8 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
     import { ChevronDown } from "lucide-svelte";
-    import { fade, slide } from "svelte/transition";
-    import { clickOutside } from "$lib/utils/clickOutside"; // Assuming utils exists, if not I will implement clickOutside inline or checking utils first.
-    // Wait, I haven't checked if clickOutside exists. To be safe, I'll implement a simple window click handler or inline logic.
+    import { slide } from "svelte/transition";
+    import { clickOutside } from "$lib/utils/clickOutside";
 
     export let options: { value: string | number; label: string }[] = [];
     export let value: string | number;
@@ -22,13 +21,30 @@
         }
     }
 
-// ... unchanged ...
+    function select(option: { value: string | number; label: string }) {
+        if (value !== option.value) {
+            value = option.value;
+            dispatch("change", { value });
+        }
+        isOpen = false;
+    }
 
+    function close() {
+        isOpen = false;
+    }
+</script>
+
+<div
+    class="select-container"
+    class:disabled
+    use:clickOutside
+    on:click_outside={close}
+>
     <button
         class="select-trigger"
         on:click|stopPropagation={toggle}
         class:active={isOpen}
-        class:loading={loading}
+        class:loading
     >
         {#if loading}
             <div class="spinner-sm"></div>
@@ -167,7 +183,7 @@
         border-radius: 50%;
         background: var(--accent-color);
     }
-    
+
     .spinner-sm {
         width: 14px;
         height: 14px;
@@ -177,11 +193,13 @@
         animation: spin 0.8s linear infinite;
         margin-right: 8px;
     }
-    
+
     @keyframes spin {
-        to { transform: rotate(360deg); }
+        to {
+            transform: rotate(360deg);
+        }
     }
-    
+
     .select-trigger.loading {
         cursor: wait;
         opacity: 0.8;
