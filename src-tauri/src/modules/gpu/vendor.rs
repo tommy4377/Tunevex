@@ -8,32 +8,25 @@ use crate::modules::types::{
 };
 
 /// Detect if Nvidia GPU is present
-/// Detect if Nvidia GPU is present
 fn is_nvidia_gpu() -> bool {
-    #[cfg(target_os = "windows")]
+    if let Ok(output) = std::process::Command::new("powershell")
+        .args(&["-NoProfile", "-Command", "Get-WmiObject Win32_VideoController | Where-Object { $_.Name -like '*NVIDIA*' } | Select-Object -First 1 -ExpandProperty Name"])
+        .output()
     {
-        if let Ok(output) = std::process::Command::new("powershell")
-            .args(&["-NoProfile", "-Command", "Get-WmiObject Win32_VideoController | Where-Object { $_.Name -like '*NVIDIA*' } | Select-Object -First 1 -ExpandProperty Name"])
-            .output()
-        {
-            let name = String::from_utf8_lossy(&output.stdout);
-            return !name.trim().is_empty();
-        }
+        let name = String::from_utf8_lossy(&output.stdout);
+        return !name.trim().is_empty();
     }
     false
 }
 
 /// Detect if AMD GPU is present
 fn is_amd_gpu() -> bool {
-    #[cfg(target_os = "windows")]
+    if let Ok(output) = std::process::Command::new("powershell")
+        .args(&["-NoProfile", "-Command", "Get-WmiObject Win32_VideoController | Where-Object { $_.Name -like '*AMD*' -or $_.Name -like '*Radeon*' } | Select-Object -First 1 -ExpandProperty Name"])
+        .output()
     {
-        if let Ok(output) = std::process::Command::new("powershell")
-            .args(&["-NoProfile", "-Command", "Get-WmiObject Win32_VideoController | Where-Object { $_.Name -like '*AMD*' -or $_.Name -like '*Radeon*' } | Select-Object -First 1 -ExpandProperty Name"])
-            .output()
-        {
-            let name = String::from_utf8_lossy(&output.stdout);
-            return !name.trim().is_empty();
-        }
+        let name = String::from_utf8_lossy(&output.stdout);
+        return !name.trim().is_empty();
     }
     false
 }

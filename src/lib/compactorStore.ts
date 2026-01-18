@@ -35,7 +35,7 @@ const initialState: CompactorState = {
 export const compactorStore = writable<CompactorState>(initialState);
 
 export const addLog = (msg: string) => {
-    compactorStore.update(s => ({
+    compactorStore.update((s: CompactorState) => ({
         ...s,
         logs: [...s.logs, `[${new Date().toLocaleTimeString()}] ${msg}`].slice(-100)
     }));

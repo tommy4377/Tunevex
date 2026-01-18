@@ -175,8 +175,8 @@
                 statusMsg: `Scan Complete: Found ${res.file_count} files (${formatBytes(res.total_size)})`,
                 statusType: "success",
             }));
-        } catch (e) {
-            if (e.toString().includes("Cancelled")) {
+        } catch (e: unknown) {
+            if (String(e).includes("Cancelled")) {
                 compactorStore.update((s) => ({
                     ...s,
                     statusMsg: "Scan Cancelled",

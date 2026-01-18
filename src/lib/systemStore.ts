@@ -46,7 +46,7 @@ export async function refreshStatsIfNeeded() {
     try {
         const quick = await invoke<SystemStats>('get_quick_stats');
 
-        systemStats.update(s => ({
+        systemStats.update((s: SystemStats) => ({
             ...s,
             ...quick,
             // Keep old disks if new fetch hasn't happened yet
@@ -54,8 +54,8 @@ export async function refreshStatsIfNeeded() {
         }));
 
         // Fetch disks separately without blocking
-        invoke<DiskStats[]>('get_disk_stats').then(disks => {
-            systemStats.update(s => ({ ...s, disks }));
+        invoke<DiskStats[]>('get_disk_stats').then((disks: DiskStats[]) => {
+            systemStats.update((s: SystemStats) => ({ ...s, disks }));
         }).catch(console.error);
 
         lastFetch.set(Date.now());

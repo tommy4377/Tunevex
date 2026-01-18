@@ -10,30 +10,24 @@ use crate::modules::types::{
 /// Detect if CPU is Intel
 /// Detect if CPU is Intel
 fn is_intel_cpu() -> bool {
-    #[cfg(target_os = "windows")]
+    if let Ok(output) = std::process::Command::new("powershell")
+        .args(&["-NoProfile", "-Command", "(Get-ItemProperty 'HKLM:\\HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0').VendorIdentifier"])
+        .output()
     {
-        if let Ok(output) = std::process::Command::new("powershell")
-            .args(&["-NoProfile", "-Command", "(Get-ItemProperty 'HKLM:\\HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0').VendorIdentifier"])
-            .output()
-        {
-            let vendor = String::from_utf8_lossy(&output.stdout);
-            return vendor.contains("GenuineIntel");
-        }
+        let vendor = String::from_utf8_lossy(&output.stdout);
+        return vendor.contains("GenuineIntel");
     }
     false
 }
 
 /// Detect if CPU is AMD
 fn is_amd_cpu() -> bool {
-    #[cfg(target_os = "windows")]
+    if let Ok(output) = std::process::Command::new("powershell")
+        .args(&["-NoProfile", "-Command", "(Get-ItemProperty 'HKLM:\\HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0').VendorIdentifier"])
+        .output()
     {
-        if let Ok(output) = std::process::Command::new("powershell")
-            .args(&["-NoProfile", "-Command", "(Get-ItemProperty 'HKLM:\\HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0').VendorIdentifier"])
-            .output()
-        {
-            let vendor = String::from_utf8_lossy(&output.stdout);
-            return vendor.contains("AuthenticAMD");
-        }
+        let vendor = String::from_utf8_lossy(&output.stdout);
+        return vendor.contains("AuthenticAMD");
     }
     false
 }
