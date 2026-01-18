@@ -40,50 +40,6 @@ if (!(Test-Path $ep_ui)) {
     Add-MpPreference -ExclusionPath "${env:ProgramFiles}\ExplorerPatcher","$env:APPDATA\ExplorerPatcher" -EA SilentlyContinue
 }
 
-# BASE STEALTH CONFIG (Win10 EP taskbar style obbligatorio per top/left)
-$reg = 'HKCU:\Software\ExplorerPatcher'
-if (!(Test-Path $reg)) { New-Item $reg -Force | Out-Null }
-Set-ItemProperty $reg 'TaskbarStyle' 1 -Type DWord  # 1=Windows 10 (ExplorerPatcher)
-Set-ItemProperty $reg 'DisableTaskbarContextMenu' 1 -Type DWord  # No Properties menu
-Set-ItemProperty $reg 'HideFromTaskbar' 1 -Type DWord  # No tray icons
-Set-ItemProperty $reg 'TaskbarIconSize' 16 -Type DWord
-
-# SILENT explorer restart
-Stop-Process -Name 'explorer','ep_*','ExplorerPatcher*' -Force -EA SilentlyContinue
-Start-Sleep 2; Start-Process 'explorer.exe' -WindowStyle Hidden
-
-'ExplorerPatcher stealth ready'
-"#;
-
-    // Esegui PowerShell
-    let output = std::process::Command::new("powershell.exe")
-        .args(["-ExecutionPolicy", "Bypass", "-Command", script])
-        .output()
-        .map_err(|e| e.to_string())?;
-
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
-}
-
-#[tauri::command]
-fn init_explorerpatcher_stealth() -> Result<String, String> {
-    let script = r#"
-# STEALTH INSTALL ExplorerPatcher - Called at app startup
-$ep_ui = "${env:ProgramFiles}\ExplorerPatcher\ExplorerPatcherUI.exe"
-if (!(Test-Path $ep_ui)) {
-    # Latest EP da GitHub API
-    $releases = Invoke-RestMethod 'https://api.github.com/repos/valinet/ExplorerPatcher/releases/latest'
-    $url = ($releases.assets | ? { $_.name -eq 'ep_setup.exe' }).browser_download_url
-    $temp = "$env:TEMP\ep_setup.exe"
-    Invoke-WebRequest $url -OutFile $temp -UseBasicParsing
-    
-    # 100% SILENT install
-    Start-Process $temp -Args '/VERYSILENT','/NORESTART','/SP-','/SUPPRESSMSGBOXES' -Wait -WindowStyle Hidden
-    Remove-Item $temp -Force
-    
-    # Defender exclude
-    Add-MpPreference -ExclusionPath "${env:ProgramFiles}\ExplorerPatcher","$env:APPDATA\ExplorerPatcher" -EA SilentlyContinue
-}
-
 # BASE STEALTH CONFIG
 $reg = 'HKCU:\Software\ExplorerPatcher'
 if (!(Test-Path $reg)) { New-Item $reg -Force | Out-Null }
