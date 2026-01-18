@@ -87,8 +87,8 @@ pub fn get_taskbar_tweaks() -> Vec<Tweak> {
 $path = 'HKCU:\Software\ExplorerPatcher'
 if (!(Test-Path $path)) { 'False'; exit }
 $style = (Get-ItemProperty $path -Name 'TaskbarStyle' -EA SilentlyContinue).TaskbarStyle
-# Check for value 2 (EP mode) OR value 1 (legacy)
-if ($style -eq 2 -or $style -eq 1) { 'True' } else { 'False' }
+# CRITICAL: Check ONLY for value 2 (0=Win11, 1=deprecated, 2=Win10 EP mode)
+if ($style -eq 2) { 'True' } else { 'False' }
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),
@@ -142,12 +142,27 @@ if (Test-Path $path) {
                 expected_output: "True".to_string(),
             }),
             operations: vec![
-                // First ensure EP mode is active
+                // First verify EP is installed and enable EP mode
                 TweakOperation::Powershell {
                     script: r#"
+# Verify EP is installed (check for dxgi.dll or registry)
 $epPath = 'HKCU:\Software\ExplorerPatcher'
-if (!(Test-Path $epPath)) { New-Item -Path $epPath -Force | Out-Null }
-Set-ItemProperty -Path $epPath -Name 'TaskbarStyle' -Value 2 -Type DWord -Force
+if (!(Test-Path $epPath)) {
+    if (!(Test-Path 'C:\Windows\dxgi.dll')) {
+        Write-Error "ExplorerPatcher not installed! Download from: https://github.com/valinet/ExplorerPatcher"
+        exit 1
+    }
+    New-Item -Path $epPath -Force | Out-Null
+}
+
+# Verify/set TaskbarStyle to Win10 EP mode (value 2)
+$style = (Get-ItemProperty $epPath -Name 'TaskbarStyle' -EA SilentlyContinue).TaskbarStyle
+if ($style -ne 2) {
+    Write-Host "Enabling Win10 Taskbar style..."
+    Set-ItemProperty -Path $epPath -Name 'TaskbarStyle' -Value 2 -Type DWord -Force
+}
+
+# Disable shell extension to prevent File Explorer crashes
 Set-ItemProperty -Path $epPath -Name 'ShellExtensionEnabled' -Value 0 -Type DWord -Force
 "#.to_string(),
                 },
@@ -185,9 +200,19 @@ Set-ItemProperty -Path $epPath -Name 'ShellExtensionEnabled' -Value 0 -Type DWor
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
+# Verify EP is installed (check for dxgi.dll or registry)
 $epPath = 'HKCU:\Software\ExplorerPatcher'
-if (!(Test-Path $epPath)) { New-Item -Path $epPath -Force | Out-Null }
-Set-ItemProperty -Path $epPath -Name 'TaskbarStyle' -Value 2 -Type DWord -Force
+if (!(Test-Path $epPath)) {
+    if (!(Test-Path 'C:\Windows\dxgi.dll')) {
+        Write-Error "ExplorerPatcher not installed!"
+        exit 1
+    }
+    New-Item -Path $epPath -Force | Out-Null
+}
+$style = (Get-ItemProperty $epPath -Name 'TaskbarStyle' -EA SilentlyContinue).TaskbarStyle
+if ($style -ne 2) {
+    Set-ItemProperty -Path $epPath -Name 'TaskbarStyle' -Value 2 -Type DWord -Force
+}
 Set-ItemProperty -Path $epPath -Name 'ShellExtensionEnabled' -Value 0 -Type DWord -Force
 "#.to_string(),
                 },
@@ -225,9 +250,19 @@ Set-ItemProperty -Path $epPath -Name 'ShellExtensionEnabled' -Value 0 -Type DWor
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
+# Verify EP is installed (check for dxgi.dll or registry)
 $epPath = 'HKCU:\Software\ExplorerPatcher'
-if (!(Test-Path $epPath)) { New-Item -Path $epPath -Force | Out-Null }
-Set-ItemProperty -Path $epPath -Name 'TaskbarStyle' -Value 2 -Type DWord -Force
+if (!(Test-Path $epPath)) {
+    if (!(Test-Path 'C:\Windows\dxgi.dll')) {
+        Write-Error "ExplorerPatcher not installed!"
+        exit 1
+    }
+    New-Item -Path $epPath -Force | Out-Null
+}
+$style = (Get-ItemProperty $epPath -Name 'TaskbarStyle' -EA SilentlyContinue).TaskbarStyle
+if ($style -ne 2) {
+    Set-ItemProperty -Path $epPath -Name 'TaskbarStyle' -Value 2 -Type DWord -Force
+}
 Set-ItemProperty -Path $epPath -Name 'ShellExtensionEnabled' -Value 0 -Type DWord -Force
 "#.to_string(),
                 },
