@@ -2,30 +2,27 @@
     import { invoke } from "@tauri-apps/api/core";
     import type { Tweak } from "$lib/types";
     import Select from "./Select.svelte";
-    import { LayoutTemplate, Monitor, ArrowUp } from "lucide-svelte";
+    import { LayoutTemplate, Monitor, ArrowUp, AlignLeft } from "lucide-svelte";
     import TweakCard from "../TweakCard.svelte";
+    import { createEventDispatcher } from "svelte";
 
     export let tweaks: Tweak[] = [];
 
-    // Helper to check status
+    const dispatch = createEventDispatcher();
+
+    // Helper to check enabled status from tweak list
     const isEnabled = (id: string) =>
         tweaks.find((t) => t.id === id)?.enabled ?? false;
 
     // --- Computed Values ---
 
-    // --- Computed Values ---
-
-    // 0 = Left, 1 = Center (Default)
+    // Alignment: 0 = Left, 1 = Center (Default)
     $: alignValue = isEnabled("taskbar_align_left") ? "left" : "center";
 
-    // Small (16), Large (32), or Medium (Default)
-    $: sizeValue = isEnabled("taskbar_small_ep")
-        ? "small"
-        : isEnabled("taskbar_large_ep")
-          ? "large"
-          : "medium";
+    // Size: Small (0), Large (1 - default)
+    $: sizeValue = isEnabled("taskbar_small_ep") ? "small" : "large";
 
-    // Top, Left, Right, Bottom (Default)
+    // Position: 0=Bottom, 1=Left, 2=Top, 3=Right
     $: posValue = isEnabled("taskbar_top_ep")
         ? "top"
         : isEnabled("taskbar_left_ep")
@@ -34,26 +31,34 @@
             ? "right"
             : "bottom";
 
-    // Style: Win10 (EP Init Active) vs Win11 (Default)
-    // We check 'ep_config_init' which sets TaskbarStyle=1
+    // Style: TaskbarStyle 0=Win11 (default), 1=Win10
     $: styleValue = isEnabled("ep_config_init") ? "win10" : "win11";
 
-    // Other standalone tweaks (filter out position/size/style ones)
+    // Other standalone tweaks (filter out position/size/style dropdowns)
     $: otherTweaks = tweaks.filter(
         (t) =>
-            !t.id.includes("size") &&
-            !t.id.includes("align") &&
-            !t.id.includes("position") &&
-            !t.id.includes("_ep") && // Hide raw EP tweaks from toggle list
-            t.id !== "ep_config_init",
+            !t.id.includes("_ep") &&
+            t.id !== "ep_config_init" &&
+            t.id !== "taskbar_align_left",
     );
+
+    // --- Loading states ---
+    let loadingMap: Record<string, boolean> = {};
+
+    // Force reactivity on loadingMap
+    function setLoading(key: string, value: boolean) {
+        loadingMap = { ...loadingMap, [key]: value };
+    }
+
+    // Refresh tweaks after applying
+    async function refreshTweaks() {
+        dispatch("refresh");
+    }
 
     // --- Handlers ---
 
-    let loadingMap: Record<string, boolean> = {};
-
     async function handleAlignChange(e: CustomEvent) {
-        loadingMap["align"] = true;
+        setLoading("align", true);
         const val = e.detail.value;
         try {
             if (val === "left") {
@@ -61,41 +66,41 @@
             } else {
                 await invoke("undo_tweak", { id: "taskbar_align_left" });
             }
+            await refreshTweaks();
         } catch (err) {
             console.error(err);
         } finally {
-            loadingMap["align"] = false;
+            setLoading("align", false);
         }
     }
 
     async function handleSizeChange(e: CustomEvent) {
-        loadingMap["size"] = true;
+        setLoading("size", true);
         const val = e.detail.value;
         try {
-            // Undo current size tweaks first
+            // Always undo both first
             if (isEnabled("taskbar_small_ep"))
                 await invoke("undo_tweak", { id: "taskbar_small_ep" });
             if (isEnabled("taskbar_large_ep"))
                 await invoke("undo_tweak", { id: "taskbar_large_ep" });
 
-            // Apply new
+            // Apply new selection
             if (val === "small")
                 await invoke("apply_tweak", { id: "taskbar_small_ep" });
-            if (val === "large")
-                await invoke("apply_tweak", { id: "taskbar_large_ep" });
-            // medium = nothing (default)
+            // "large" is default when neither is enabled
+            await refreshTweaks();
         } catch (err) {
             console.error(err);
         } finally {
-            loadingMap["size"] = false;
+            setLoading("size", false);
         }
     }
 
     async function handlePosChange(e: CustomEvent) {
-        loadingMap["pos"] = true;
+        setLoading("pos", true);
         const val = e.detail.value;
         try {
-            // Undo all positional tweaks
+            // Undo all position tweaks first
             if (isEnabled("taskbar_top_ep"))
                 await invoke("undo_tweak", { id: "taskbar_top_ep" });
             if (isEnabled("taskbar_left_ep"))
@@ -103,36 +108,36 @@
             if (isEnabled("taskbar_right_ep"))
                 await invoke("undo_tweak", { id: "taskbar_right_ep" });
 
-            // Apply new
+            // Apply new position
             if (val === "top")
                 await invoke("apply_tweak", { id: "taskbar_top_ep" });
-            if (val === "left")
+            else if (val === "left")
                 await invoke("apply_tweak", { id: "taskbar_left_ep" });
-            if (val === "right")
+            else if (val === "right")
                 await invoke("apply_tweak", { id: "taskbar_right_ep" });
-            // bottom = nothing (default)
+            // "bottom" is default (no tweak needed)
+            await refreshTweaks();
         } catch (err) {
             console.error(err);
         } finally {
-            loadingMap["pos"] = false;
+            setLoading("pos", false);
         }
     }
 
     async function handleStyleChange(e: CustomEvent) {
-        loadingMap["style"] = true;
+        setLoading("style", true);
         const val = e.detail.value;
         try {
             if (val === "win10") {
                 await invoke("apply_tweak", { id: "ep_config_init" });
             } else {
-                await invoke("undo_tweak", { id: "ep_config_init" }); // Needs revert op in back
-                // If no revert op, we might need manual reset, but ep_config_init currently OneTime
-                // Ideally ep_config_init should be Toggle for this to work perfectly.
+                await invoke("undo_tweak", { id: "ep_config_init" });
             }
+            await refreshTweaks();
         } catch (err) {
             console.error(err);
         } finally {
-            loadingMap["style"] = false;
+            setLoading("style", false);
         }
     }
 </script>
@@ -140,7 +145,7 @@
 <div class="taskbar-settings">
     <!-- Config Grid -->
     <div class="config-grid">
-        <!-- Style (EP Base) -->
+        <!-- Style (Win10 vs Win11) -->
         <div class="config-card">
             <div class="card-content">
                 <div class="icon-box">
@@ -148,7 +153,7 @@
                 </div>
                 <div class="text-info">
                     <h3>Style</h3>
-                    <p>Core taskbar engine</p>
+                    <p>Taskbar engine</p>
                 </div>
                 <div class="action-area">
                     <Select
@@ -157,7 +162,7 @@
                             { value: "win11", label: "Windows 11" },
                             { value: "win10", label: "Windows 10" },
                         ]}
-                        loading={loadingMap["style"]}
+                        loading={loadingMap["style"] ?? false}
                         on:change={handleStyleChange}
                     />
                 </div>
@@ -183,7 +188,7 @@
                             { value: "left", label: "Left" },
                             { value: "right", label: "Right" },
                         ]}
-                        loading={loadingMap["pos"]}
+                        loading={loadingMap["pos"] ?? false}
                         on:change={handlePosChange}
                     />
                 </div>
@@ -205,10 +210,9 @@
                         value={sizeValue}
                         options={[
                             { value: "small", label: "Small" },
-                            { value: "medium", label: "Medium" },
                             { value: "large", label: "Large" },
                         ]}
-                        loading={loadingMap["size"]}
+                        loading={loadingMap["size"] ?? false}
                         on:change={handleSizeChange}
                     />
                 </div>
@@ -219,20 +223,20 @@
         <div class="config-card">
             <div class="card-content">
                 <div class="icon-box">
-                    <LayoutTemplate size={20} />
+                    <AlignLeft size={20} />
                 </div>
                 <div class="text-info">
                     <h3>Align</h3>
-                    <p>Icon grouping</p>
+                    <p>Icon position</p>
                 </div>
                 <div class="action-area">
                     <Select
                         value={alignValue}
                         options={[
-                            { value: "left", label: "Left" },
                             { value: "center", label: "Center" },
+                            { value: "left", label: "Left" },
                         ]}
-                        loading={loadingMap["align"]}
+                        loading={loadingMap["align"] ?? false}
                         on:change={handleAlignChange}
                     />
                 </div>
@@ -241,12 +245,14 @@
     </div>
 
     <!-- Other Tweaks (Toggles) -->
-    <h3 class="section-title">Behavior</h3>
-    <div class="toggles-grid">
-        {#each otherTweaks as tweak (tweak.id)}
-            <TweakCard {tweak} on:toggle />
-        {/each}
-    </div>
+    {#if otherTweaks.length > 0}
+        <h3 class="section-title">Behavior</h3>
+        <div class="toggles-grid">
+            {#each otherTweaks as tweak (tweak.id)}
+                <TweakCard {tweak} on:toggle />
+            {/each}
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -259,7 +265,7 @@
 
     .config-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
         gap: 16px;
     }
 
@@ -279,7 +285,7 @@
     .card-content {
         display: flex;
         align-items: center;
-        gap: 16px;
+        gap: 12px;
         justify-content: space-between;
         width: 100%;
     }
@@ -312,6 +318,7 @@
         margin: 0;
         font-size: 12px;
         color: var(--text-muted);
+        white-space: nowrap;
     }
 
     .action-area {

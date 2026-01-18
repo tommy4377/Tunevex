@@ -18,62 +18,40 @@ impl SystemMonitor {
         let gpu_usage = Arc::new(Mutex::new(0.0));
         let gpu_usage_clone = gpu_usage.clone();
 
-        // Spawn background thread for GPU monitoring via typeperf
+        // Spawn background thread for GPU monitoring via PowerShell Get-Counter
         thread::spawn(move || {
-            let mut first_run = true;
             loop {
                 {
-                    // Run typeperf for 1 sample
-                    let output = Command::new("typeperf")
-                        .args(&["\\GPU Engine(*)\\Utilization Percentage", "-sc", "1"])
+                    // Use PowerShell Get-Counter which is more reliable than typeperf
+                    let output = Command::new("powershell")
+                        .args(&[
+                            "-NoProfile",
+                            "-Command",
+                            r#"
+$counters = Get-Counter '\GPU Engine(*engtype_3D)\Utilization Percentage' -EA SilentlyContinue
+if ($counters) {
+    $total = ($counters.CounterSamples | Measure-Object -Property CookedValue -Sum).Sum
+    [math]::Min($total, 100)
+} else { 0 }
+"#,
+                        ])
                         .creation_flags(0x08000000) // CREATE_NO_WINDOW
                         .output();
 
                     match output {
                         Ok(out) => {
                             let stdout = String::from_utf8_lossy(&out.stdout);
-                            let stderr = String::from_utf8_lossy(&out.stderr);
-
-                            if first_run {
-                                println!(
-                                    "[GPU Monitor] typeperf stdout: {}",
-                                    stdout.chars().take(300).collect::<String>()
-                                );
-                                if !stderr.is_empty() {
-                                    eprintln!("[GPU Monitor] typeperf stderr: {}", stderr);
-                                }
-                                first_run = false;
-                            }
-
-                            let lines: Vec<&str> = stdout.trim().lines().collect();
-                            if lines.len() >= 2 {
-                                let csv_line = lines.last().unwrap();
-                                let sum: f32 = csv_line
-                                    .split(',')
-                                    .skip(1)
-                                    .filter_map(|s| {
-                                        let s = s.trim().trim_matches('"');
-                                        let clean_s = s.replace(',', ".");
-                                        clean_s.parse::<f32>().ok()
-                                    })
-                                    .sum();
-
-                                let usage = if sum > 100.0 { 100.0 } else { sum };
-
+                            if let Ok(usage) = stdout.trim().parse::<f32>() {
+                                let clamped = usage.min(100.0).max(0.0);
                                 if let Ok(mut g) = gpu_usage_clone.lock() {
-                                    *g = usage;
+                                    *g = clamped;
                                 }
                             }
                         }
-                        Err(e) => {
-                            if first_run {
-                                eprintln!("[GPU Monitor] typeperf failed: {:?}", e);
-                                first_run = false;
-                            }
-                        }
+                        Err(_) => {}
                     }
                 }
-                thread::sleep(Duration::from_millis(1500));
+                thread::sleep(Duration::from_millis(2000));
             }
         });
 

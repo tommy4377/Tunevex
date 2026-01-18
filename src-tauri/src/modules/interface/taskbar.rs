@@ -10,26 +10,23 @@ use crate::modules::types::{
 pub fn get_taskbar_tweaks() -> Vec<Tweak> {
     vec![
         // ============================================
-        // ============================================
-        // 1. INIT TWEAK - Style: Win10 vs Win11
+        // 1. STYLE TWEAK - Win10 (EP) vs Win11 (Default)
+        // TaskbarStyle: 0=Win11, 1=Win10
         // ============================================
         Tweak {
             id: "ep_config_init".to_string(),
             category: TweakCategory::InterfaceUx,
-            name: "Style Engine".to_string(),
-            description: "Windows 10 Style (Required for positioning)".to_string(),
+            name: "Windows 10 Style".to_string(),
+            description: "Use Windows 10 taskbar style (enables position/size options).".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             tweak_type: TweakType::Toggle,
             enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$reg = 'HKCU:\Software\ExplorerPatcher'
-if (!(Test-Path $reg)) { "False"; exit }
-$val = (Get-ItemProperty $reg 'TaskbarStyle' -EA 0).TaskbarStyle
-if ($val -eq 1) { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: r"Software\ExplorerPatcher".to_string(),
+                key: "TaskbarStyle".to_string(),
+                expected_value: RegistryValue::DWord(1),
             }),
             operations: vec![
                 TweakOperation::RegistrySet {
@@ -38,14 +35,8 @@ if ($val -eq 1) { "True" } else { "False" }
                     key: "TaskbarStyle".to_string(),
                     value: RegistryValue::DWord(1), // 1=Win10
                 },
-                TweakOperation::RegistrySet {
-                    root_key: "HKCU".to_string(),
-                    path: r"Software\ExplorerPatcher".to_string(),
-                    key: "DisableTaskbarContextMenu".to_string(),
-                    value: RegistryValue::DWord(1),
-                },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
+                    script: r#"Start-Process cmd -ArgumentList '/c','taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe' -WindowStyle Hidden"#.to_string(),
                 }
             ],
             revert_operations: Some(vec![
@@ -53,35 +44,34 @@ if ($val -eq 1) { "True" } else { "False" }
                     root_key: "HKCU".to_string(),
                     path: r"Software\ExplorerPatcher".to_string(),
                     key: "TaskbarStyle".to_string(),
-                    value: RegistryValue::DWord(0), // 0=Win11 (Default)
+                    value: RegistryValue::DWord(0), // 0=Win11
                 },
-                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
+                TweakOperation::Powershell {
+                    script: r#"Start-Process cmd -ArgumentList '/c','taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe' -WindowStyle Hidden"#.to_string(),
                 }
             ]),
         },
 
         // ============================================
-        // Taskbar Position - Top (ExplorerPatcher)
+        // Taskbar Position - Top (EP: PrimaryTaskbarLocation=2)
         // ============================================
         Tweak {
             id: "taskbar_top_ep".to_string(),
             category: TweakCategory::InterfaceUx,
-            name: "Taskbar in Alto".to_string(),
-            description: "Sposta taskbar in cima.".to_string(),
+            name: "Taskbar Top".to_string(),
+            description: "Move taskbar to top of screen.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             tweak_type: TweakType::Toggle,
             enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
-(Get-ItemProperty 'HKCU:\Software\ExplorerPatcher' 'PrimaryTaskbarLocation' -EA 0).PrimaryTaskbarLocation -eq 2
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: r"Software\ExplorerPatcher".to_string(),
+                key: "PrimaryTaskbarLocation".to_string(),
+                expected_value: RegistryValue::DWord(2),
             }),
             operations: vec![
-                // ENFORCE WIN10 STYLE AUTOMATICALLY
+                // Enforce Win10 style first
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
                     path: r"Software\ExplorerPatcher".to_string(),
@@ -91,11 +81,11 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
                     path: r"Software\ExplorerPatcher".to_string(),
-                    key: "PrimaryTaskbarLocation".to_string(), // 2=Top
-                    value: RegistryValue::DWord(2),
+                    key: "PrimaryTaskbarLocation".to_string(),
+                    value: RegistryValue::DWord(2), // 2=Top
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
+                    script: r#"Start-Process cmd -ArgumentList '/c','taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe' -WindowStyle Hidden"#.to_string(),
                 }
             ],
             revert_operations: Some(vec![
@@ -103,33 +93,32 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     root_key: "HKCU".to_string(),
                     path: r"Software\ExplorerPatcher".to_string(),
                     key: "PrimaryTaskbarLocation".to_string(),
-                    value: RegistryValue::DWord(0), // 0=Bottom (Default)
+                    value: RegistryValue::DWord(0), // 0=Bottom
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
+                    script: r#"Start-Process cmd -ArgumentList '/c','taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe' -WindowStyle Hidden"#.to_string(),
                 }
             ]),
         },
 
-        // Taskbar Position - Left (ExplorerPatcher)
+        // Taskbar Position - Left (EP: PrimaryTaskbarLocation=1)
         Tweak {
             id: "taskbar_left_ep".to_string(),
             category: TweakCategory::InterfaceUx,
-            name: "Taskbar a Sinistra".to_string(),
-            description: "Moves taskbar to left side.".to_string(),
+            name: "Taskbar Left".to_string(),
+            description: "Move taskbar to left side of screen.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             tweak_type: TweakType::Toggle,
             enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
-(Get-ItemProperty 'HKCU:\Software\ExplorerPatcher' 'PrimaryTaskbarLocation' -EA 0).PrimaryTaskbarLocation -eq 1
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: r"Software\ExplorerPatcher".to_string(),
+                key: "PrimaryTaskbarLocation".to_string(),
+                expected_value: RegistryValue::DWord(1),
             }),
             operations: vec![
-                 TweakOperation::RegistrySet {
+                TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
                     path: r"Software\ExplorerPatcher".to_string(),
                     key: "TaskbarStyle".to_string(),
@@ -138,11 +127,11 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
                     path: r"Software\ExplorerPatcher".to_string(),
-                    key: "PrimaryTaskbarLocation".to_string(), // 1=Left
-                    value: RegistryValue::DWord(1),
+                    key: "PrimaryTaskbarLocation".to_string(),
+                    value: RegistryValue::DWord(1), // 1=Left
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
+                    script: r#"Start-Process cmd -ArgumentList '/c','taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe' -WindowStyle Hidden"#.to_string(),
                 }
             ],
             revert_operations: Some(vec![
@@ -153,30 +142,29 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(0),
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
+                    script: r#"Start-Process cmd -ArgumentList '/c','taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe' -WindowStyle Hidden"#.to_string(),
                 }
             ]),
         },
 
-        // Taskbar Position - Right (ExplorerPatcher)
+        // Taskbar Position - Right (EP: PrimaryTaskbarLocation=3)
         Tweak {
             id: "taskbar_right_ep".to_string(),
             category: TweakCategory::InterfaceUx,
-            name: "Taskbar a Destra".to_string(),
-            description: "Moves taskbar to right side.".to_string(),
+            name: "Taskbar Right".to_string(),
+            description: "Move taskbar to right side of screen.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             tweak_type: TweakType::Toggle,
             enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
-(Get-ItemProperty 'HKCU:\Software\ExplorerPatcher' 'PrimaryTaskbarLocation' -EA 0).PrimaryTaskbarLocation -eq 3
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: r"Software\ExplorerPatcher".to_string(),
+                key: "PrimaryTaskbarLocation".to_string(),
+                expected_value: RegistryValue::DWord(3),
             }),
             operations: vec![
-                 TweakOperation::RegistrySet {
+                TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
                     path: r"Software\ExplorerPatcher".to_string(),
                     key: "TaskbarStyle".to_string(),
@@ -185,11 +173,11 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
                     path: r"Software\ExplorerPatcher".to_string(),
-                    key: "PrimaryTaskbarLocation".to_string(), // 3=Right
-                    value: RegistryValue::DWord(3),
+                    key: "PrimaryTaskbarLocation".to_string(),
+                    value: RegistryValue::DWord(3), // 3=Right
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
+                    script: r#"Start-Process cmd -ArgumentList '/c','taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe' -WindowStyle Hidden"#.to_string(),
                 }
             ],
             revert_operations: Some(vec![
@@ -200,34 +188,42 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(0),
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
+                    script: r#"Start-Process cmd -ArgumentList '/c','taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe' -WindowStyle Hidden"#.to_string(),
                 }
             ]),
         },
 
-        // Taskbar Icon Size - Small (ExplorerPatcher)
+        // Taskbar Icon Size - Small (EP: TaskbarIconSize=0 for small)
         Tweak {
             id: "taskbar_small_ep".to_string(),
             category: TweakCategory::InterfaceUx,
-            name: "Icone Taskbar Piccole".to_string(),
-            description: "Sets taskbar icons to small size (16px).".to_string(),
+            name: "Small Icons".to_string(),
+            description: "Use small taskbar icons.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             tweak_type: TweakType::Toggle,
             enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"(Get-ItemProperty 'HKCU:\Software\ExplorerPatcher' 'TaskbarIconSize' -EA 0).TaskbarIconSize -eq 16"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: r"Software\ExplorerPatcher".to_string(),
+                key: "TaskbarIconSize".to_string(),
+                expected_value: RegistryValue::DWord(0), // 0=Small
             }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
                     path: r"Software\ExplorerPatcher".to_string(),
+                    key: "TaskbarStyle".to_string(),
+                    value: RegistryValue::DWord(1),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: r"Software\ExplorerPatcher".to_string(),
                     key: "TaskbarIconSize".to_string(),
-                    value: RegistryValue::DWord(16),
+                    value: RegistryValue::DWord(0), // 0=Small
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
+                    script: r#"Start-Process cmd -ArgumentList '/c','taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe' -WindowStyle Hidden"#.to_string(),
                 }
             ],
             revert_operations: Some(vec![
@@ -235,37 +231,39 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     root_key: "HKCU".to_string(),
                     path: r"Software\ExplorerPatcher".to_string(),
                     key: "TaskbarIconSize".to_string(),
-                    value: RegistryValue::DWord(24), // 24 = Large/Default
+                    value: RegistryValue::DWord(1), // 1=Large (default)
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
+                    script: r#"Start-Process cmd -ArgumentList '/c','taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe' -WindowStyle Hidden"#.to_string(),
                 }
             ]),
         },
 
-        // Taskbar Icon Size - Large (ExplorerPatcher)
+        // Taskbar Icon Size - Large (EP: TaskbarIconSize=1 for large)
         Tweak {
             id: "taskbar_large_ep".to_string(),
             category: TweakCategory::InterfaceUx,
-            name: "Icone Taskbar Grandi".to_string(),
-            description: "Sets taskbar icons to large size (32px).".to_string(),
+            name: "Large Icons".to_string(),
+            description: "Use large taskbar icons (default).".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             tweak_type: TweakType::Toggle,
             enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"(Get-ItemProperty 'HKCU:\Software\ExplorerPatcher' 'TaskbarIconSize' -EA 0).TaskbarIconSize -eq 32"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: r"Software\ExplorerPatcher".to_string(),
+                key: "TaskbarIconSize".to_string(),
+                expected_value: RegistryValue::DWord(1), // 1=Large
             }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
                     path: r"Software\ExplorerPatcher".to_string(),
                     key: "TaskbarIconSize".to_string(),
-                    value: RegistryValue::DWord(32),
+                    value: RegistryValue::DWord(1), // 1=Large
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
+                    script: r#"Start-Process cmd -ArgumentList '/c','taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe' -WindowStyle Hidden"#.to_string(),
                 }
             ],
             revert_operations: Some(vec![
@@ -273,20 +271,21 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     root_key: "HKCU".to_string(),
                     path: r"Software\ExplorerPatcher".to_string(),
                     key: "TaskbarIconSize".to_string(),
-                    value: RegistryValue::DWord(24),
+                    value: RegistryValue::DWord(1),
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
+                    script: r#"Start-Process cmd -ArgumentList '/c','taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe' -WindowStyle Hidden"#.to_string(),
                 }
             ]),
         },
 
-        // Keep: Taskbar Alignment (Native) - Still works fine and is different from Position
+        // Native: Taskbar Alignment (Left vs Center)
+        // TaskbarAl: 0=Left, 1=Center
         Tweak {
             id: "taskbar_align_left".to_string(),
             category: TweakCategory::InterfaceUx,
-            name: "Align Taskbar Icons Left".to_string(),
-            description: "Moves taskbar icons to the left side (Windows 10 style).".to_string(),
+            name: "Align Icons Left".to_string(),
+            description: "Align taskbar icons to the left.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             tweak_type: TweakType::Toggle,
@@ -297,30 +296,27 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                 key: "TaskbarAl".to_string(),
                 expected_value: RegistryValue::DWord(0),
             }),
-            revert_operations: Some(vec![TweakOperation::RegistrySet {
-                root_key: "HKCU".to_string(),
-                path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced".to_string(),
-                key: "TaskbarAl".to_string(),
-                value: RegistryValue::DWord(1), // Center (default)
-            }]),
             operations: vec![TweakOperation::RegistrySet {
                 root_key: "HKCU".to_string(),
                 path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced".to_string(),
                 key: "TaskbarAl".to_string(),
                 value: RegistryValue::DWord(0), // Left
             }],
+            revert_operations: Some(vec![TweakOperation::RegistrySet {
+                root_key: "HKCU".to_string(),
+                path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced".to_string(),
+                key: "TaskbarAl".to_string(),
+                value: RegistryValue::DWord(1), // Center
+            }]),
         },
 
-        // Keep: Never Combine (Is now handled by EP via TaskbarGlomLevel? Or native?)
-        // The Prompt says: "Rimuovi vecchi tweak rotti (TaskbarSi, StuckRects3)."
-        // NeverCombine (TaskbarGlomLevel) is native but might be enhanced by EP.
-        // I will keep the native one I wrote earlier as it seemed to be working or at least attempting to.
-        // Actually, EP uses `TaskbarGlomLevel` too (it respects the native key often).
+        // Native: Never Combine
+        // TaskbarGlomLevel: 0=Always, 1=WhenFull, 2=Never
         Tweak {
             id: "taskbar_never_combine".to_string(),
             category: TweakCategory::InterfaceUx,
-            name: "Never Combine Taskbar".to_string(),
-            description: "Shows separate buttons for each window.".to_string(),
+            name: "Never Combine".to_string(),
+            description: "Show separate buttons for each window.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             tweak_type: TweakType::Toggle,
@@ -331,28 +327,28 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                 key: "TaskbarGlomLevel".to_string(),
                 expected_value: RegistryValue::DWord(2),
             }),
-            revert_operations: Some(vec![
-                TweakOperation::RegistrySet {
-                    root_key: "HKCU".to_string(),
-                    path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced".to_string(),
-                    key: "TaskbarGlomLevel".to_string(),
-                    value: RegistryValue::DWord(0),
-                },
-                TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
-                }
-            ]),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
                     path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced".to_string(),
                     key: "TaskbarGlomLevel".to_string(),
-                    value: RegistryValue::DWord(2),
+                    value: RegistryValue::DWord(2), // Never
                 },
                 TweakOperation::Powershell {
-                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe""#.to_string(),
+                    script: r#"Start-Process cmd -ArgumentList '/c','taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe' -WindowStyle Hidden"#.to_string(),
                 }
             ],
+            revert_operations: Some(vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced".to_string(),
+                    key: "TaskbarGlomLevel".to_string(),
+                    value: RegistryValue::DWord(0), // Always
+                },
+                TweakOperation::Powershell {
+                    script: r#"Start-Process cmd -ArgumentList '/c','taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & start explorer.exe' -WindowStyle Hidden"#.to_string(),
+                }
+            ]),
         },
     ]
 }
