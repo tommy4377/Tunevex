@@ -2,14 +2,15 @@
     import { invoke } from "@tauri-apps/api/core";
     import type { Tweak } from "$lib/types";
     import Select from "./Select.svelte";
+    import TweakCard from "../TweakCard.svelte";
     import {
         LayoutTemplate,
         Monitor,
         ArrowUp,
         AlignLeft,
-        Layers,
+        Download,
+        RotateCcw,
     } from "lucide-svelte";
-    import TweakCard from "../TweakCard.svelte";
     import { createEventDispatcher } from "svelte";
 
     export let tweaks: Tweak[] = [];
@@ -18,13 +19,13 @@
 
     // Helper to check if a tweak is enabled
     function isEnabled(id: string): boolean {
-        const tweak = tweaks.find((t) => t.id === id);
-        return tweak?.enabled ?? false;
+        return tweaks.find((t) => t.id === id)?.enabled ?? false;
     }
 
-    // --- Computed Values (reactive) ---
+    // Check if EP is installed
+    $: epInstalled = isEnabled("ep_install");
 
-    // Style: ep_style_win10 enabled = Win10, otherwise Win11
+    // Style: ep_style_win10 enabled = Win10
     $: styleValue = isEnabled("ep_style_win10") ? "win10" : "win11";
 
     // Position: Check which position tweak is enabled
@@ -42,28 +43,32 @@
     // Alignment: Left alignment enabled?
     $: alignValue = isEnabled("taskbar_align_left") ? "left" : "center";
 
-    // Other tweaks (not handled by dropdowns)
-    $: otherTweaks = tweaks.filter(
-        (t) =>
-            t.id !== "ep_style_win10" &&
-            !t.id.startsWith("taskbar_pos_") &&
-            t.id !== "taskbar_icons_small" &&
-            t.id !== "taskbar_align_left",
-    );
+    // Tweaks that show as toggle cards (not in dropdowns)
+    $: toggleTweaks = tweaks.filter((t) => t.id === "taskbar_never_combine");
 
-    // --- Loading State ---
+    // Loading state
     let loading: Record<string, boolean> = {};
-
     function setLoading(key: string, val: boolean) {
         loading = { ...loading, [key]: val };
     }
 
-    // Trigger parent to refresh tweaks
     function triggerRefresh() {
         dispatch("refresh");
     }
 
     // --- Handlers ---
+
+    async function installEP() {
+        setLoading("ep", true);
+        try {
+            await invoke("apply_tweak", { id: "ep_install" });
+            triggerRefresh();
+        } catch (err) {
+            console.error("EP install error:", err);
+        } finally {
+            setLoading("ep", false);
+        }
+    }
 
     async function handleStyleChange(e: CustomEvent) {
         setLoading("style", true);
@@ -75,7 +80,7 @@
             }
             triggerRefresh();
         } catch (err) {
-            console.error("Style change error:", err);
+            console.error("Style error:", err);
         } finally {
             setLoading("style", false);
         }
@@ -85,25 +90,21 @@
         setLoading("pos", true);
         const val = e.detail.value;
         try {
-            // Undo all position tweaks first
-            const posTweaks = [
+            // Undo all position tweaks
+            for (const id of [
                 "taskbar_pos_top",
                 "taskbar_pos_left",
                 "taskbar_pos_right",
-            ];
-            for (const id of posTweaks) {
-                if (isEnabled(id)) {
-                    await invoke("undo_tweak", { id });
-                }
+            ]) {
+                if (isEnabled(id)) await invoke("undo_tweak", { id });
             }
-
-            // Apply new position (bottom = default, no tweak needed)
+            // Apply new (bottom = default, no tweak)
             if (val !== "bottom") {
                 await invoke("apply_tweak", { id: `taskbar_pos_${val}` });
             }
             triggerRefresh();
         } catch (err) {
-            console.error("Position change error:", err);
+            console.error("Position error:", err);
         } finally {
             setLoading("pos", false);
         }
@@ -119,7 +120,7 @@
             }
             triggerRefresh();
         } catch (err) {
-            console.error("Size change error:", err);
+            console.error("Size error:", err);
         } finally {
             setLoading("size", false);
         }
@@ -135,22 +136,59 @@
             }
             triggerRefresh();
         } catch (err) {
-            console.error("Align change error:", err);
+            console.error("Align error:", err);
         } finally {
             setLoading("align", false);
+        }
+    }
+
+    async function resetAll() {
+        setLoading("reset", true);
+        try {
+            await invoke("apply_tweak", { id: "ep_full_reset" });
+            triggerRefresh();
+        } catch (err) {
+            console.error("Reset error:", err);
+        } finally {
+            setLoading("reset", false);
         }
     }
 </script>
 
 <div class="taskbar-settings">
+    <!-- EP Status Banner -->
+    {#if !epInstalled}
+        <div class="ep-banner warning">
+            <div class="banner-content">
+                <Download size={18} />
+                <div class="banner-text">
+                    <strong>ExplorerPatcher Required</strong>
+                    <span>Most taskbar features need EP installed</span>
+                </div>
+                <button
+                    class="install-btn"
+                    on:click={installEP}
+                    disabled={loading["ep"]}
+                >
+                    {loading["ep"] ? "Installing..." : "Install EP"}
+                </button>
+            </div>
+        </div>
+    {:else}
+        <div class="ep-banner success">
+            <div class="banner-content">
+                <LayoutTemplate size={18} />
+                <span>ExplorerPatcher is installed</span>
+            </div>
+        </div>
+    {/if}
+
     <!-- Config Grid -->
     <div class="config-grid">
         <!-- Style -->
         <div class="config-card">
             <div class="card-content">
-                <div class="icon-box style">
-                    <LayoutTemplate size={20} />
-                </div>
+                <div class="icon-box style"><LayoutTemplate size={20} /></div>
                 <div class="text-info">
                     <h3>Style</h3>
                     <p>Taskbar engine</p>
@@ -170,11 +208,9 @@
         </div>
 
         <!-- Position -->
-        <div class="config-card">
+        <div class="config-card" class:disabled={!epInstalled}>
             <div class="card-content">
-                <div class="icon-box pos">
-                    <ArrowUp size={20} />
-                </div>
+                <div class="icon-box pos"><ArrowUp size={20} /></div>
                 <div class="text-info">
                     <h3>Position</h3>
                     <p>Screen edge</p>
@@ -196,11 +232,9 @@
         </div>
 
         <!-- Size -->
-        <div class="config-card">
+        <div class="config-card" class:disabled={!epInstalled}>
             <div class="card-content">
-                <div class="icon-box size">
-                    <Monitor size={20} />
-                </div>
+                <div class="icon-box size"><Monitor size={20} /></div>
                 <div class="text-info">
                     <h3>Icon Size</h3>
                     <p>Large or small</p>
@@ -222,9 +256,7 @@
         <!-- Alignment -->
         <div class="config-card">
             <div class="card-content">
-                <div class="icon-box align">
-                    <AlignLeft size={20} />
-                </div>
+                <div class="icon-box align"><AlignLeft size={20} /></div>
                 <div class="text-info">
                     <h3>Alignment</h3>
                     <p>Icon position</p>
@@ -244,23 +276,92 @@
         </div>
     </div>
 
-    <!-- Other Tweaks (as toggle cards) -->
-    {#if otherTweaks.length > 0}
+    <!-- Toggle Tweaks -->
+    {#if toggleTweaks.length > 0}
         <h3 class="section-title">Behavior</h3>
         <div class="toggles-grid">
-            {#each otherTweaks as tweak (tweak.id)}
+            {#each toggleTweaks as tweak (tweak.id)}
                 <TweakCard {tweak} on:toggle />
             {/each}
         </div>
     {/if}
+
+    <!-- Reset Button -->
+    <div class="reset-section">
+        <button
+            class="reset-btn"
+            on:click={resetAll}
+            disabled={loading["reset"]}
+        >
+            <RotateCcw size={16} />
+            {loading["reset"] ? "Resetting..." : "Reset All Taskbar Settings"}
+        </button>
+    </div>
 </div>
 
 <style>
     .taskbar-settings {
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: 20px;
         padding-bottom: 24px;
+    }
+
+    .ep-banner {
+        padding: 12px 16px;
+        border-radius: 10px;
+        font-size: 13px;
+    }
+
+    .ep-banner.warning {
+        background: rgba(251, 146, 60, 0.12);
+        border: 1px solid rgba(251, 146, 60, 0.3);
+        color: #fb923c;
+    }
+
+    .ep-banner.success {
+        background: rgba(34, 197, 94, 0.1);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: #22c55e;
+    }
+
+    .banner-content {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .banner-text {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .banner-text span {
+        font-size: 12px;
+        opacity: 0.8;
+    }
+
+    .install-btn {
+        background: rgba(251, 146, 60, 0.2);
+        border: 1px solid rgba(251, 146, 60, 0.4);
+        color: #fb923c;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .install-btn:hover:not(:disabled) {
+        background: rgba(251, 146, 60, 0.3);
+    }
+
+    .install-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
     }
 
     .config-grid {
@@ -280,6 +381,11 @@
     .config-card:hover {
         background: rgba(255, 255, 255, 0.05);
         border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .config-card.disabled {
+        opacity: 0.5;
+        pointer-events: none;
     }
 
     .card-content {
@@ -304,17 +410,14 @@
         background: rgba(139, 92, 246, 0.15);
         color: #a78bfa;
     }
-
     .icon-box.pos {
         background: rgba(59, 130, 246, 0.15);
         color: #60a5fa;
     }
-
     .icon-box.size {
         background: rgba(16, 185, 129, 0.15);
         color: #34d399;
     }
-
     .icon-box.align {
         background: rgba(251, 146, 60, 0.15);
         color: #fb923c;
@@ -324,14 +427,12 @@
         flex: 1;
         min-width: 0;
     }
-
     .text-info h3 {
         margin: 0 0 2px 0;
         font-size: 14px;
         font-weight: 600;
         color: var(--text-color);
     }
-
     .text-info p {
         margin: 0;
         font-size: 12px;
@@ -355,5 +456,35 @@
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
         gap: 16px;
+    }
+
+    .reset-section {
+        margin-top: 8px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .reset-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #ef4444;
+        padding: 10px 18px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .reset-btn:hover:not(:disabled) {
+        background: rgba(239, 68, 68, 0.2);
+    }
+
+    .reset-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
     }
 </style>
