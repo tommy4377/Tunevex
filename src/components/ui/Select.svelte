@@ -83,7 +83,8 @@
 <style>
     .select-container {
         position: relative;
-        width: 200px;
+        width: 140px;
+        min-width: 120px;
     }
 
     .select-container.disabled {

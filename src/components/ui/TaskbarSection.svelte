@@ -13,25 +13,39 @@
 
     // --- Computed Values ---
 
+    // --- Computed Values ---
+
     // 0 = Left, 1 = Center (Default)
     $: alignValue = isEnabled("taskbar_align_left") ? "left" : "center";
 
-    // Small, Large, or Medium (Default if neither)
-    $: sizeValue = isEnabled("taskbar_size_small")
+    // Small (16), Large (32), or Medium (Default)
+    $: sizeValue = isEnabled("taskbar_small_ep")
         ? "small"
-        : isEnabled("taskbar_size_large")
+        : isEnabled("taskbar_large_ep")
           ? "large"
           : "medium";
 
-    // Top, Bottom (Default)
-    $: posValue = isEnabled("taskbar_position_top") ? "top" : "bottom";
+    // Top, Left, Right, Bottom (Default)
+    $: posValue = isEnabled("taskbar_top_ep")
+        ? "top"
+        : isEnabled("taskbar_left_ep")
+          ? "left"
+          : isEnabled("taskbar_right_ep")
+            ? "right"
+            : "bottom";
 
-    // Other standalone tweaks
+    // Style: Win10 (EP Init Active) vs Win11 (Default)
+    // We check 'ep_config_init' which sets TaskbarStyle=1
+    $: styleValue = isEnabled("ep_config_init") ? "win10" : "win11";
+
+    // Other standalone tweaks (filter out position/size/style ones)
     $: otherTweaks = tweaks.filter(
         (t) =>
             !t.id.includes("size") &&
             !t.id.includes("align") &&
-            !t.id.includes("position"),
+            !t.id.includes("position") &&
+            !t.id.includes("_ep") && // Hide raw EP tweaks from toggle list
+            t.id !== "ep_config_init",
     );
 
     // --- Handlers ---
@@ -47,8 +61,6 @@
             } else {
                 await invoke("undo_tweak", { id: "taskbar_align_left" });
             }
-            // Trigger refresh manually if stores don't update fast enough?
-            // The activeCategory store in parent might fetch updates.
         } catch (err) {
             console.error(err);
         } finally {
@@ -60,21 +72,18 @@
         loadingMap["size"] = true;
         const val = e.detail.value;
         try {
-            if (val === "small") {
-                if (isEnabled("taskbar_size_large"))
-                    await invoke("undo_tweak", { id: "taskbar_size_large" });
-                await invoke("apply_tweak", { id: "taskbar_size_small" });
-            } else if (val === "large") {
-                if (isEnabled("taskbar_size_small"))
-                    await invoke("undo_tweak", { id: "taskbar_size_small" });
-                await invoke("apply_tweak", { id: "taskbar_size_large" });
-            } else {
-                // Medium = disable both
-                if (isEnabled("taskbar_size_small"))
-                    await invoke("undo_tweak", { id: "taskbar_size_small" });
-                if (isEnabled("taskbar_size_large"))
-                    await invoke("undo_tweak", { id: "taskbar_size_large" });
-            }
+            // Undo current size tweaks first
+            if (isEnabled("taskbar_small_ep"))
+                await invoke("undo_tweak", { id: "taskbar_small_ep" });
+            if (isEnabled("taskbar_large_ep"))
+                await invoke("undo_tweak", { id: "taskbar_large_ep" });
+
+            // Apply new
+            if (val === "small")
+                await invoke("apply_tweak", { id: "taskbar_small_ep" });
+            if (val === "large")
+                await invoke("apply_tweak", { id: "taskbar_large_ep" });
+            // medium = nothing (default)
         } catch (err) {
             console.error(err);
         } finally {
@@ -86,15 +95,44 @@
         loadingMap["pos"] = true;
         const val = e.detail.value;
         try {
-            if (val === "top") {
-                await invoke("apply_tweak", { id: "taskbar_position_top" });
-            } else {
-                await invoke("undo_tweak", { id: "taskbar_position_top" });
-            }
+            // Undo all positional tweaks
+            if (isEnabled("taskbar_top_ep"))
+                await invoke("undo_tweak", { id: "taskbar_top_ep" });
+            if (isEnabled("taskbar_left_ep"))
+                await invoke("undo_tweak", { id: "taskbar_left_ep" });
+            if (isEnabled("taskbar_right_ep"))
+                await invoke("undo_tweak", { id: "taskbar_right_ep" });
+
+            // Apply new
+            if (val === "top")
+                await invoke("apply_tweak", { id: "taskbar_top_ep" });
+            if (val === "left")
+                await invoke("apply_tweak", { id: "taskbar_left_ep" });
+            if (val === "right")
+                await invoke("apply_tweak", { id: "taskbar_right_ep" });
+            // bottom = nothing (default)
         } catch (err) {
             console.error(err);
         } finally {
             loadingMap["pos"] = false;
+        }
+    }
+
+    async function handleStyleChange(e: CustomEvent) {
+        loadingMap["style"] = true;
+        const val = e.detail.value;
+        try {
+            if (val === "win10") {
+                await invoke("apply_tweak", { id: "ep_config_init" });
+            } else {
+                await invoke("undo_tweak", { id: "ep_config_init" }); // Needs revert op in back
+                // If no revert op, we might need manual reset, but ep_config_init currently OneTime
+                // Ideally ep_config_init should be Toggle for this to work perfectly.
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            loadingMap["style"] = false;
         }
     }
 </script>
@@ -102,25 +140,51 @@
 <div class="taskbar-settings">
     <!-- Config Grid -->
     <div class="config-grid">
-        <!-- Alignment -->
+        <!-- Style (EP Base) -->
         <div class="config-card">
             <div class="card-content">
                 <div class="icon-box">
                     <LayoutTemplate size={20} />
                 </div>
                 <div class="text-info">
-                    <h3>Alignment</h3>
-                    <p>Icon position on taskbar</p>
+                    <h3>Style</h3>
+                    <p>Core taskbar engine</p>
                 </div>
                 <div class="action-area">
                     <Select
-                        value={alignValue}
+                        value={styleValue}
                         options={[
-                            { value: "left", label: "Left" },
-                            { value: "center", label: "Center" },
+                            { value: "win11", label: "Windows 11" },
+                            { value: "win10", label: "Windows 10" },
                         ]}
-                        loading={loadingMap["align"]}
-                        on:change={handleAlignChange}
+                        loading={loadingMap["style"]}
+                        on:change={handleStyleChange}
+                    />
+                </div>
+            </div>
+        </div>
+
+        <!-- Position -->
+        <div class="config-card">
+            <div class="card-content">
+                <div class="icon-box">
+                    <ArrowUp size={20} />
+                </div>
+                <div class="text-info">
+                    <h3>Position</h3>
+                    <p>Screen edge</p>
+                </div>
+                <div class="action-area">
+                    <Select
+                        value={posValue}
+                        options={[
+                            { value: "bottom", label: "Bottom" },
+                            { value: "top", label: "Top" },
+                            { value: "left", label: "Left" },
+                            { value: "right", label: "Right" },
+                        ]}
+                        loading={loadingMap["pos"]}
+                        on:change={handlePosChange}
                     />
                 </div>
             </div>
@@ -133,8 +197,8 @@
                     <Monitor size={20} />
                 </div>
                 <div class="text-info">
-                    <h3>Icon Size</h3>
-                    <p>Taskbar height & scale</p>
+                    <h3>Size</h3>
+                    <p>Icon scale</p>
                 </div>
                 <div class="action-area">
                     <Select
@@ -151,25 +215,25 @@
             </div>
         </div>
 
-        <!-- Position -->
+        <!-- Alignment -->
         <div class="config-card">
             <div class="card-content">
                 <div class="icon-box">
-                    <ArrowUp size={20} />
+                    <LayoutTemplate size={20} />
                 </div>
                 <div class="text-info">
-                    <h3>Position</h3>
-                    <p>Screen edge location</p>
+                    <h3>Align</h3>
+                    <p>Icon grouping</p>
                 </div>
                 <div class="action-area">
                     <Select
-                        value={posValue}
+                        value={alignValue}
                         options={[
-                            { value: "top", label: "Top" },
-                            { value: "bottom", label: "Bottom" },
+                            { value: "left", label: "Left" },
+                            { value: "center", label: "Center" },
                         ]}
-                        loading={loadingMap["pos"]}
-                        on:change={handlePosChange}
+                        loading={loadingMap["align"]}
+                        on:change={handleAlignChange}
                     />
                 </div>
             </div>

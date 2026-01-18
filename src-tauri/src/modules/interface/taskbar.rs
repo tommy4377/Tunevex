@@ -10,16 +10,17 @@ use crate::modules::types::{
 pub fn get_taskbar_tweaks() -> Vec<Tweak> {
     vec![
         // ============================================
-        // 1. INIT TWEAK - User MUST activate this to enable EP features
+        // ============================================
+        // 1. INIT TWEAK - Style: Win10 vs Win11
         // ============================================
         Tweak {
             id: "ep_config_init".to_string(),
             category: TweakCategory::InterfaceUx,
-            name: "Init Taskbar Engine".to_string(),
-            description: "Configura ExplorerPatcher (richiesto per top/left/small).".to_string(),
+            name: "Style Engine".to_string(),
+            description: "Windows 10 Style (Required for positioning)".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
-            tweak_type: TweakType::Action, // Or Toggle if we want to check state
+            tweak_type: TweakType::Toggle,
             enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
@@ -43,13 +44,21 @@ if ($val -eq 1) { "True" } else { "False" }
                     key: "DisableTaskbarContextMenu".to_string(),
                     value: RegistryValue::DWord(1),
                 },
-                // Restart Explorer using the robust batch command
                 TweakOperation::Powershell {
                     script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 3 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
                 }
             ],
-            // No strict revert functionality needed for OneTime, but we could reset keys if desired.
-            revert_operations: None, 
+            revert_operations: Some(vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: r"Software\ExplorerPatcher".to_string(),
+                    key: "TaskbarStyle".to_string(),
+                    value: RegistryValue::DWord(0), // 0=Win11 (Default)
+                },
+                 TweakOperation::Powershell {
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 3 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
+                }
+            ]),
         },
 
         // ============================================
@@ -72,6 +81,13 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                 expected_output: "True".to_string(),
             }),
             operations: vec![
+                // ENFORCE WIN10 STYLE AUTOMATICALLY
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: r"Software\ExplorerPatcher".to_string(),
+                    key: "TaskbarStyle".to_string(),
+                    value: RegistryValue::DWord(1),
+                },
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
                     path: r"Software\ExplorerPatcher".to_string(),
@@ -113,6 +129,12 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                 expected_output: "True".to_string(),
             }),
             operations: vec![
+                 TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: r"Software\ExplorerPatcher".to_string(),
+                    key: "TaskbarStyle".to_string(),
+                    value: RegistryValue::DWord(1),
+                },
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
                     path: r"Software\ExplorerPatcher".to_string(),
@@ -154,6 +176,12 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                 expected_output: "True".to_string(),
             }),
             operations: vec![
+                 TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: r"Software\ExplorerPatcher".to_string(),
+                    key: "TaskbarStyle".to_string(),
+                    value: RegistryValue::DWord(1),
+                },
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
                     path: r"Software\ExplorerPatcher".to_string(),
