@@ -19,7 +19,7 @@ pub fn get_taskbar_tweaks() -> Vec<Tweak> {
             description: "Configura ExplorerPatcher (richiesto per top/left/small).".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
-            tweak_type: TweakType::OneTime, // Or Toggle if we want to check state
+            tweak_type: TweakType::Action, // Or Toggle if we want to check state
             enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
