@@ -1,7 +1,7 @@
 <script lang="ts">
     import { invoke } from "@tauri-apps/api/core";
     import { fade } from "svelte/transition";
-    import { Target, Moon, Folder, Settings, Palette } from "lucide-svelte";
+    import { Target, Moon, Folder, Settings } from "lucide-svelte";
     import { Card, CardGrid, BackButton } from "../ui";
     import TweakCard from "../TweakCard.svelte";
     import type { Tweak } from "$lib/types";
@@ -102,13 +102,7 @@
 
 <div class="ui-dashboard" in:fade>
     {#if currentView === "dashboard"}
-        <div class="header">
-            <div class="header-icon"><Palette size={28} /></div>
-            <h2>Interface Tweaks</h2>
-            <p class="subtitle">Customize Windows appearance and behavior</p>
-        </div>
-
-        <CardGrid columns="repeat(auto-fill, minmax(200px, 1fr))" gap="16px">
+        <CardGrid>
             {#each sections as section}
                 <Card
                     icon={section.icon}
@@ -144,27 +138,6 @@
         overflow-y: auto;
         padding: 24px;
         gap: 20px;
-    }
-
-    .header {
-        text-align: center;
-    }
-
-    .header-icon {
-        color: var(--accent-color);
-        margin-bottom: 8px;
-    }
-
-    .header h2 {
-        margin: 0;
-        font-size: 28px;
-        color: var(--text-color);
-    }
-
-    .subtitle {
-        color: var(--text-muted);
-        margin: 8px 0 0;
-        font-size: 14px;
     }
 
     .detail-view {

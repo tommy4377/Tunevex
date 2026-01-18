@@ -104,8 +104,12 @@
     }
 
     button.active {
-        background: var(--accent-color);
-        color: white;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text-color);
+    }
+
+    button.active :global(svg) {
+        color: var(--accent-color);
     }
 
     .label {

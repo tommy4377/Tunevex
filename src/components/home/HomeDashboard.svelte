@@ -391,7 +391,7 @@
         padding: 16px;
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: 12px;
         overflow: hidden;
     }
 
@@ -573,7 +573,6 @@
 
     /* Restore Section */
     .restore-section {
-        margin-top: auto;
         padding-top: 16px;
         border-top: var(--border-glass);
     }

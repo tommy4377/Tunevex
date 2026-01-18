@@ -202,21 +202,7 @@ if (($panel.ShowStartupPanel -eq 0) -and ($capture.AppCaptureEnabled -eq 0)) { "
             id: "gaming_disable_fso".to_string(),
             category: TweakCategory::GameOptimizations,
             name: "Disable Fullscreen Optimizations".to_string(),
-            description: "Globally disables fullscreen optimizations (FSO).
-
-⚠️ MODERN ADVICE (2024+):
-FSO has improved significantly and is now RECOMMENDED for:
-- Variable Refresh Rate (VRR/G-Sync/FreeSync) monitors
-- HDR displays
-- Multi-monitor setups
-- Alt-Tab without black screens
-
-Consider disabling ONLY if:
-- You experience input lag in competitive games
-- Games stutter or have frame pacing issues with FSO on
-- You don't use VRR or HDR
-
-Disabling FSO may BREAK VRR and HDR functionality!".to_string(),
+            description: "Globally disables fullscreen optimizations (FSO). May improve input latency in competitive games but can break VRR/HDR.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
             revert_operations: Some(vec![
@@ -334,7 +320,7 @@ Disabling FSO may BREAK VRR and HDR functionality!".to_string(),
             id: "gaming_disable_network_throttling".to_string(),
             category: TweakCategory::GameOptimizations,
             name: "Disable Network Throttling".to_string(),
-            description: "Disables Windows network throttling (10 packets/ms limit). Reduces online gaming latency by 10-30ms. Also sets SystemResponsiveness to 0 for maximum foreground priority.".to_string(),
+            description: "Disables network throttling and maximizes foreground priority. Reduces online gaming latency.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             tweak_type: TweakType::Toggle, enabled: false,
@@ -381,16 +367,7 @@ Disabling FSO may BREAK VRR and HDR functionality!".to_string(),
             id: "gaming_disable_visual_effects".to_string(),
             category: TweakCategory::GameOptimizations,
             name: "Disable Visual Effects".to_string(),
-            description: "Disables Windows visual effects and animations for maximum performance.
-
-Disables:
-- Window animations
-- Taskbar animations
-- Smooth scrolling
-- Tooltip fade
-- Menu fade/slide effects
-
-Recommended for gaming systems where every frame counts.".to_string(),
+            description: "Disables Windows animations and visual effects for best performance.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             tweak_type: TweakType::Toggle, enabled: false,
@@ -449,16 +426,7 @@ Write-Host "You may need to restart Explorer or log off for all changes to apply
             id: "gaming_disable_mmcss".to_string(),
             category: TweakCategory::GameOptimizations,
             name: "Disable MMCSS Service".to_string(),
-            description: "Disables Multimedia Class Scheduler Service (MMCSS).
-
-Some systems perform better without MMCSS interference:
-- Older CPUs with limited cores
-- Systems with aggressive custom power plans
-- Specific game engine issues
-
-WARNING: This may HURT performance on most modern systems.
-MMCSS normally helps by boosting audio/video thread priority.
-Only disable if you've tested and confirmed improvement.".to_string(),
+            description: "Disables MMCSS service. Only use if you've tested and confirmed improvement on your system.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
             tweak_type: TweakType::Toggle, enabled: false,
