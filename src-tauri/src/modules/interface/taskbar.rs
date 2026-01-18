@@ -10,18 +10,57 @@ use crate::modules::types::{
 pub fn get_taskbar_tweaks() -> Vec<Tweak> {
     vec![
         // ============================================
-        // Helper: Restart-ExplorerSilent is typically used, but we'll inline it for reliability here
-        // or assume the common TweakOperation::Powershell handles it.
-        // User requested: "taskbar top/left/right, small/large icons"
+        // 1. INIT TWEAK - User MUST activate this to enable EP features
         // ============================================
+        Tweak {
+            id: "ep_config_init".to_string(),
+            category: TweakCategory::InterfaceUx,
+            name: "Init Taskbar Engine".to_string(),
+            description: "Configura ExplorerPatcher (richiesto per top/left/small).".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: true,
+            tweak_type: TweakType::OneTime, // Or Toggle if we want to check state
+            enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$reg = 'HKCU:\Software\ExplorerPatcher'
+if (!(Test-Path $reg)) { "False"; exit }
+$val = (Get-ItemProperty $reg 'TaskbarStyle' -EA 0).TaskbarStyle
+if ($val -eq 1) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: r"Software\ExplorerPatcher".to_string(),
+                    key: "TaskbarStyle".to_string(),
+                    value: RegistryValue::DWord(1), // 1=Win10
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: r"Software\ExplorerPatcher".to_string(),
+                    key: "DisableTaskbarContextMenu".to_string(),
+                    value: RegistryValue::DWord(1),
+                },
+                // Restart Explorer using the robust batch command
+                TweakOperation::Powershell {
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 3 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
+                }
+            ],
+            // No strict revert functionality needed for OneTime, but we could reset keys if desired.
+            revert_operations: None, 
+        },
 
+        // ============================================
         // Taskbar Position - Top (ExplorerPatcher)
+        // ============================================
         Tweak {
             id: "taskbar_top_ep".to_string(),
             category: TweakCategory::InterfaceUx,
             name: "Taskbar in Alto".to_string(),
-            description: "Sposta taskbar in cima.".to_string(), // Keep short or match prompt style
-            warning_level: WarningLevel::Safe, // It's safe via EP
+            description: "Sposta taskbar in cima.".to_string(),
+            warning_level: WarningLevel::Safe,
             requires_restart: true,
             tweak_type: TweakType::Toggle,
             enabled: false,
@@ -40,7 +79,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(1),
                 },
                 TweakOperation::Powershell {
-                    script: r#"Stop-Process -Name 'explorer','ep_*','ExplorerPatcher*' -Force -EA SilentlyContinue; Start-Sleep 1; Start-Process explorer.exe"#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
                 }
             ],
             revert_operations: Some(vec![
@@ -51,7 +90,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(0), // 0=Bottom (Default)
                 },
                 TweakOperation::Powershell {
-                    script: r#"Stop-Process -Name 'explorer','ep_*','ExplorerPatcher*' -Force -EA SilentlyContinue; Start-Sleep 1; Start-Process explorer.exe"#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
                 }
             ]),
         },
@@ -81,7 +120,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(2),
                 },
                 TweakOperation::Powershell {
-                    script: r#"Stop-Process -Name 'explorer','ep_*','ExplorerPatcher*' -Force -EA SilentlyContinue; Start-Sleep 1; Start-Process explorer.exe"#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
                 }
             ],
             revert_operations: Some(vec![
@@ -92,7 +131,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(0),
                 },
                 TweakOperation::Powershell {
-                    script: r#"Stop-Process -Name 'explorer','ep_*','ExplorerPatcher*' -Force -EA SilentlyContinue; Start-Sleep 1; Start-Process explorer.exe"#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
                 }
             ]),
         },
@@ -122,7 +161,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(3),
                 },
                 TweakOperation::Powershell {
-                    script: r#"Stop-Process -Name 'explorer','ep_*','ExplorerPatcher*' -Force -EA SilentlyContinue; Start-Sleep 1; Start-Process explorer.exe"#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
                 }
             ],
             revert_operations: Some(vec![
@@ -133,7 +172,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(0),
                 },
                 TweakOperation::Powershell {
-                    script: r#"Stop-Process -Name 'explorer','ep_*','ExplorerPatcher*' -Force -EA SilentlyContinue; Start-Sleep 1; Start-Process explorer.exe"#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
                 }
             ]),
         },
@@ -160,7 +199,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(16),
                 },
                 TweakOperation::Powershell {
-                    script: r#"Stop-Process -Name 'explorer','ep_*','ExplorerPatcher*' -Force -EA SilentlyContinue; Start-Sleep 1; Start-Process explorer.exe"#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
                 }
             ],
             revert_operations: Some(vec![
@@ -168,10 +207,10 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     root_key: "HKCU".to_string(),
                     path: r"Software\ExplorerPatcher".to_string(),
                     key: "TaskbarIconSize".to_string(),
-                    value: RegistryValue::DWord(24), // 24 = Large/Default in older wins? Or 32? Assuming 24 is medium/default.
+                    value: RegistryValue::DWord(24), // 24 = Large/Default
                 },
                 TweakOperation::Powershell {
-                    script: r#"Stop-Process -Name 'explorer','ep_*','ExplorerPatcher*' -Force -EA SilentlyContinue; Start-Sleep 1; Start-Process explorer.exe"#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
                 }
             ]),
         },
@@ -198,7 +237,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(32),
                 },
                 TweakOperation::Powershell {
-                    script: r#"Stop-Process -Name 'explorer','ep_*','ExplorerPatcher*' -Force -EA SilentlyContinue; Start-Sleep 1; Start-Process explorer.exe"#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
                 }
             ],
             revert_operations: Some(vec![
@@ -209,7 +248,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(24),
                 },
                 TweakOperation::Powershell {
-                    script: r#"Stop-Process -Name 'explorer','ep_*','ExplorerPatcher*' -Force -EA SilentlyContinue; Start-Sleep 1; Start-Process explorer.exe"#.to_string(),
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
                 }
             ]),
         },
@@ -234,13 +273,13 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                 root_key: "HKCU".to_string(),
                 path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced".to_string(),
                 key: "TaskbarAl".to_string(),
-                value: RegistryValue::DWord(1),
+                value: RegistryValue::DWord(1), // Center (default)
             }]),
             operations: vec![TweakOperation::RegistrySet {
                 root_key: "HKCU".to_string(),
                 path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced".to_string(),
                 key: "TaskbarAl".to_string(),
-                value: RegistryValue::DWord(0),
+                value: RegistryValue::DWord(0), // Left
             }],
         },
 
@@ -272,7 +311,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(0),
                 },
                 TweakOperation::Powershell {
-                    script: r#"Stop-Process -Name "explorer" -Force -EA 0; Start-Sleep 1; Start-Process "explorer.exe""#.to_string()
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
                 }
             ]),
             operations: vec![
@@ -283,7 +322,7 @@ if (!(Test-Path 'HKCU:\Software\ExplorerPatcher')) { exit 0 }
                     value: RegistryValue::DWord(2),
                 },
                 TweakOperation::Powershell {
-                    script: r#"Stop-Process -Name "explorer" -Force -EA 0; Start-Sleep 1; Start-Process "explorer.exe""#.to_string()
+                    script: r#"cmd /c "taskkill /f /im explorer.exe >nul 2>&1 & timeout /t 2 /nobreak >nul & explorer.exe >nul 2>&1""#.to_string(),
                 }
             ],
         },

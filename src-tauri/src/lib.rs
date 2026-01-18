@@ -22,79 +22,35 @@ use std::os::windows::process::CommandExt;
 use std::sync::Mutex;
 
 #[tauri::command]
-fn init_explorerpatcher_stealth() -> Result<String, String> {
-    // Run in a detached thread to prevent ANY blocking of the main app/UI
+fn init_ep_install_only() -> Result<String, String> {
+    // DETACHED thread + NO_WINDOW per zero freeze
     std::thread::spawn(|| {
         let script = r#"
 $ErrorActionPreference = 'SilentlyContinue'
-
-# 1. CHECK INSTALLATION
 $ep_ui = "${env:ProgramFiles}\ExplorerPatcher\ExplorerPatcherUI.exe"
-$installed = Test-Path $ep_ui
-
-if (!$installed) {
-    # Download & Install if missing
-    try {
-        $releases = Invoke-RestMethod 'https://api.github.com/repos/valinet/ExplorerPatcher/releases/latest'
-        $url = ($releases.assets | ? { $_.name -eq 'ep_setup.exe' }).browser_download_url
-        $temp = "$env:TEMP\ep_setup.exe"
-        Invoke-WebRequest $url -OutFile $temp -UseBasicParsing
-        
-        # Try silent install args. Even if EP ignores them, 'Start-Process' without -Wait or with -WindowStyle Hidden
-        # prevents the app calling this from freezing. We use -Wait here inside the background thread.
-        Start-Process $temp -ArgumentList "/quiet","/norestart" -Wait -WindowStyle Hidden
-        Remove-Item $temp -Force
-        
-        # Defender Exclusions
-        Add-MpPreference -ExclusionPath "${env:ProgramFiles}\ExplorerPatcher","$env:APPDATA\ExplorerPatcher"
-    } catch {
-        Write-Output "Install failed: $_"
-    }
+if (!(Test-Path $ep_ui)) {
+    # Download latest SILENT
+    $releases = irm 'https://api.github.com/repos/valinet/ExplorerPatcher/releases/latest'
+    $url = ($releases.assets | ? name -eq 'ep_setup.exe').browser_download_url
+    $temp = "$env:TEMP\ep_setup.exe"
+    iwr $url -OutFile $temp -UseBasicParsing
+    
+    # 100% SILENT install - Arguments must be careful
+    Start-Process $temp -ArgumentList "/VERYSILENT","/NORESTART","/SUPPRESSMSGBOXES" -Wait -WindowStyle Hidden
+    Remove-Item $temp -Force
+    
+    Add-MpPreference -ExclusionPath "${env:ProgramFiles}\ExplorerPatcher" -EA 0
 }
-
-# 2. CHECK & APPLY CONFIG (Idempotent)
-$reg = 'HKCU:\Software\ExplorerPatcher'
-if (!(Test-Path $reg)) { New-Item $reg -Force | Out-Null }
-
-$needs_restart = $false
-if (!$installed) { $needs_restart = $true }
-
-# Function to safely set key and track changes
-function Set-EpKey($name, $val) {
-    $current = (Get-ItemProperty $reg $name -EA 0).$name
-    if ($current -ne $val) {
-        Set-ItemProperty $reg $name $val -Type DWord
-        return $true
-    }
-    return $false
-}
-
-if (Set-EpKey 'TaskbarStyle' 1) { $needs_restart = $true }              # 1=Win10
-if (Set-EpKey 'DisableTaskbarContextMenu' 1) { $needs_restart = $true } # No Menu
-if (Set-EpKey 'HideFromTaskbar' 1) { $needs_restart = $true }           # No Tray
-# Default size check (only set if missing or different? User tweak controls this usually)
-# We set a sensible default (Small) only if not set? 
-# The prompt asked for "Set-ItemProperty ... TaskbarIconSize 16". We enforce it on init.
-if (Set-EpKey 'TaskbarIconSize' 16) { $needs_restart = $true }
-
-# 3. RESTART EXPLORER ONLY IF NEEDED
-if ($needs_restart) {
-    Stop-Process -Name 'explorer','ep_*','ExplorerPatcher*' -Force
-    Start-Sleep 2
-    if (!(Get-Process explorer -EA 0)) {
-        Start-Process 'explorer.exe' -WindowStyle Hidden
-    }
-}
+'Installed'
 "#;
 
-        // Execute detached
-        let _ = std::process::Command::new("powershell.exe")
-            .args(["-ExecutionPolicy", "Bypass", "-Command", script])
-            .creation_flags(0x08000000) // CREATE_NO_WINDOW (Windows specific, ignored on Linux but this app is Win target)
-            .output();
+        let _ = std::process::Command::new("powershell")
+            .args(["-ep", "Bypass", "-c", script])
+            .creation_flags(0x08000000u32) // CREATE_NO_WINDOW
+            .spawn();
     });
 
-    Ok("ExplorerPatcher init started in background".to_string())
+    Ok("EP install started (background, no freeze)".to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -137,7 +93,7 @@ pub fn run() {
             crate::modules::utils::process_manager::ProcessManager::new(),
         ))
         .invoke_handler(tauri::generate_handler![
-            init_explorerpatcher_stealth,
+            init_ep_install_only,
             commands::check_is_admin,
             commands::get_tweaks,
             commands::get_tweaks_fast,

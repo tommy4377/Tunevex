@@ -21,8 +21,8 @@
                 );
             }
 
-            // Stealth init ExplorerPatcher (background)
-            invoke("init_explorerpatcher_stealth").catch((e) =>
+            // Stealth init ExplorerPatcher (background INSTALL ONLY)
+            invoke("init_ep_install_only").catch((e) =>
                 console.error("EP Init:", e),
             );
         } catch (e) {
