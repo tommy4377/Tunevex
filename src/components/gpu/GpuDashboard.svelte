@@ -47,7 +47,7 @@
 
 <div class="gpu-container">
     {#if currentView === "dashboard"}
-        <CardGrid>
+        <div class="centered-cards">
             <Card
                 icon={Rocket}
                 title="General Optimization"
@@ -62,7 +62,7 @@
                 status="{msiTweaks.length} tweaks"
                 onclick={() => (currentView = "msi")}
             />
-        </CardGrid>
+        </div>
     {:else}
         <div class="detail-view" in:fade>
             <BackButton onclick={() => (currentView = "dashboard")} />
@@ -108,6 +108,19 @@
         overflow: hidden;
         display: flex;
         flex-direction: column;
+    }
+
+    .centered-cards {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 24px;
+        flex: 1;
+        max-width: 400px;
+        margin: 0 auto;
+        width: 100%;
     }
 
     .detail-view {
