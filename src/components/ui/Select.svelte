@@ -9,6 +9,7 @@
     export let value: string | number;
     export let placeholder: string = "Select...";
     export let disabled: boolean = false;
+    export let loading: boolean = false;
 
     const dispatch = createEventDispatcher();
     let isOpen = false;
@@ -16,53 +17,30 @@
     $: selectedOption = options.find((o) => o.value === value);
 
     function toggle() {
-        if (!disabled) {
+        if (!disabled && !loading) {
             isOpen = !isOpen;
         }
     }
 
-    function select(option: { value: string | number; label: string }) {
-        if (value !== option.value) {
-            value = option.value;
-            dispatch("change", { value });
-        }
-        isOpen = false;
-    }
+// ... unchanged ...
 
-    function close() {
-        isOpen = false;
-    }
-
-    // Window click handler to close dropdown
-    function handleWindowClick(event: MouseEvent) {
-        if (isOpen) {
-            // Logic handled by on:click window binding with check would be cleaner but svelte:window is fine
-        }
-    }
-
-    // Check if click is outside
-    let container: HTMLDivElement;
-    function handleClickOutside(event: MouseEvent) {
-        if (isOpen && container && !container.contains(event.target as Node)) {
-            close();
-        }
-    }
-</script>
-
-<svelte:window on:click={handleClickOutside} />
-
-<div class="select-container" bind:this={container} class:disabled>
     <button
         class="select-trigger"
         on:click|stopPropagation={toggle}
         class:active={isOpen}
+        class:loading={loading}
     >
-        <span class="value-text">
-            {selectedOption ? selectedOption.label : placeholder}
-        </span>
-        <span class="icon" class:rotated={isOpen}>
-            <ChevronDown size={16} />
-        </span>
+        {#if loading}
+            <div class="spinner-sm"></div>
+            <span class="value-text">Applying...</span>
+        {:else}
+            <span class="value-text">
+                {selectedOption ? selectedOption.label : placeholder}
+            </span>
+            <span class="icon" class:rotated={isOpen}>
+                <ChevronDown size={16} />
+            </span>
+        {/if}
     </button>
 
     {#if isOpen}
@@ -147,13 +125,12 @@
         top: calc(100% + 4px);
         left: 0;
         right: 0;
-        background: var(--layer-bg, #1a1a1a);
+        background: #1e1e1e; /* Solid background for visibility */
         border: 1px solid var(--border-color);
         border-radius: 8px;
         padding: 4px;
-        z-index: 100;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(16px); /* If layer-bg is transparent */
+        z-index: 9999;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
         max-height: 200px;
         overflow-y: auto;
     }
@@ -190,4 +167,22 @@
         border-radius: 50%;
         background: var(--accent-color);
     }
-</style>
+    
+    .spinner-sm {
+        width: 14px;
+        height: 14px;
+        border: 2px solid var(--text-muted);
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 8px;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    .select-trigger.loading {
+        cursor: wait;
+        opacity: 0.8;
+    }

@@ -121,7 +121,7 @@
         </CardGrid>
     {:else if selectedSection}
         <div class="detail-view">
-            <BackButton onclick={goBack} label="Back" />
+            <BackButton onclick={goBack} />
             <h2>{selectedSection.title}</h2>
             <div class="tweak-list">
                 {#if selectedSection.id === "taskbar"}

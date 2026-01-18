@@ -49,18 +49,28 @@ pub fn get_explorer_tweaks() -> Vec<Tweak> {
                 key: "UseCompactMode".to_string(),
                 expected_value: RegistryValue::DWord(1),
             }),
-            revert_operations: Some(vec![TweakOperation::RegistrySet {
-                root_key: "HKCU".to_string(),
-                path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced".to_string(),
-                key: "UseCompactMode".to_string(),
-                value: RegistryValue::DWord(0),
-            }]),
-            operations: vec![TweakOperation::RegistrySet {
-                root_key: "HKCU".to_string(),
-                path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced".to_string(),
-                key: "UseCompactMode".to_string(),
-                value: RegistryValue::DWord(1),
-            }],
+            revert_operations: Some(vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced".to_string(),
+                    key: "UseCompactMode".to_string(),
+                    value: RegistryValue::DWord(0),
+                },
+                TweakOperation::Powershell {
+                    script: r#"Stop-Process -Name "explorer" -Force -EA 0; Start-Sleep 1; Start-Process "explorer.exe""#.to_string()
+                }
+            ]),
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced".to_string(),
+                    key: "UseCompactMode".to_string(),
+                    value: RegistryValue::DWord(1),
+                },
+                TweakOperation::Powershell {
+                    script: r#"Stop-Process -Name "explorer" -Force -EA 0; Start-Sleep 1; Start-Process "explorer.exe""#.to_string()
+                }
+            ],
         },
         Tweak {
             id: "interface_show_hidden_files".to_string(),

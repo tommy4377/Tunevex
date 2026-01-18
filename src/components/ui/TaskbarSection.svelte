@@ -36,7 +36,10 @@
 
     // --- Handlers ---
 
+    let loadingMap: Record<string, boolean> = {};
+
     async function handleAlignChange(e: CustomEvent) {
+        loadingMap["align"] = true;
         const val = e.detail.value;
         try {
             if (val === "left") {
@@ -44,12 +47,17 @@
             } else {
                 await invoke("undo_tweak", { id: "taskbar_align_left" });
             }
+            // Trigger refresh manually if stores don't update fast enough?
+            // The activeCategory store in parent might fetch updates.
         } catch (err) {
             console.error(err);
+        } finally {
+            loadingMap["align"] = false;
         }
     }
 
     async function handleSizeChange(e: CustomEvent) {
+        loadingMap["size"] = true;
         const val = e.detail.value;
         try {
             if (val === "small") {
@@ -69,10 +77,13 @@
             }
         } catch (err) {
             console.error(err);
+        } finally {
+            loadingMap["size"] = false;
         }
     }
 
     async function handlePosChange(e: CustomEvent) {
+        loadingMap["pos"] = true;
         const val = e.detail.value;
         try {
             if (val === "top") {
@@ -82,6 +93,8 @@
             }
         } catch (err) {
             console.error(err);
+        } finally {
+            loadingMap["pos"] = false;
         }
     }
 </script>
@@ -106,6 +119,7 @@
                             { value: "left", label: "Left" },
                             { value: "center", label: "Center" },
                         ]}
+                        loading={loadingMap["align"]}
                         on:change={handleAlignChange}
                     />
                 </div>
@@ -130,6 +144,7 @@
                             { value: "medium", label: "Medium" },
                             { value: "large", label: "Large" },
                         ]}
+                        loading={loadingMap["size"]}
                         on:change={handleSizeChange}
                     />
                 </div>
@@ -153,6 +168,7 @@
                             { value: "top", label: "Top" },
                             { value: "bottom", label: "Bottom" },
                         ]}
+                        loading={loadingMap["pos"]}
                         on:change={handlePosChange}
                     />
                 </div>
@@ -200,6 +216,8 @@
         display: flex;
         align-items: center;
         gap: 16px;
+        justify-content: space-between;
+        width: 100%;
     }
 
     .icon-box {

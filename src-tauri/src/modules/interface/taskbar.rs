@@ -46,7 +46,7 @@ pub fn get_taskbar_tweaks() -> Vec<Tweak> {
             id: "taskbar_size_small".to_string(),
             category: TweakCategory::InterfaceUx,
             name: "Small Taskbar".to_string(),
-            description: "Reduces taskbar height. May not work on Windows 11 24H2+.".to_string(),
+            description: "TaskbarSi=0. NOTE: Unlikely to work on Win11 22H2+.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
             tweak_type: TweakType::Toggle,
@@ -57,22 +57,25 @@ pub fn get_taskbar_tweaks() -> Vec<Tweak> {
                 key: "TaskbarSi".to_string(),
                 expected_value: RegistryValue::DWord(0),
             }),
-            revert_operations: Some(vec![TweakOperation::Powershell {
-                script: r#"
-$path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
-Remove-ItemProperty -Path $path -Name "TaskbarSi" -ErrorAction SilentlyContinue
-Stop-Process -Name "explorer" -Force -EA 0; Start-Sleep 1; Start-Process "explorer.exe"
-"#
-                .to_string(),
-            }]),
-            operations: vec![TweakOperation::Powershell {
-                script: r#"
-$path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
-Set-ItemProperty -Path $path -Name "TaskbarSi" -Value 0 -Type DWord -Force
-Stop-Process -Name "explorer" -Force -EA 0; Start-Sleep 1; Start-Process "explorer.exe"
-"#
-                .to_string(),
-            }],
+            revert_operations: Some(vec![
+                TweakOperation::Powershell {
+                   script: r#"Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarSi" -ErrorAction SilentlyContinue"#.to_string()
+                },
+                TweakOperation::Powershell {
+                     script: r#"Stop-Process -Name "explorer" -Force -EA 0; Start-Sleep 1; Start-Process "explorer.exe""#.to_string()
+                }
+            ]),
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced".to_string(),
+                    key: "TaskbarSi".to_string(),
+                    value: RegistryValue::DWord(0),
+                },
+                TweakOperation::Powershell {
+                     script: r#"Stop-Process -Name "explorer" -Force -EA 0; Start-Sleep 1; Start-Process "explorer.exe""#.to_string()
+                }
+            ],
         },
         // ============================================
         // Taskbar Size - Large
@@ -81,7 +84,7 @@ Stop-Process -Name "explorer" -Force -EA 0; Start-Sleep 1; Start-Process "explor
             id: "taskbar_size_large".to_string(),
             category: TweakCategory::InterfaceUx,
             name: "Large Taskbar".to_string(),
-            description: "Increases taskbar height. May not work on Windows 11 24H2+.".to_string(),
+            description: "TaskbarSi=2. NOTE: Unlikely to work on Win11 22H2+.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
             tweak_type: TweakType::Toggle,
@@ -92,22 +95,25 @@ Stop-Process -Name "explorer" -Force -EA 0; Start-Sleep 1; Start-Process "explor
                 key: "TaskbarSi".to_string(),
                 expected_value: RegistryValue::DWord(2),
             }),
-            revert_operations: Some(vec![TweakOperation::Powershell {
-                script: r#"
-$path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
-Remove-ItemProperty -Path $path -Name "TaskbarSi" -ErrorAction SilentlyContinue
-Stop-Process -Name "explorer" -Force -EA 0; Start-Sleep 1; Start-Process "explorer.exe"
-"#
-                .to_string(),
-            }]),
-            operations: vec![TweakOperation::Powershell {
-                script: r#"
-$path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
-Set-ItemProperty -Path $path -Name "TaskbarSi" -Value 2 -Type DWord -Force
-Stop-Process -Name "explorer" -Force -EA 0; Start-Sleep 1; Start-Process "explorer.exe"
-"#
-                .to_string(),
-            }],
+            revert_operations: Some(vec![
+                TweakOperation::Powershell {
+                   script: r#"Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarSi" -ErrorAction SilentlyContinue"#.to_string()
+                },
+                TweakOperation::Powershell {
+                     script: r#"Stop-Process -Name "explorer" -Force -EA 0; Start-Sleep 1; Start-Process "explorer.exe""#.to_string()
+                }
+            ]),
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced".to_string(),
+                    key: "TaskbarSi".to_string(),
+                    value: RegistryValue::DWord(2),
+                },
+                TweakOperation::Powershell {
+                     script: r#"Stop-Process -Name "explorer" -Force -EA 0; Start-Sleep 1; Start-Process "explorer.exe""#.to_string()
+                }
+            ],
         },
         // ============================================
         // Taskbar on Top
@@ -201,22 +207,28 @@ Stop-Process -Name "explorer" -Force -EA 0; Start-Sleep 1; Start-Process "explor
                 key: "TaskbarGlomLevel".to_string(),
                 expected_value: RegistryValue::DWord(2),
             }),
-            revert_operations: Some(vec![TweakOperation::Powershell {
-                script: r#"
-$path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
-Set-ItemProperty -Path $path -Name "TaskbarGlomLevel" -Value 0 -Type DWord -Force
-Stop-Process -Name "explorer" -Force -EA 0; Start-Sleep 1; Start-Process "explorer.exe"
-"#
-                .to_string(),
-            }]),
-            operations: vec![TweakOperation::Powershell {
-                script: r#"
-$path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
-Set-ItemProperty -Path $path -Name "TaskbarGlomLevel" -Value 2 -Type DWord -Force
-Stop-Process -Name "explorer" -Force -EA 0; Start-Sleep 1; Start-Process "explorer.exe"
-"#
-                .to_string(),
-            }],
+            revert_operations: Some(vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced".to_string(),
+                    key: "TaskbarGlomLevel".to_string(),
+                    value: RegistryValue::DWord(0), // 0 = Always Combine (Default)
+                },
+                TweakOperation::Powershell {
+                    script: r#"Stop-Process -Name "explorer" -Force -EA 0; Start-Sleep 1; Start-Process "explorer.exe""#.to_string()
+                }
+            ]),
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced".to_string(),
+                    key: "TaskbarGlomLevel".to_string(),
+                    value: RegistryValue::DWord(2), // 2 = Never Combine
+                },
+                TweakOperation::Powershell {
+                    script: r#"Stop-Process -Name "explorer" -Force -EA 0; Start-Sleep 1; Start-Process "explorer.exe""#.to_string()
+                }
+            ],
         },
     ]
 }

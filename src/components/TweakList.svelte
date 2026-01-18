@@ -230,7 +230,7 @@
             </div>
         {/if}
         <!-- Spacer to ensure last item is never covered by anything -->
-        <div style="height: 80px; width: 100%; flex-shrink: 0;"></div>
+        <div style="height: 120px; width: 100%; flex-shrink: 0;"></div>
     </div>
 </div>
 
@@ -264,6 +264,7 @@
         flex: 1;
         overflow-y: auto;
         padding-right: 8px;
+        padding-top: 4px; /* Prevent hover clipping at top */
         /* Padding bottom is handled by spacer div now for better cross-browser reliability */
     }
 

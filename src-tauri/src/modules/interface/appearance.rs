@@ -9,7 +9,7 @@ pub fn get_appearance_tweaks() -> Vec<Tweak> {
         id: "interface_dark_mode".to_string(),
         category: TweakCategory::InterfaceUx,
         name: "Full Dark Mode".to_string(),
-        description: "Force dark mode for system and apps.".to_string(),
+        description: "Enforces Dark Mode for both Apps and System.".to_string(),
         warning_level: WarningLevel::Safe,
         requires_restart: false,
         tweak_type: TweakType::Toggle,
