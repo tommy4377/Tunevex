@@ -119,15 +119,18 @@
 
     .section-content {
         flex: 1;
-        overflow: hidden;
+        overflow-y: auto;
         display: flex;
         flex-direction: column;
+        padding-right: 4px; /* Space for scrollbar */
     }
 
     .tweaks-wrapper {
         flex: 1;
-        overflow: hidden;
         display: flex;
         flex-direction: column;
+        max-width: 800px;
+        margin: 0 auto;
+        width: 100%;
     }
 </style>

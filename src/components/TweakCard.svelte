@@ -104,7 +104,7 @@
 
     .tweak-card.enabled {
         border-color: var(--toggle-on-border);
-        background: var(--toggle-on-bg);
+        /* background: var(--toggle-on-bg); Removed per user request */
     }
 
     .header {

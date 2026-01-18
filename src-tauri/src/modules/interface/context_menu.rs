@@ -52,22 +52,22 @@ Stop-Process -Name "explorer" -Force -ErrorAction SilentlyContinue; Start-Sleep 
             id: "interface_take_ownership".to_string(),
             category: TweakCategory::InterfaceUx,
             name: "Add 'Take Ownership' to Menu".to_string(),
-            description: "Adds a context menu option to easily take ownership of files and folders.".to_string(),
+            description: "Adds a context menu option to specific files and folders to take ownership. Uses a safe method that doesn't conflict with 'Run as administrator'.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
             tweak_type: TweakType::Toggle,
             enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKCR".to_string(),
-                path: r"*\shell\runas".to_string(),
-                key: "Icon".to_string(), // Check specifically for our icon capability or similar marker
-                expected_value: RegistryValue::String("imageres.dll,-78".to_string()),
+                path: r"*\shell\TakeOwnership".to_string(),
+                key: "MUIVerb".to_string(),
+                expected_value: RegistryValue::String("Take Ownership".to_string()),
             }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
-Remove-Item -Path "HKCR:\*\shell\runas" -Recurse -Force -EA 0
-Remove-Item -Path "HKCR:\Directory\shell\runas" -Recurse -Force -EA 0
+Remove-Item -Path "HKCR:\*\shell\TakeOwnership" -Recurse -Force -EA 0
+Remove-Item -Path "HKCR:\Directory\shell\TakeOwnership" -Recurse -Force -EA 0
 "#.to_string(),
                 }
             ]),
@@ -75,65 +75,66 @@ Remove-Item -Path "HKCR:\Directory\shell\runas" -Recurse -Force -EA 0
                 // File Context Menu
                 TweakOperation::RegistrySet {
                     root_key: "HKCR".to_string(),
-                    path: r"*\shell\runas".to_string(),
-                    key: "".to_string(),
+                    path: r"*\shell\TakeOwnership".to_string(),
+                    key: "MUIVerb".to_string(),
                     value: RegistryValue::String("Take Ownership".to_string()),
                 },
                 TweakOperation::RegistrySet {
                     root_key: "HKCR".to_string(),
-                    path: r"*\shell\runas".to_string(),
-                    key: "NoWorkingDirectory".to_string(),
-                    value: RegistryValue::String("".to_string()),
-                },
-                TweakOperation::RegistrySet {
-                    root_key: "HKCR".to_string(),
-                    path: r"*\shell\runas".to_string(),
+                    path: r"*\shell\TakeOwnership".to_string(),
                     key: "Icon".to_string(),
                     value: RegistryValue::String("imageres.dll,-78".to_string()),
                 },
                 TweakOperation::RegistrySet {
                     root_key: "HKCR".to_string(),
-                    path: r"*\shell\runas\command".to_string(),
-                    key: "".to_string(),
-                    value: RegistryValue::String("cmd.exe /c takeown /f \"%1\" && icacls \"%1\" /grant administrators:F".to_string()),
+                    path: r"*\shell\TakeOwnership".to_string(),
+                    key: "HasLUAShield".to_string(),
+                    value: RegistryValue::String("".to_string()),
                 },
                 TweakOperation::RegistrySet {
                     root_key: "HKCR".to_string(),
-                    path: r"*\shell\runas\command".to_string(),
+                    path: r"*\shell\TakeOwnership\command".to_string(),
+                    key: "".to_string(),
+                    value: RegistryValue::String("powershell -WindowStyle Hidden -Command \"Start-Process cmd -ArgumentList '/c takeown /f \\\"%1\\\" && icacls \\\"%1\\\" /grant administrators:F' -Verb RunAs\"".to_string()),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCR".to_string(),
+                    path: r"*\shell\TakeOwnership\command".to_string(),
                     key: "IsolatedCommand".to_string(),
-                    value: RegistryValue::String("cmd.exe /c takeown /f \"%1\" && icacls \"%1\" /grant administrators:F".to_string()),
+                    value: RegistryValue::String("powershell -WindowStyle Hidden -Command \"Start-Process cmd -ArgumentList '/c takeown /f \\\"%1\\\" && icacls \\\"%1\\\" /grant administrators:F' -Verb RunAs\"".to_string()),
                 },
 
                 // Folder Context Menu
                 TweakOperation::RegistrySet {
                     root_key: "HKCR".to_string(),
-                    path: r"Directory\shell\runas".to_string(),
-                    key: "".to_string(),
+                    path: r"Directory\shell\TakeOwnership".to_string(),
+                    key: "MUIVerb".to_string(),
                     value: RegistryValue::String("Take Ownership".to_string()),
                 },
                 TweakOperation::RegistrySet {
                     root_key: "HKCR".to_string(),
-                    path: r"Directory\shell\runas".to_string(),
-                    key: "NoWorkingDirectory".to_string(),
+                    path: r"Directory\shell\TakeOwnership".to_string(),
+                    key: "Icon".to_string(),
+                    value: RegistryValue::String("imageres.dll,-78".to_string()),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCR".to_string(),
+                    path: r"Directory\shell\TakeOwnership".to_string(),
+                    key: "HasLUAShield".to_string(),
                     value: RegistryValue::String("".to_string()),
                 },
                 TweakOperation::RegistrySet {
                     root_key: "HKCR".to_string(),
-                    path: r"Directory\shell\runas".to_string(),
-                    key: "Icon".to_string(),
-                    value: RegistryValue::String("imageres.dll,-78".to_string()),
-                },
-                 TweakOperation::RegistrySet {
-                    root_key: "HKCR".to_string(),
-                    path: r"Directory\shell\runas\command".to_string(),
+                    path: r"Directory\shell\TakeOwnership\command".to_string(),
                     key: "".to_string(),
-                    value: RegistryValue::String("cmd.exe /c takeown /f \"%1\" /r /d y && icacls \"%1\" /grant administrators:F /t".to_string()),
+                    // For directories we add /r /d y
+                    value: RegistryValue::String("powershell -WindowStyle Hidden -Command \"Start-Process cmd -ArgumentList '/c takeown /f \\\"%1\\\" /r /d y && icacls \\\"%1\\\" /grant administrators:F /t' -Verb RunAs\"".to_string()),
                 },
                 TweakOperation::RegistrySet {
                     root_key: "HKCR".to_string(),
-                    path: r"Directory\shell\runas\command".to_string(),
+                    path: r"Directory\shell\TakeOwnership\command".to_string(),
                     key: "IsolatedCommand".to_string(),
-                    value: RegistryValue::String("cmd.exe /c takeown /f \"%1\" /r /d y && icacls \"%1\" /grant administrators:F /t".to_string()),
+                    value: RegistryValue::String("powershell -WindowStyle Hidden -Command \"Start-Process cmd -ArgumentList '/c takeown /f \\\"%1\\\" /r /d y && icacls \\\"%1\\\" /grant administrators:F /t' -Verb RunAs\"".to_string()),
                 },
             ],
         },
