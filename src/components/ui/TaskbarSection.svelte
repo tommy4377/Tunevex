@@ -8,7 +8,6 @@
         Monitor,
         ArrowUp,
         AlignLeft,
-        Download,
         RotateCcw,
     } from "lucide-svelte";
     import { createEventDispatcher } from "svelte";
@@ -22,10 +21,7 @@
         return tweaks.find((t) => t.id === id)?.enabled ?? false;
     }
 
-    // Check if EP is installed
-    $: epInstalled = isEnabled("ep_install");
-
-    // Style: ep_style_win10 enabled = Win10
+    // Style: ep_style_win10 enabled = Win10, otherwise Win11
     $: styleValue = isEnabled("ep_style_win10") ? "win10" : "win11";
 
     // Position: Check which position tweak is enabled
@@ -43,7 +39,7 @@
     // Alignment: Left alignment enabled?
     $: alignValue = isEnabled("taskbar_align_left") ? "left" : "center";
 
-    // Tweaks that show as toggle cards (not in dropdowns)
+    // Tweaks that show as toggle cards
     $: toggleTweaks = tweaks.filter((t) => t.id === "taskbar_never_combine");
 
     // Loading state
@@ -58,21 +54,10 @@
 
     // --- Handlers ---
 
-    async function installEP() {
-        setLoading("ep", true);
-        try {
-            await invoke("apply_tweak", { id: "ep_install" });
-            triggerRefresh();
-        } catch (err) {
-            console.error("EP install error:", err);
-        } finally {
-            setLoading("ep", false);
-        }
-    }
-
     async function handleStyleChange(e: CustomEvent) {
         setLoading("style", true);
         try {
+            // Win10 = apply tweak, Win11 = undo tweak
             if (e.detail.value === "win10") {
                 await invoke("apply_tweak", { id: "ep_style_win10" });
             } else {
@@ -156,33 +141,6 @@
 </script>
 
 <div class="taskbar-settings">
-    <!-- EP Status Banner -->
-    {#if !epInstalled}
-        <div class="ep-banner warning">
-            <div class="banner-content">
-                <Download size={18} />
-                <div class="banner-text">
-                    <strong>ExplorerPatcher Required</strong>
-                    <span>Most taskbar features need EP installed</span>
-                </div>
-                <button
-                    class="install-btn"
-                    on:click={installEP}
-                    disabled={loading["ep"]}
-                >
-                    {loading["ep"] ? "Installing..." : "Install EP"}
-                </button>
-            </div>
-        </div>
-    {:else}
-        <div class="ep-banner success">
-            <div class="banner-content">
-                <LayoutTemplate size={18} />
-                <span>ExplorerPatcher is installed</span>
-            </div>
-        </div>
-    {/if}
-
     <!-- Config Grid -->
     <div class="config-grid">
         <!-- Style -->
@@ -208,7 +166,7 @@
         </div>
 
         <!-- Position -->
-        <div class="config-card" class:disabled={!epInstalled}>
+        <div class="config-card">
             <div class="card-content">
                 <div class="icon-box pos"><ArrowUp size={20} /></div>
                 <div class="text-info">
@@ -232,7 +190,7 @@
         </div>
 
         <!-- Size -->
-        <div class="config-card" class:disabled={!epInstalled}>
+        <div class="config-card">
             <div class="card-content">
                 <div class="icon-box size"><Monitor size={20} /></div>
                 <div class="text-info">
@@ -307,63 +265,6 @@
         padding-bottom: 24px;
     }
 
-    .ep-banner {
-        padding: 12px 16px;
-        border-radius: 10px;
-        font-size: 13px;
-    }
-
-    .ep-banner.warning {
-        background: rgba(251, 146, 60, 0.12);
-        border: 1px solid rgba(251, 146, 60, 0.3);
-        color: #fb923c;
-    }
-
-    .ep-banner.success {
-        background: rgba(34, 197, 94, 0.1);
-        border: 1px solid rgba(34, 197, 94, 0.3);
-        color: #22c55e;
-    }
-
-    .banner-content {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .banner-text {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-
-    .banner-text span {
-        font-size: 12px;
-        opacity: 0.8;
-    }
-
-    .install-btn {
-        background: rgba(251, 146, 60, 0.2);
-        border: 1px solid rgba(251, 146, 60, 0.4);
-        color: #fb923c;
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .install-btn:hover:not(:disabled) {
-        background: rgba(251, 146, 60, 0.3);
-    }
-
-    .install-btn:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-    }
-
     .config-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -381,11 +282,6 @@
     .config-card:hover {
         background: rgba(255, 255, 255, 0.05);
         border-color: rgba(255, 255, 255, 0.15);
-    }
-
-    .config-card.disabled {
-        opacity: 0.5;
-        pointer-events: none;
     }
 
     .card-content {
