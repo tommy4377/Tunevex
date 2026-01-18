@@ -2,7 +2,13 @@
     import { invoke } from "@tauri-apps/api/core";
     import type { Tweak } from "$lib/types";
     import Select from "./Select.svelte";
-    import { LayoutTemplate, Monitor, ArrowUp, AlignLeft } from "lucide-svelte";
+    import {
+        LayoutTemplate,
+        Monitor,
+        ArrowUp,
+        AlignLeft,
+        Layers,
+    } from "lucide-svelte";
     import TweakCard from "../TweakCard.svelte";
     import { createEventDispatcher } from "svelte";
 
@@ -10,89 +16,68 @@
 
     const dispatch = createEventDispatcher();
 
-    // Helper to check enabled status from tweak list
-    const isEnabled = (id: string) =>
-        tweaks.find((t) => t.id === id)?.enabled ?? false;
+    // Helper to check if a tweak is enabled
+    function isEnabled(id: string): boolean {
+        const tweak = tweaks.find((t) => t.id === id);
+        return tweak?.enabled ?? false;
+    }
 
-    // --- Computed Values ---
+    // --- Computed Values (reactive) ---
 
-    // Alignment: 0 = Left, 1 = Center (Default)
-    $: alignValue = isEnabled("taskbar_align_left") ? "left" : "center";
+    // Style: ep_style_win10 enabled = Win10, otherwise Win11
+    $: styleValue = isEnabled("ep_style_win10") ? "win10" : "win11";
 
-    // Size: Small (0), Large (1 - default)
-    $: sizeValue = isEnabled("taskbar_small_ep") ? "small" : "large";
-
-    // Position: 0=Bottom, 1=Left, 2=Top, 3=Right
-    $: posValue = isEnabled("taskbar_top_ep")
+    // Position: Check which position tweak is enabled
+    $: posValue = isEnabled("taskbar_pos_top")
         ? "top"
-        : isEnabled("taskbar_left_ep")
+        : isEnabled("taskbar_pos_left")
           ? "left"
-          : isEnabled("taskbar_right_ep")
+          : isEnabled("taskbar_pos_right")
             ? "right"
             : "bottom";
 
-    // Style: TaskbarStyle 0=Win11 (default), 1=Win10
-    $: styleValue = isEnabled("ep_config_init") ? "win10" : "win11";
+    // Size: Small icons enabled?
+    $: sizeValue = isEnabled("taskbar_icons_small") ? "small" : "large";
 
-    // Other standalone tweaks (filter out position/size/style dropdowns)
+    // Alignment: Left alignment enabled?
+    $: alignValue = isEnabled("taskbar_align_left") ? "left" : "center";
+
+    // Other tweaks (not handled by dropdowns)
     $: otherTweaks = tweaks.filter(
         (t) =>
-            !t.id.includes("_ep") &&
-            t.id !== "ep_config_init" &&
+            t.id !== "ep_style_win10" &&
+            !t.id.startsWith("taskbar_pos_") &&
+            t.id !== "taskbar_icons_small" &&
             t.id !== "taskbar_align_left",
     );
 
-    // --- Loading states ---
-    let loadingMap: Record<string, boolean> = {};
+    // --- Loading State ---
+    let loading: Record<string, boolean> = {};
 
-    // Force reactivity on loadingMap
-    function setLoading(key: string, value: boolean) {
-        loadingMap = { ...loadingMap, [key]: value };
+    function setLoading(key: string, val: boolean) {
+        loading = { ...loading, [key]: val };
     }
 
-    // Refresh tweaks after applying
-    async function refreshTweaks() {
+    // Trigger parent to refresh tweaks
+    function triggerRefresh() {
         dispatch("refresh");
     }
 
     // --- Handlers ---
 
-    async function handleAlignChange(e: CustomEvent) {
-        setLoading("align", true);
-        const val = e.detail.value;
+    async function handleStyleChange(e: CustomEvent) {
+        setLoading("style", true);
         try {
-            if (val === "left") {
-                await invoke("apply_tweak", { id: "taskbar_align_left" });
+            if (e.detail.value === "win10") {
+                await invoke("apply_tweak", { id: "ep_style_win10" });
             } else {
-                await invoke("undo_tweak", { id: "taskbar_align_left" });
+                await invoke("undo_tweak", { id: "ep_style_win10" });
             }
-            await refreshTweaks();
+            triggerRefresh();
         } catch (err) {
-            console.error(err);
+            console.error("Style change error:", err);
         } finally {
-            setLoading("align", false);
-        }
-    }
-
-    async function handleSizeChange(e: CustomEvent) {
-        setLoading("size", true);
-        const val = e.detail.value;
-        try {
-            // Always undo both first
-            if (isEnabled("taskbar_small_ep"))
-                await invoke("undo_tweak", { id: "taskbar_small_ep" });
-            if (isEnabled("taskbar_large_ep"))
-                await invoke("undo_tweak", { id: "taskbar_large_ep" });
-
-            // Apply new selection
-            if (val === "small")
-                await invoke("apply_tweak", { id: "taskbar_small_ep" });
-            // "large" is default when neither is enabled
-            await refreshTweaks();
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading("size", false);
+            setLoading("style", false);
         }
     }
 
@@ -101,43 +86,58 @@
         const val = e.detail.value;
         try {
             // Undo all position tweaks first
-            if (isEnabled("taskbar_top_ep"))
-                await invoke("undo_tweak", { id: "taskbar_top_ep" });
-            if (isEnabled("taskbar_left_ep"))
-                await invoke("undo_tweak", { id: "taskbar_left_ep" });
-            if (isEnabled("taskbar_right_ep"))
-                await invoke("undo_tweak", { id: "taskbar_right_ep" });
+            const posTweaks = [
+                "taskbar_pos_top",
+                "taskbar_pos_left",
+                "taskbar_pos_right",
+            ];
+            for (const id of posTweaks) {
+                if (isEnabled(id)) {
+                    await invoke("undo_tweak", { id });
+                }
+            }
 
-            // Apply new position
-            if (val === "top")
-                await invoke("apply_tweak", { id: "taskbar_top_ep" });
-            else if (val === "left")
-                await invoke("apply_tweak", { id: "taskbar_left_ep" });
-            else if (val === "right")
-                await invoke("apply_tweak", { id: "taskbar_right_ep" });
-            // "bottom" is default (no tweak needed)
-            await refreshTweaks();
+            // Apply new position (bottom = default, no tweak needed)
+            if (val !== "bottom") {
+                await invoke("apply_tweak", { id: `taskbar_pos_${val}` });
+            }
+            triggerRefresh();
         } catch (err) {
-            console.error(err);
+            console.error("Position change error:", err);
         } finally {
             setLoading("pos", false);
         }
     }
 
-    async function handleStyleChange(e: CustomEvent) {
-        setLoading("style", true);
-        const val = e.detail.value;
+    async function handleSizeChange(e: CustomEvent) {
+        setLoading("size", true);
         try {
-            if (val === "win10") {
-                await invoke("apply_tweak", { id: "ep_config_init" });
+            if (e.detail.value === "small") {
+                await invoke("apply_tweak", { id: "taskbar_icons_small" });
             } else {
-                await invoke("undo_tweak", { id: "ep_config_init" });
+                await invoke("undo_tweak", { id: "taskbar_icons_small" });
             }
-            await refreshTweaks();
+            triggerRefresh();
         } catch (err) {
-            console.error(err);
+            console.error("Size change error:", err);
         } finally {
-            setLoading("style", false);
+            setLoading("size", false);
+        }
+    }
+
+    async function handleAlignChange(e: CustomEvent) {
+        setLoading("align", true);
+        try {
+            if (e.detail.value === "left") {
+                await invoke("apply_tweak", { id: "taskbar_align_left" });
+            } else {
+                await invoke("undo_tweak", { id: "taskbar_align_left" });
+            }
+            triggerRefresh();
+        } catch (err) {
+            console.error("Align change error:", err);
+        } finally {
+            setLoading("align", false);
         }
     }
 </script>
@@ -145,10 +145,10 @@
 <div class="taskbar-settings">
     <!-- Config Grid -->
     <div class="config-grid">
-        <!-- Style (Win10 vs Win11) -->
+        <!-- Style -->
         <div class="config-card">
             <div class="card-content">
-                <div class="icon-box">
+                <div class="icon-box style">
                     <LayoutTemplate size={20} />
                 </div>
                 <div class="text-info">
@@ -162,7 +162,7 @@
                             { value: "win11", label: "Windows 11" },
                             { value: "win10", label: "Windows 10" },
                         ]}
-                        loading={loadingMap["style"] ?? false}
+                        loading={loading["style"] ?? false}
                         on:change={handleStyleChange}
                     />
                 </div>
@@ -172,7 +172,7 @@
         <!-- Position -->
         <div class="config-card">
             <div class="card-content">
-                <div class="icon-box">
+                <div class="icon-box pos">
                     <ArrowUp size={20} />
                 </div>
                 <div class="text-info">
@@ -188,7 +188,7 @@
                             { value: "left", label: "Left" },
                             { value: "right", label: "Right" },
                         ]}
-                        loading={loadingMap["pos"] ?? false}
+                        loading={loading["pos"] ?? false}
                         on:change={handlePosChange}
                     />
                 </div>
@@ -198,21 +198,21 @@
         <!-- Size -->
         <div class="config-card">
             <div class="card-content">
-                <div class="icon-box">
+                <div class="icon-box size">
                     <Monitor size={20} />
                 </div>
                 <div class="text-info">
-                    <h3>Size</h3>
-                    <p>Icon scale</p>
+                    <h3>Icon Size</h3>
+                    <p>Large or small</p>
                 </div>
                 <div class="action-area">
                     <Select
                         value={sizeValue}
                         options={[
-                            { value: "small", label: "Small" },
                             { value: "large", label: "Large" },
+                            { value: "small", label: "Small" },
                         ]}
-                        loading={loadingMap["size"] ?? false}
+                        loading={loading["size"] ?? false}
                         on:change={handleSizeChange}
                     />
                 </div>
@@ -222,11 +222,11 @@
         <!-- Alignment -->
         <div class="config-card">
             <div class="card-content">
-                <div class="icon-box">
+                <div class="icon-box align">
                     <AlignLeft size={20} />
                 </div>
                 <div class="text-info">
-                    <h3>Align</h3>
+                    <h3>Alignment</h3>
                     <p>Icon position</p>
                 </div>
                 <div class="action-area">
@@ -236,7 +236,7 @@
                             { value: "center", label: "Center" },
                             { value: "left", label: "Left" },
                         ]}
-                        loading={loadingMap["align"] ?? false}
+                        loading={loading["align"] ?? false}
                         on:change={handleAlignChange}
                     />
                 </div>
@@ -244,7 +244,7 @@
         </div>
     </div>
 
-    <!-- Other Tweaks (Toggles) -->
+    <!-- Other Tweaks (as toggle cards) -->
     {#if otherTweaks.length > 0}
         <h3 class="section-title">Behavior</h3>
         <div class="toggles-grid">
@@ -294,12 +294,30 @@
         width: 40px;
         height: 40px;
         border-radius: 10px;
-        background: rgba(96, 205, 255, 0.1);
-        color: var(--accent-color);
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+    }
+
+    .icon-box.style {
+        background: rgba(139, 92, 246, 0.15);
+        color: #a78bfa;
+    }
+
+    .icon-box.pos {
+        background: rgba(59, 130, 246, 0.15);
+        color: #60a5fa;
+    }
+
+    .icon-box.size {
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+    }
+
+    .icon-box.align {
+        background: rgba(251, 146, 60, 0.15);
+        color: #fb923c;
     }
 
     .text-info {

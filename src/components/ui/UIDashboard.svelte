@@ -12,9 +12,11 @@
     $: uiTweaks = allTweaks.filter((t) => t.category === "InterfaceUx");
 
     // Organize by section
+    // Include EP-style tweaks and all taskbar tweaks
     $: taskbarTweaks = uiTweaks.filter(
         (t) =>
             t.id.startsWith("taskbar_") ||
+            t.id.startsWith("ep_") ||
             t.id.includes("interface_taskbar_") ||
             t.id.includes("end_task"),
     );
@@ -85,6 +87,16 @@
         selectedSection = null;
     }
 
+    // Refresh tweaks from backend (used by TaskbarSection)
+    async function refreshTweaks() {
+        try {
+            const fresh: Tweak[] = await invoke("get_tweaks");
+            allTweaks = fresh;
+        } catch (e) {
+            console.error("Failed to refresh tweaks:", e);
+        }
+    }
+
     async function applyTweak(tweak: Tweak) {
         try {
             await invoke("apply_tweak", { id: tweak.id });
@@ -125,7 +137,10 @@
             <h2>{selectedSection.title}</h2>
             <div class="tweak-list">
                 {#if selectedSection.id === "taskbar"}
-                    <TaskbarSection tweaks={selectedSection.tweaks()} />
+                    <TaskbarSection
+                        tweaks={selectedSection.tweaks()}
+                        on:refresh={refreshTweaks}
+                    />
                 {:else}
                     {#each selectedSection.tweaks() as tweak}
                         <TweakCard
