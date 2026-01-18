@@ -14,6 +14,7 @@
                 tweak.enabled = true;
             }
         }
+        tweaks = tweaks; // Trigger reactivity
     }
 </script>
 

@@ -12,14 +12,15 @@
         Palette,
         Shield,
         Save,
+        MonitorUp,
+        MemoryStick,
+        Gauge,
     } from "lucide-svelte";
 
     import type { SystemStats } from "$lib/systemStore";
-
     import { systemStats, refreshStatsIfNeeded } from "$lib/systemStore";
 
     let stats: SystemStats;
-    // Subscribe to store
     const unsubscribe = systemStats.subscribe((value) => {
         stats = value;
     });
@@ -29,13 +30,10 @@
     // Status messages for quick actions
     let trashMsg = "";
     let isCleaningTrash = false;
-
     let tempMsg = "";
     let isCleaningTemp = false;
-
     let dnsMsg = "";
     let isFlushingDns = false;
-
     let netMsg = "";
     let isResettingNet = false;
 
@@ -46,15 +44,13 @@
     let restoreSuccess = false;
 
     onMount(() => {
-        // Initial fetch if needed, otherwise uses cached value immediately
         refreshStatsIfNeeded();
-        // Poll every 2s
         interval = setInterval(refreshStatsIfNeeded, 2000);
     });
 
     onDestroy(() => {
         if (interval) clearInterval(interval);
-        unsubscribe(); // Unsubscribe to prevent memory leaks
+        unsubscribe();
     });
 
     function formatBytes(bytes: number) {
@@ -62,7 +58,7 @@
         const k = 1024;
         const sizes = ["B", "KB", "MB", "GB", "TB"];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
     }
 
     function formatUptime(seconds: number) {
@@ -89,11 +85,11 @@
     async function cleanTemp() {
         if (isCleaningTemp) return;
         isCleaningTemp = true;
-        tempMsg = "Scanning & Cleaning...";
+        tempMsg = "Cleaning...";
         try {
             const res = await invoke("clear_temp_files");
             tempMsg = res as string;
-            setTimeout(() => (tempMsg = ""), 5000);
+            setTimeout(() => (tempMsg = ""), 4000);
         } catch (e) {
             tempMsg = "Failed";
         } finally {
@@ -119,11 +115,11 @@
     async function resetNetwork() {
         if (isResettingNet) return;
         isResettingNet = true;
-        netMsg = "Resetting IP/Winsock...";
+        netMsg = "Resetting...";
         try {
             const res = await invoke("reset_network");
             netMsg = res as string;
-            setTimeout(() => (netMsg = ""), 5000);
+            setTimeout(() => (netMsg = ""), 4000);
         } catch (e) {
             netMsg = "Failed";
         } finally {
@@ -144,7 +140,7 @@
             restoreSuccess = true;
             setTimeout(() => {
                 if (restoreSuccess) restoreMsg = "";
-            }, 5000);
+            }, 4000);
         } catch (e) {
             restoreMsg = `Error: ${e}`;
             restoreSuccess = false;
@@ -154,85 +150,180 @@
     }
 </script>
 
-<div class="home-dashboard">
-    <div class="welcome-section">
-        <h1>Welcome back, {stats.username}</h1>
-        <p>System status and quick maintenance actions.</p>
+<div class="dashboard">
+    <!-- Header -->
+    <div class="header">
+        <div class="welcome">
+            <h1>Welcome, {stats.username}</h1>
+            <span class="uptime"
+                ><Clock size={12} /> Uptime: {formatUptime(stats.uptime)}</span
+            >
+        </div>
     </div>
 
-    <!-- Storage & Restore (Moved Up as Requested) -->
-    <div class="split-section">
-        <!-- Storage Section -->
-        <div class="section-container storage-section">
-            <h2>Storage Drives</h2>
-            <div class="drives-grid">
+    <!-- Main Grid Layout -->
+    <div class="main-grid">
+        <!-- Left Column: System Stats -->
+        <div class="column stats-column">
+            <h2>System Status</h2>
+            <div class="stats-cards">
+                <!-- CPU -->
+                <div class="mini-stat">
+                    <div class="stat-icon"><Cpu size={18} /></div>
+                    <div class="stat-data">
+                        <span class="stat-label">CPU</span>
+                        <span class="stat-value"
+                            >{stats.cpu_usage.toFixed(0)}%</span
+                        >
+                    </div>
+                    <div class="mini-bar">
+                        <div
+                            class="mini-fill"
+                            style="width: {stats.cpu_usage}%"
+                        ></div>
+                    </div>
+                </div>
+
+                <!-- RAM -->
+                <div class="mini-stat">
+                    <div class="stat-icon"><MemoryStick size={18} /></div>
+                    <div class="stat-data">
+                        <span class="stat-label">RAM</span>
+                        <span class="stat-value"
+                            >{Math.round(
+                                (stats.ram_usage / stats.ram_total) * 100,
+                            )}%</span
+                        >
+                    </div>
+                    <div class="mini-bar">
+                        <div
+                            class="mini-fill"
+                            style="width: {(stats.ram_usage / stats.ram_total) *
+                                100}%"
+                        ></div>
+                    </div>
+                </div>
+
+                <!-- GPU -->
+                <div class="mini-stat">
+                    <div class="stat-icon"><Gauge size={18} /></div>
+                    <div class="stat-data">
+                        <span class="stat-label">GPU</span>
+                        <span class="stat-value"
+                            >{stats.gpu
+                                ? stats.gpu.usage.toFixed(0) + "%"
+                                : "--"}</span
+                        >
+                    </div>
+                    <div class="mini-bar">
+                        <div
+                            class="mini-fill"
+                            style="width: {stats.gpu ? stats.gpu.usage : 0}%"
+                        ></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Storage Drives -->
+            <h2>Storage</h2>
+            <div class="drives-list">
                 {#each stats.disks.sort( (a, b) => a.mount_point.localeCompare(b.mount_point), ) as disk}
-                    <div class="drive-card">
-                        <div class="drive-icon"><HardDrive size={20} /></div>
-                        <div class="drive-info">
-                            <div class="drive-header">
-                                <span class="drive-name"
-                                    >{disk.name || "Local Disk"} ({disk.mount_point})</span
-                                >
-                                <span class="drive-usage"
-                                    >{formatBytes(
-                                        disk.total_space - disk.available_space,
-                                    )} / {formatBytes(disk.total_space)}</span
-                                >
-                            </div>
-                            <div class="bar-bg">
-                                <div
-                                    class="bar-fill"
-                                    class:warning={(disk.total_space -
-                                        disk.available_space) /
-                                        disk.total_space >
-                                        0.9}
-                                    style="width: {((disk.total_space -
-                                        disk.available_space) /
-                                        disk.total_space) *
-                                        100}%"
-                                ></div>
-                            </div>
+                    <div class="drive-row">
+                        <HardDrive size={14} />
+                        <span class="drive-label"
+                            >{disk.name || "Disk"} ({disk.mount_point})</span
+                        >
+                        <span class="drive-space"
+                            >{formatBytes(disk.available_space)} free</span
+                        >
+                        <div class="drive-bar">
+                            <div
+                                class="drive-fill"
+                                class:warning={(disk.total_space -
+                                    disk.available_space) /
+                                    disk.total_space >
+                                    0.9}
+                                style="width: {((disk.total_space -
+                                    disk.available_space) /
+                                    disk.total_space) *
+                                    100}%"
+                            ></div>
                         </div>
                     </div>
                 {/each}
-                {#if stats.disks.length === 0}
-                    <p class="empty-msg">No drives detected</p>
-                {/if}
             </div>
         </div>
 
-        <!-- Quick Restore Point -->
-        <div class="section-container restore-section">
-            <h2>
-                <Shield
-                    size={18}
-                    style="margin-right: 8px; vertical-align: text-bottom;"
-                />Quick Restore Point
-            </h2>
-            <div class="restore-layout">
-                <div class="input-row">
+        <!-- Right Column: Quick Actions & Restore -->
+        <div class="column actions-column">
+            <h2>Quick Maintenance</h2>
+            <div class="actions-grid">
+                <button
+                    class="action-btn"
+                    on:click={cleanTrash}
+                    disabled={isCleaningTrash}
+                >
+                    <Trash2 size={18} />
+                    <span>Empty Trash</span>
+                    {#if trashMsg}<span class="msg">{trashMsg}</span>{/if}
+                </button>
+
+                <button
+                    class="action-btn"
+                    on:click={cleanTemp}
+                    disabled={isCleaningTemp}
+                >
+                    <Files size={18} />
+                    <span>Clear Temp</span>
+                    {#if tempMsg}<span class="msg">{tempMsg}</span>{/if}
+                </button>
+
+                <button
+                    class="action-btn"
+                    on:click={flushDns}
+                    disabled={isFlushingDns}
+                >
+                    <Wifi size={18} />
+                    <span>Flush DNS</span>
+                    {#if dnsMsg}<span class="msg">{dnsMsg}</span>{/if}
+                </button>
+
+                <button
+                    class="action-btn"
+                    on:click={resetNetwork}
+                    disabled={isResettingNet}
+                >
+                    <Router size={18} />
+                    <span>Reset Network</span>
+                    {#if netMsg}<span class="msg">{netMsg}</span>{/if}
+                </button>
+            </div>
+
+            <!-- Restore Point -->
+            <div class="restore-section">
+                <h2><Shield size={16} /> Create Restore Point</h2>
+                <div class="restore-row">
                     <input
                         type="text"
                         bind:value={restoreDesc}
-                        placeholder="Restore Point Description"
+                        placeholder="Description..."
                         disabled={isCreatingRestore}
                     />
                     <button
-                        class="restore-btn"
+                        class="create-btn"
                         on:click={createRestorePoint}
                         disabled={isCreatingRestore}
                     >
                         {#if isCreatingRestore}
-                            <div class="spinner-sm"></div>
+                            <div class="spinner"></div>
                         {:else}
-                            <Save size={18} />
+                            <Save size={16} />
                         {/if}
                     </button>
                 </div>
                 {#if restoreMsg}
                     <div
-                        class="restore-status"
+                        class="restore-msg"
                         class:success={restoreSuccess}
                         class:error={!restoreSuccess}
                     >
@@ -242,516 +333,324 @@
             </div>
         </div>
     </div>
-
-    <!-- Main Stats Grid (CPU, RAM, GPU) -->
-    <div class="stats-grid">
-        <!-- CPU CArd -->
-        <div class="stat-card">
-            <div class="icon-circle"><Cpu /></div>
-            <div class="stat-info">
-                <span class="label">CPU Usage</span>
-                <span class="value">{stats.cpu_usage.toFixed(1)}%</span>
-                <div class="bar-bg">
-                    <div
-                        class="bar-fill"
-                        style="width: {stats.cpu_usage}%"
-                    ></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- RAM Card -->
-        <div class="stat-card">
-            <div class="icon-circle"><HardDrive /></div>
-            <div class="stat-info">
-                <span class="label">RAM Usage</span>
-                <span class="value"
-                    >{Math.round(
-                        (stats.ram_usage / stats.ram_total) * 100,
-                    )}%</span
-                >
-                <div class="sub-text">
-                    {formatBytes(stats.ram_usage)} / {formatBytes(
-                        stats.ram_total,
-                    )}
-                </div>
-                <div class="bar-bg">
-                    <div
-                        class="bar-fill"
-                        style="width: {(stats.ram_usage / stats.ram_total) *
-                            100}%"
-                    ></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- GPU Card -->
-        <div class="stat-card">
-            <div class="icon-circle"><Palette /></div>
-            <div class="stat-info">
-                <span class="label">GPU Usage</span>
-                {#if stats.gpu}
-                    <span class="value">{stats.gpu.usage.toFixed(1)}%</span>
-                    <div class="sub-text" title={stats.gpu.name}>
-                        {stats.gpu.name}
-                    </div>
-                    <div class="bar-bg">
-                        <div
-                            class="bar-fill"
-                            style="width: {stats.gpu.usage}%"
-                        ></div>
-                    </div>
-                {:else}
-                    <span class="value">--</span>
-                    <div class="sub-text">Detecting...</div>
-                {/if}
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Actions Section -->
-    <div class="actions-section">
-        <h2>Quick Maintenance</h2>
-        <div class="quick-actions-grid">
-            <button
-                class="action-card"
-                on:click={cleanTrash}
-                disabled={isCleaningTrash}
-                class:busy={isCleaningTrash}
-            >
-                <div class="icon-box warning">
-                    <Trash2 size={24} />
-                </div>
-                <div class="action-details">
-                    <h3>Empty Recycle Bin</h3>
-                    <p>Permanently delete files in trash</p>
-                </div>
-                {#if trashMsg}
-                    <span class="status-msg">{trashMsg}</span>
-                {/if}
-            </button>
-
-            <button
-                class="action-card"
-                on:click={cleanTemp}
-                disabled={isCleaningTemp}
-                class:busy={isCleaningTemp}
-            >
-                <div class="icon-box info">
-                    <Files size={24} />
-                </div>
-                <div class="action-details">
-                    <h3>Clear Temp Files</h3>
-                    <p>Free up space by removing temp data</p>
-                </div>
-                {#if tempMsg}
-                    <span class="status-msg">{tempMsg}</span>
-                {/if}
-            </button>
-
-            <button
-                class="action-card"
-                on:click={flushDns}
-                disabled={isFlushingDns}
-                class:busy={isFlushingDns}
-            >
-                <div class="icon-box success">
-                    <Wifi size={24} />
-                </div>
-                <div class="action-details">
-                    <h3>Flush DNS</h3>
-                    <p>Reset network cache connectivity</p>
-                </div>
-                {#if dnsMsg}
-                    <span class="status-msg">{dnsMsg}</span>
-                {/if}
-            </button>
-
-            <button
-                class="action-card"
-                on:click={resetNetwork}
-                disabled={isResettingNet}
-                class:busy={isResettingNet}
-            >
-                <div class="icon-box warning">
-                    <Router size={24} />
-                </div>
-                <div class="action-details">
-                    <h3>Network Reset</h3>
-                    <p>Full reset (Winsock/IP)</p>
-                </div>
-                {#if netMsg}
-                    <span class="status-msg">{netMsg}</span>
-                {/if}
-            </button>
-        </div>
-    </div>
 </div>
 
 <style>
-    .home-dashboard {
-        padding: 0 32px 32px;
+    .dashboard {
+        padding: 20px 24px;
         height: 100%;
         overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
     }
 
-    .welcome-section {
-        margin-bottom: 32px;
+    /* Header */
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
 
-    .welcome-section h1 {
-        font-size: 28px;
+    .welcome h1 {
+        font-size: 22px;
         font-weight: 700;
-        margin-bottom: 8px;
-        background: linear-gradient(to right, #fff, #aaa);
-        background-clip: text;
+        margin: 0 0 4px 0;
+        background: linear-gradient(90deg, #fff, #999);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
 
-    .welcome-section p {
-        color: var(--text-muted);
-        font-size: 16px;
-    }
-
-    /* Stats Grid */
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 24px;
-        margin-bottom: 32px;
-    }
-
-    .stat-card {
-        background: var(--layer-card);
-        backdrop-filter: blur(20px);
-        border: var(--border-glass);
-        border-radius: var(--radius-card);
-        padding: 24px;
+    .uptime {
         display: flex;
         align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+
+    /* Main Grid */
+    .main-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
         gap: 20px;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        flex: 1;
+        min-height: 0;
     }
 
-    .stat-card:hover {
-        transform: translateY(-2px);
-        background: var(--layer-hover);
+    @media (max-width: 900px) {
+        .main-grid {
+            grid-template-columns: 1fr;
+        }
     }
 
-    .icon-circle {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.05);
+    .column {
+        background: var(--layer-card);
+        border: var(--border-glass);
+        border-radius: var(--radius-lg, 16px);
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        overflow: hidden;
+    }
+
+    .column h2 {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Stats Cards */
+    .stats-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .mini-stat {
+        display: grid;
+        grid-template-columns: 32px 1fr 80px;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 10px;
+    }
+
+    .stat-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: rgba(96, 205, 255, 0.1);
         display: flex;
         align-items: center;
         justify-content: center;
-        color: var(--accent);
+        color: var(--accent-color);
     }
 
-    .stat-info {
-        flex: 1;
-        overflow: hidden; /* For GPU long name text overflow */
+    .stat-data {
+        display: flex;
+        flex-direction: column;
     }
 
-    .label {
-        display: block;
-        font-size: 12px;
+    .stat-label {
+        font-size: 11px;
+        color: var(--text-muted);
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: var(--text-secondary);
-        margin-bottom: 4px;
-        font-weight: 600;
     }
 
-    .value {
-        display: block;
-        font-size: 24px;
+    .stat-value {
+        font-size: 18px;
         font-weight: 700;
-        margin-bottom: 8px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
 
-    .sub-text {
-        font-size: 12px;
-        color: var(--text-secondary);
-        margin-bottom: 8px;
-    }
-
-    .bar-bg {
+    .mini-bar {
         height: 6px;
         background: rgba(255, 255, 255, 0.1);
         border-radius: 3px;
         overflow: hidden;
     }
 
-    .bar-fill {
+    .mini-fill {
         height: 100%;
-        background: var(--accent);
-        transition: width 0.5s ease;
+        background: var(--accent-color);
         border-radius: 3px;
+        transition: width 0.3s ease;
     }
 
-    /* Split Section (Storage + Restore) */
-    .split-section {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 24px;
-        margin-bottom: 32px;
-    }
-    @media (max-width: 900px) {
-        .split-section {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    .section-container {
-        background: var(--layer-card);
-        backdrop-filter: blur(20px);
-        border: var(--border-glass);
-        border-radius: var(--radius-card);
-        padding: 24px;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    /* Added hover effect for storage/restore containers */
-    .section-container:hover {
-        background: var(--layer-hover);
-        transform: translateY(-2px);
-    }
-
-    .section-container h2 {
-        font-size: 18px;
-        font-weight: 600;
-        margin-bottom: 16px;
-        color: var(--text-primary);
-    }
-
-    /* Storage Section */
-    .drives-grid {
+    /* Drives */
+    .drives-list {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 8px;
     }
 
-    .drive-card {
-        display: flex;
+    .drive-row {
+        display: grid;
+        grid-template-columns: 16px 1fr auto 80px;
         align-items: center;
-        gap: 16px;
-        padding: 12px 12px; /* Increased padding slightly */
-        border-radius: 12px; /* Added radius for hover effect */
-        transition: background 0.2s; /* Added transition */
-    }
-
-    /* Added hover for individual drives too */
-    .drive-card:hover {
-        background: rgba(255, 255, 255, 0.05);
-    }
-
-    .drive-icon {
-        color: var(--text-secondary);
-    }
-
-    .drive-info {
-        flex: 1;
-    }
-
-    .drive-header {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 6px;
+        gap: 10px;
+        padding: 8px 10px;
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 8px;
         font-size: 13px;
+        color: var(--text-muted);
     }
 
-    .drive-name {
-        font-weight: 500;
-        color: var(--text-primary);
+    .drive-row :global(svg) {
+        color: var(--text-muted);
     }
-    .drive-usage {
-        color: var(--text-secondary);
+
+    .drive-label {
+        color: var(--text-primary);
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .drive-space {
+        font-size: 11px;
+    }
+
+    .drive-bar {
+        height: 4px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+        overflow: hidden;
+    }
+
+    .drive-fill {
+        height: 100%;
+        background: var(--accent-color);
+        border-radius: 2px;
+    }
+
+    .drive-fill.warning {
+        background: #ef4444;
+    }
+
+    /* Actions Grid */
+    .actions-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .action-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 16px 12px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+    }
+
+    .action-btn:hover:not(:disabled) {
+        background: var(--layer-hover);
+        border-color: var(--accent-color);
+        transform: translateY(-1px);
+    }
+
+    .action-btn:disabled {
+        opacity: 0.6;
+        cursor: wait;
+    }
+
+    .action-btn span {
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .action-btn .msg {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        font-size: 9px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: var(--accent-color);
+    }
+
+    .action-btn :global(svg) {
+        color: var(--accent-color);
     }
 
     /* Restore Section */
-    .restore-layout {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
+    .restore-section {
+        margin-top: auto;
+        padding-top: 16px;
+        border-top: var(--border-glass);
     }
 
-    .input-row {
+    .restore-row {
         display: flex;
-        gap: 12px;
+        gap: 8px;
+        margin-top: 12px;
     }
 
-    .input-row input {
+    .restore-row input {
         flex: 1;
         background: rgba(0, 0, 0, 0.2);
         border: var(--border-glass);
-        border-radius: 6px;
-        padding: 10px 14px;
+        border-radius: 8px;
+        padding: 10px 12px;
         color: var(--text-primary);
         font-size: 13px;
         outline: none;
     }
-    .input-row input:focus {
-        border-color: var(--accent);
+
+    .restore-row input:focus {
+        border-color: var(--accent-color);
     }
 
-    .restore-btn {
-        background: var(--accent);
-        color: white;
+    .create-btn {
+        width: 40px;
+        background: var(--accent-color);
         border: none;
-        width: 42px;
-        border-radius: 6px;
+        border-radius: 8px;
+        color: white;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
         transition: opacity 0.2s;
     }
-    .restore-btn:hover:not(:disabled) {
-        opacity: 0.9;
+
+    .create-btn:hover:not(:disabled) {
+        opacity: 0.85;
     }
-    .restore-btn:disabled {
+
+    .create-btn:disabled {
         opacity: 0.5;
-        cursor: not-allowed;
-    }
-
-    .restore-status {
-        font-size: 12px;
-        padding: 8px;
-        border-radius: 6px;
-        text-align: center;
-    }
-    .restore-status.success {
-        background: rgba(16, 185, 129, 0.15);
-        color: #34d399;
-    }
-    .restore-status.error {
-        background: rgba(239, 68, 68, 0.15);
-        color: #f87171;
-    }
-
-    /* Actions Section (Existing) */
-    .actions-section h2 {
-        font-size: 20px;
-        font-weight: 600;
-        margin-bottom: 20px;
-    }
-
-    .quick-actions-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 24px;
-    }
-
-    .action-card {
-        background: var(--layer-card);
-        backdrop-filter: blur(20px);
-        border: var(--border-glass);
-        border-radius: var(--radius-card);
-        padding: 24px;
-        display: flex;
-        align-items: flex-start;
-        gap: 16px;
-        cursor: pointer;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        position: relative;
-        overflow: hidden;
-        /* Reset button styles */
-        width: 100%;
-        text-align: left;
-        color: inherit;
-        font: inherit;
-        outline: none;
-    }
-
-    .action-card:hover:not(:disabled) {
-        background: var(--layer-hover);
-        border-color: var(--accent);
-        transform: translateY(-2px);
-    }
-
-    .action-card:active:not(:disabled) {
-        transform: scale(0.98);
-    }
-
-    .action-card:disabled {
         cursor: wait;
-        opacity: 0.7;
-        background: rgba(255, 255, 255, 0.01);
     }
 
-    .action-card.busy {
-        border-color: var(--accent);
-    }
-
-    .spinner-sm {
-        width: 18px;
-        height: 18px;
-        border: 2px solid rgba(255, 255, 255, 0.2);
+    .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
         border-top-color: white;
         border-radius: 50%;
         animation: spin 1s linear infinite;
     }
 
-    .icon-box {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
     }
 
-    .icon-box.warning {
-        background: rgba(239, 68, 68, 0.15);
-        color: #ef4444;
+    .restore-msg {
+        margin-top: 8px;
+        padding: 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        text-align: center;
     }
-    .icon-box.info {
-        background: rgba(59, 130, 246, 0.15);
-        color: #3b82f6;
-    }
-    .icon-box.success {
-        background: rgba(34, 197, 94, 0.15);
+
+    .restore-msg.success {
+        background: rgba(34, 197, 94, 0.1);
         color: #22c55e;
     }
 
-    .action-details h3 {
-        font-size: 16px;
-        font-weight: 600;
-        margin: 0 0 4px 0;
-        color: var(--text-primary);
-    }
-
-    .action-details p {
-        font-size: 13px;
-        color: var(--text-secondary);
-        margin: 0;
-        line-height: 1.4;
-    }
-
-    .status-msg {
-        position: absolute;
-        top: 6px;
-        right: 6px;
-        font-size: 10px;
-        font-weight: 600;
-        color: var(--accent);
-        background: rgba(0, 0, 0, 0.75);
-        padding: 3px 7px;
-        border-radius: 6px;
-        z-index: 10;
-        max-width: 120px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    .restore-msg.error {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
     }
 </style>

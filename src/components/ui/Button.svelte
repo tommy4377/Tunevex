@@ -1,5 +1,6 @@
 <script lang="ts">
-    export let variant: "primary" | "safe" | "ghost" | "danger" = "primary";
+    export let variant: "primary" | "accent" | "safe" | "ghost" | "danger" =
+        "primary";
     export let disabled: boolean = false;
     export let loading: boolean = false;
 </script>
@@ -41,13 +42,25 @@
         background: var(--accent-hover);
     }
 
-    /* Safe - Green */
+    /* Accent - Azure with glow (for special actions) */
+    .btn.accent {
+        background: var(--toggle-on-bg);
+        border: 1px solid var(--toggle-on-border);
+        color: var(--toggle-on-color);
+        box-shadow: var(--toggle-on-glow);
+    }
+    .btn.accent:hover:not(:disabled) {
+        background: rgba(96, 205, 255, 0.3);
+    }
+
+    /* Safe - Muted Teal (mica-consistent) */
     .btn.safe {
-        background: var(--success-color);
-        color: white;
+        background: var(--btn-safe-bg);
+        border: 1px solid var(--btn-safe-border);
+        color: var(--btn-safe-color);
     }
     .btn.safe:hover:not(:disabled) {
-        background: #059669;
+        background: var(--btn-safe-hover-bg);
     }
 
     /* Ghost - Transparent */

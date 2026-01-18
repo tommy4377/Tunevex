@@ -1,6 +1,7 @@
 <script lang="ts">
     import TweakList from "../TweakList.svelte";
     import type { Tweak } from "$lib/types";
+    import { AlertTriangle } from "lucide-svelte";
     export let tweaks: Tweak[] = [];
 </script>
 
@@ -9,7 +10,8 @@
         <h2>User Account Control</h2>
         <p>Configure UAC prompts, secure desktop, and admin approval mode.</p>
         <div class="warning-banner">
-            ⚠️ Disabling UAC significantly reduces system security
+            <AlertTriangle size={14} />
+            Disabling UAC significantly reduces system security
         </div>
     </div>
     <div class="tweaks-wrapper">

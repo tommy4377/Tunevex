@@ -14,6 +14,7 @@
                 tweak.enabled = true;
             }
         }
+        tweaks = tweaks; // Trigger reactivity
     }
 </script>
 
@@ -21,7 +22,7 @@
     <SectionHeader
         icon={Zap}
         title="TCP/IP Optimization"
-        description="Optimize packet handling, timestamps, and request queues for lower latency."
+        description="Tune TCP settings for lower latency."
         actionLabel="One-Click Optimize"
         onAction={autoOptimize}
     />

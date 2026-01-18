@@ -80,7 +80,7 @@
         overflow-y: auto;
         flex: 1;
         padding: 4px; /* Padding for hover transform clearance */
-        padding-bottom: 24px;
+        padding-bottom: 48px;
     }
 
     .empty {

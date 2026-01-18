@@ -230,7 +230,7 @@
             </div>
         {/if}
         <!-- Spacer to ensure last item is never covered by anything -->
-        <div style="height: 48px; width: 100%; flex-shrink: 0;"></div>
+        <div style="height: 80px; width: 100%; flex-shrink: 0;"></div>
     </div>
 </div>
 
@@ -297,39 +297,42 @@
 
     /* ... skipped ... */
 
-    /* Toggle Button */
+    /* Toggle Button - Disabled State */
     .toggle-btn {
-        min-width: 80px;
+        min-width: 90px;
         padding: 8px 16px;
-        border-radius: 10px; /* Rounded button */
-        border: 1px solid var(--border-color);
-        background: transparent;
-        color: var(--text-muted);
+        border-radius: 10px;
+        border: 1px solid var(--toggle-off-border);
+        background: var(--toggle-off-bg);
+        color: var(--toggle-off-color);
         cursor: pointer;
         font-size: 13px;
         font-weight: 600;
-        transition: all 0.2s;
+        transition: all 0.25s ease;
         display: flex;
         align-items: center;
         justify-content: center;
+        gap: 6px;
     }
 
     .toggle-btn:hover {
-        border-color: var(--text-muted);
+        border-color: rgba(255, 255, 255, 0.2);
         color: var(--text-color);
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.08);
     }
 
+    /* Toggle Button - Enabled State (Azure Accent + Glow) */
     .toggle-btn.on {
-        background: var(--accent-color);
-        border-color: var(--accent-color);
-        color: white;
-        box-shadow: 0 4px 12px rgba(var(--accent-rgb), 0.2);
+        background: var(--toggle-on-bg);
+        border-color: var(--toggle-on-border);
+        color: var(--toggle-on-color);
+        box-shadow: var(--toggle-on-glow);
     }
 
     .toggle-btn.on:hover {
-        background: var(--accent-hover);
+        background: rgba(96, 205, 255, 0.3);
         transform: translateY(-1px);
+        box-shadow: 0 0 16px rgba(96, 205, 255, 0.4);
     }
 
     .empty-state {

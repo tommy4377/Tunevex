@@ -81,11 +81,13 @@
 
 <style>
     .tweak-card {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius);
+        background: var(--layer-card);
+        backdrop-filter: blur(12px) saturate(150%);
+        -webkit-backdrop-filter: blur(12px) saturate(150%);
+        border: var(--border-glass);
+        border-radius: var(--radius-lg);
         padding: 16px;
-        transition: all 0.2s;
+        transition: all 0.25s ease;
         display: flex;
         flex-direction: column;
         position: relative;
@@ -93,15 +95,16 @@
     }
 
     .tweak-card:hover {
-        background: rgba(255, 255, 255, 0.04);
-        border-color: var(--accent-color);
+        background: var(--layer-hover);
+        border-color: var(--toggle-on-border);
         transform: translateY(-2px);
         z-index: 10;
+        box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.3);
     }
 
     .tweak-card.enabled {
-        border-color: var(--accent-color);
-        background: rgba(59, 130, 246, 0.05);
+        border-color: var(--toggle-on-border);
+        background: var(--toggle-on-bg);
     }
 
     .header {
@@ -150,32 +153,36 @@
     }
 
     .apply-btn {
-        min-width: 80px;
+        min-width: 90px;
         padding: 8px 16px;
-        border-radius: var(--radius-sm);
-        border: 1px solid var(--border-color);
-        background: transparent;
-        color: var(--text-muted);
+        border-radius: 10px;
+        border: 1px solid var(--toggle-off-border);
+        background: var(--toggle-off-bg);
+        color: var(--toggle-off-color);
         cursor: pointer;
         font-size: 13px;
-        font-weight: 500;
-        transition: all 0.2s;
+        font-weight: 600;
+        transition: all 0.25s ease;
         margin-left: auto;
     }
 
     .apply-btn:hover {
-        border-color: var(--text-muted);
+        border-color: rgba(255, 255, 255, 0.2);
         color: var(--text-color);
+        background: rgba(255, 255, 255, 0.08);
     }
 
+    /* Applied/Enabled State - Azure Glow */
     .apply-btn.applied {
-        background: var(--accent-color);
-        border-color: var(--accent-color);
-        color: white;
+        background: var(--toggle-on-bg);
+        border-color: var(--toggle-on-border);
+        color: var(--toggle-on-color);
+        box-shadow: var(--toggle-on-glow);
     }
 
     .apply-btn.applied:hover {
-        background: var(--accent-hover);
+        background: rgba(96, 205, 255, 0.3);
+        box-shadow: 0 0 16px rgba(96, 205, 255, 0.4);
     }
 
     .apply-btn.loading {

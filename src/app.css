@@ -18,8 +18,12 @@
   /* 3. Typography - Segoe UI Variable for Windows 11 */
   --font-base: "Segoe UI Variable Text", "Segoe UI", sans-serif;
   --text-primary: #ffffff;
+  --text-color: #ffffff;
+  /* Alias for compatibility */
   --text-secondary: rgba(255, 255, 255, 0.75);
   --text-muted: rgba(255, 255, 255, 0.5);
+  --border-color: rgba(255, 255, 255, 0.08);
+  /* Alias for compatibility */
 
   /* 4. Accents - Neon Cyan for high contrast on dark glass */
   --accent: #60cdff;
@@ -36,6 +40,27 @@
   --radius-window: 12px;
   --radius-card: 8px;
   --radius-sm: 4px;
+  --radius-lg: 16px;
+
+  /* 7. Toggle states */
+  --toggle-off-bg: rgba(255, 255, 255, 0.05);
+  --toggle-off-border: rgba(255, 255, 255, 0.1);
+  --toggle-off-color: rgba(255, 255, 255, 0.5);
+  --toggle-on-bg: rgba(96, 205, 255, 0.2);
+  --toggle-on-border: #60cdff;
+  --toggle-on-color: #60cdff;
+  --toggle-on-glow: 0 0 12px rgba(96, 205, 255, 0.3);
+
+  /* 8. Button variants */
+  --btn-safe-bg: rgba(20, 184, 166, 0.15);
+  --btn-safe-border: rgba(20, 184, 166, 0.3);
+  --btn-safe-color: #5eead4;
+  --btn-safe-hover-bg: rgba(20, 184, 166, 0.25);
+
+  /* 9. For rgba usage */
+  --accent-rgb: 96, 205, 255;
+  --accent-color: #60cdff;
+  --accent-hover: #99ebff;
 }
 
 /* GLOBAL RESET */

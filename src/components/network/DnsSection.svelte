@@ -2,6 +2,7 @@
     import { invoke } from "@tauri-apps/api/core";
     import type { DnsBenchmarkResult, Tweak } from "$lib/types";
     import { fade } from "svelte/transition";
+    import { Check, Trophy } from "lucide-svelte";
     import TweakList from "../TweakList.svelte";
 
     export let tweaks: Tweak[] = [];
@@ -130,7 +131,7 @@
                 {/if}
 
                 {#if i === 0}
-                    <div class="badge">Fastest 🏆</div>
+                    <div class="badge"><Trophy size={12} /> Fastest</div>
                 {/if}
             </div>
         {/each}
@@ -153,7 +154,8 @@
                         class="optimize-btn safe"
                         on:click={() => applySafeTweaks()}
                     >
-                        ✅ Apply Safe Tweaks
+                        <Check size={14} />
+                        Apply Safe Tweaks
                     </button>
                     <!-- Script needs to go in main script block -->
                 </div>
@@ -258,19 +260,6 @@
         padding-bottom: 24px; /* Ensure last item is visible */
     }
 
-    .server-card {
-        background: var(--layer-card);
-        backdrop-filter: blur(20px);
-        border: var(--border-glass);
-        border-radius: var(--radius-card);
-        padding: 16px;
-        cursor: pointer;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
     .result-row {
         background: rgba(255, 255, 255, 0.03);
         border: var(--border-glass);

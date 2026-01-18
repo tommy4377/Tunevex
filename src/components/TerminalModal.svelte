@@ -80,15 +80,11 @@
         width: 90%;
         max-width: 800px;
         height: 80vh;
-        background: rgba(
-            30,
-            41,
-            59,
-            0.95
-        ); /* Nearly opaque for terminal readability */
-        backdrop-filter: blur(16px);
-        border-radius: var(--radius);
-        border: 1px solid var(--border-color);
+        background: rgba(20, 30, 45, 0.85);
+        backdrop-filter: blur(24px) saturate(150%);
+        -webkit-backdrop-filter: blur(24px) saturate(150%);
+        border-radius: var(--radius-lg, 16px);
+        border: var(--border-glass);
         display: flex;
         flex-direction: column;
         overflow: hidden;
