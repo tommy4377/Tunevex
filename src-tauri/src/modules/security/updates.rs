@@ -1,11 +1,13 @@
-use crate::modules::types::{Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 pub fn get_update_tweaks() -> Vec<Tweak> {
     vec![
         Tweak {
             id: "sec_disable_windows_update".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "⚠️ Disable Windows Update Services".to_string(),
+            name: "Disable Windows Update Services".to_string(),
             description: "Completely disables Windows Update services and tasks. WARNING: You will receive NO security updates!".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: true,
@@ -29,8 +31,14 @@ pub fn get_update_tweaks() -> Vec<Tweak> {
                 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$svc = Get-Service -Name "wuauserv" -EA 0
+if ($svc.StartType -eq 'Disabled') { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"

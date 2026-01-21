@@ -54,15 +54,20 @@
 <style>
   .titlebar {
     height: var(--titlebar-height, 32px);
+    min-height: 32px;
+    max-height: 32px;
     width: 100%;
-    background: var(--sidebar-bg, #1e1e1e);
-    border-bottom: 1px solid var(--border-color, #333);
+    background: transparent !important;
+    background-color: transparent !important;
     user-select: none;
     display: flex;
     justify-content: space-between;
     align-items: center;
     position: relative;
     z-index: 9999;
+    border-radius: var(--radius, 12px) var(--radius, 12px) 0 0;
+    flex-shrink: 0;
+    overflow: hidden;
   }
 
   .drag-region {

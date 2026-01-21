@@ -1,10 +1,12 @@
-use crate::modules::types::{Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 pub fn get_task_tweaks() -> Vec<Tweak> {
     vec![Tweak {
         id: "debloat_disable_misc_tasks".to_string(),
         category: TweakCategory::DebloatTelemetry,
-        name: "📅 Disable Misc Scheduled Tasks".to_string(),
+        name: "Disable Misc Scheduled Tasks".to_string(),
         description: "Disables Maps, Speech, Language, Retail Demo, and other unused tasks."
             .to_string(),
         warning_level: WarningLevel::Safe,
@@ -26,8 +28,13 @@ pub fn get_task_tweaks() -> Vec<Tweak> {
                 "#
             .to_string(),
         }]),
-        enabled: false,
-        check: None,
+        tweak_type: TweakType::Toggle, enabled: false,
+        check: Some(TweakCheck::Powershell {
+            script: r#"
+if ((Get-ScheduledTask -TaskName "MapsToastTask" -ErrorAction SilentlyContinue).State -match 'Disabled') { "True" } else { "False" }
+"#.to_string(),
+            expected_output: "True".to_string(),
+        }),
         operations: vec![TweakOperation::Powershell {
             script: r#"
                     $tasks = @(

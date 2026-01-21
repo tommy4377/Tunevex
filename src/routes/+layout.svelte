@@ -1,13 +1,18 @@
 <script lang="ts">
     import "../app.css";
     import Titlebar from "../components/Titlebar.svelte";
-    import { onMount } from "svelte";
+    import { onMount, onDestroy } from "svelte";
     import { invoke } from "@tauri-apps/api/core";
+    import { listen } from "@tauri-apps/api/event";
+    import { ShieldAlert } from "lucide-svelte";
+    import { fade, slide } from "svelte/transition";
 
-    let isAdmin = true; // Default true to avoid flash, check immediately
+    let isAdmin = true; // Optimistic default
+
+    // Mica needs transparent window. This div effectively acts as the "tint" layer
+    // The actual blur comes from the OS via window-vibrancy in Rust
 
     onMount(async () => {
-        // ... (existing admin check code) ...
         try {
             isAdmin = await invoke("check_is_admin");
             if (!isAdmin) {
@@ -21,42 +26,49 @@
     });
 </script>
 
-<div class="rounded-window">
+<div id="app-mount">
     <Titlebar />
+
     {#if !isAdmin}
-        <div class="admin-warning">
-            ⚠️ Administrator privileges required. Some tweaks may not apply.
+        <div class="admin-warning" transition:slide>
+            <ShieldAlert size={16} />
+            <span
+                >Running with restricted privileges. Run as Administrator for
+                full access.</span
+            >
         </div>
     {/if}
+
     <div class="content-area">
         <slot />
     </div>
 </div>
 
 <style>
+    /* New Minimal Layout Styles */
+    #app-mount {
+        /* This container MUST be transparent */
+        background: transparent;
+        /* DWM handles rounding if window is undecorated */
+    }
+
     .content-area {
         flex: 1;
         display: flex;
         overflow: hidden;
         position: relative;
     }
+
     .admin-warning {
-        background: #ef4444;
+        background: rgba(220, 38, 38, 0.8);
         color: white;
         text-align: center;
         padding: 8px;
         font-size: 13px;
-        font-weight: 500;
-        animation: slideIn 0.3s ease-out;
-    }
-    @keyframes slideIn {
-        from {
-            transform: translateY(-100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
     }
 </style>

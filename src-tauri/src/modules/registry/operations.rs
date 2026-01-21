@@ -14,8 +14,7 @@ pub fn get_root_key(root_name: &str) -> RegKey {
     }
 }
 
-pub fn open_subkey(root: &RegKey, path: &str, write: bool) -> Result<RegKey> {
-    let access = if write { KEY_ALL_ACCESS } else { KEY_READ };
+pub fn open_subkey(root: &RegKey, path: &str, access: u32) -> Result<RegKey> {
     root.open_subkey_with_flags(path, access)
         .context(format!("Failed to open subkey: {}", path))
 }
@@ -97,7 +96,8 @@ pub fn apply_registry_tweak(op: &TweakOperation) -> Result<()> {
             key,
         } => {
             let root = get_root_key(root_key);
-            if let Ok(subkey) = open_subkey(&root, path, true) {
+            // Request minimal rights: KEY_SET_VALUE to delete values
+            if let Ok(subkey) = open_subkey(&root, path, KEY_SET_VALUE | KEY_QUERY_VALUE) {
                 let _ = subkey.delete_value(key); // Ignore if already missing
             }
             Ok(())

@@ -1,11 +1,13 @@
-use crate::modules::types::{Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 pub fn get_task_tweaks() -> Vec<Tweak> {
     vec![
         Tweak {
             id: "privacy_disable_telemetry_tasks".to_string(),
             category: TweakCategory::Privacy,
-            name: "📋 Disable Telemetry Tasks".to_string(),
+            name: "Disable Telemetry Tasks".to_string(),
             description: "Disables 30+ telemetry and data collection scheduled tasks.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -25,8 +27,14 @@ pub fn get_task_tweaks() -> Vec<Tweak> {
                 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$t = Get-ScheduledTask -TaskName "Microsoft Compatibility Appraiser" -ErrorAction SilentlyContinue
+if ($t.State -eq 'Disabled') { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -46,7 +54,7 @@ pub fn get_task_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "privacy_disable_input_sync_tasks".to_string(),
             category: TweakCategory::Privacy,
-            name: "⌨️ Disable Input Sync Tasks".to_string(),
+            name: "Disable Input Sync Tasks".to_string(),
             description: "Disables mouse, keyboard, and touchpad sync tasks.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -61,8 +69,14 @@ pub fn get_task_tweaks() -> Vec<Tweak> {
                 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$t = Get-ScheduledTask -TaskName "LocalUserSyncDataAvailable" -ErrorAction SilentlyContinue
+if ($t.State -eq 'Disabled') { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"

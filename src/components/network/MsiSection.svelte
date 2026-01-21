@@ -24,20 +24,13 @@
 
 <div class="msi-section" in:fade>
     <div class="header">
-        <h2>⚡ Network MSI Mode</h2>
-        <p>
-            Enable Message Signaled Interrupts (MSI) for lower latency and
-            better stability.
-        </p>
-    </div>
-
-    <div class="info-banner">
-        <span class="icon">ℹ️</span>
-        <p>
-            MSI Mode reduces CPU overhead for network interrupts.
-            <strong>High Priority</strong> is recommended for gaming.
-            <strong>Normal Priority</strong> is safer for general use.
-        </p>
+        <div class="header-text">
+            <h2>Network MSI Mode</h2>
+            <p>
+                Enable Message Signaled Interrupts (MSI) for lower latency and
+                better stability.
+            </p>
+        </div>
     </div>
 
     <div class="grid">
@@ -53,43 +46,41 @@
 <style>
     .msi-section {
         padding-bottom: 24px;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        overflow: hidden;
     }
 
     .header {
         margin-bottom: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-shrink: 0;
     }
 
-    h2 {
+    .header-text h2 {
         font-size: 24px;
         font-weight: 600;
         margin: 0 0 8px 0;
         color: var(--text-color);
     }
 
-    p {
+    .header-text p {
         color: var(--text-muted);
         margin: 0;
         font-size: 14px;
-    }
-
-    .info-banner {
-        background: rgba(59, 130, 246, 0.1);
-        border: 1px solid rgba(59, 130, 246, 0.2);
-        border-radius: var(--radius-sm);
-        padding: 12px 16px;
-        display: flex;
-        gap: 12px;
-        align-items: flex-start;
-        margin-bottom: 24px;
-        color: var(--text-color);
-        font-size: 14px;
-        line-height: 1.5;
     }
 
     .grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
         gap: 16px;
+        overflow-y: auto;
+        flex: 1;
+        padding: 4px; /* Padding for hover transform clearance */
+        padding-bottom: 48px;
     }
 
     .empty {

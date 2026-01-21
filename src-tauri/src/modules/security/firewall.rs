@@ -2,7 +2,9 @@
 //!
 //! Controls for Windows Firewall profiles, notifications, and rules.
 
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 pub fn get_firewall_tweaks() -> Vec<Tweak> {
     vec![
@@ -10,7 +12,7 @@ pub fn get_firewall_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_fw_notifications".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🔔 Disable Firewall Notifications".to_string(),
+            name: "Disable Firewall Notifications".to_string(),
             description: "Stops Windows Firewall from showing popup notifications when blocking apps.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
@@ -34,8 +36,13 @@ pub fn get_firewall_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(0),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\StandardProfile".to_string(),
+                key: "DisableNotifications".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -62,12 +69,18 @@ pub fn get_firewall_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_disable_firewall".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🔥 Disable Windows Firewall".to_string(),
+            name: "Disable Windows Firewall".to_string(),
             description: "Completely disables Windows Firewall for all network profiles. DANGEROUS: System exposed to network attacks.".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: false,
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$profiles = Get-NetFirewallProfile | Where-Object { $_.Enabled -eq $true }
+if ($profiles.Count -eq 0) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -89,12 +102,18 @@ Write-Host "Windows Firewall disabled for all profiles" -ForegroundColor Yellow
         Tweak {
             id: "sec_fw_whitelist".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🚫 Block Outbound by Default".to_string(),
+            name: "Block Outbound by Default".to_string(),
             description: "Sets firewall to block all outbound connections unless explicitly allowed. Very restrictive.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$profile = Get-NetFirewallProfile -Profile Private
+if ($profile.DefaultOutboundAction -eq "Block") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -116,12 +135,18 @@ Write-Host "Firewall set to block outbound by default" -ForegroundColor Cyan
         Tweak {
             id: "sec_fw_block_rdp".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🖥️ Block Remote Desktop".to_string(),
+            name: "Block Remote Desktop".to_string(),
             description: "Disables Remote Desktop firewall rules to prevent remote access.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$rules = Get-NetFirewallRule -DisplayGroup "Remote Desktop" -Enabled True -ErrorAction SilentlyContinue
+if (-not $rules) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"

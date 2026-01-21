@@ -1,75 +1,62 @@
 <script lang="ts">
-    import TweakCard from "../TweakCard.svelte";
+    import { Usb } from "lucide-svelte";
     import { invoke } from "@tauri-apps/api/core";
+    import { SectionHeader, InfoBanner } from "../ui";
+    import TweakList from "../TweakList.svelte";
     import type { Tweak } from "$lib/types";
 
     export let allTweaks: Tweak[] = [];
 
-    $: usbTweaks = allTweaks.filter((t) => t.id.includes("usb")); // Simple filter for now
+    $: usbTweaks = allTweaks.filter(
+        (t) =>
+            t.id.includes("usb") ||
+            t.id.includes("usbstor") ||
+            t.id.includes("xhci"),
+    );
 
-    async function toggleTweak(tweak: Tweak) {
-        try {
-            if (tweak.enabled) {
-                await invoke("undo_tweak", { id: tweak.id });
-                tweak.enabled = false;
-            } else {
-                await invoke("apply_tweak", { id: tweak.id });
-                tweak.enabled = true;
+    async function applySafeTweaks(tweaks: Tweak[]) {
+        for (const tweak of tweaks.filter((t) => t.warning_level === "Safe")) {
+            if (!tweak.enabled) {
+                try {
+                    await invoke("apply_tweak", { id: tweak.id });
+                    tweak.enabled = true;
+                } catch (e) {
+                    console.error(`Failed to apply tweak ${tweak.id}:`, e);
+                }
             }
-            allTweaks = allTweaks;
-        } catch (e) {
-            console.error("Failed to toggle tweak:", e);
         }
+        allTweaks = allTweaks;
     }
 </script>
 
-<div class="section">
-    <div class="info">
-        <h3>🔌 USB Optimization</h3>
-        <p>
-            Enable Message Signaled Interrupts (MSI) for USB controllers to
-            reduce input latency.
-        </p>
-    </div>
+<div class="section-container">
+    <SectionHeader
+        icon={Usb}
+        title="USB & Devices"
+        description="Optimize USB controllers and manage polling behavior."
+        actionLabel="Apply Safe Tweaks"
+        onAction={() => applySafeTweaks(usbTweaks)}
+    />
 
-    <div class="grid">
-        {#each usbTweaks as tweak}
-            <TweakCard {tweak} on:toggle={() => toggleTweak(tweak)} />
-        {/each}
-        {#if usbTweaks.length === 0}
-            <div class="empty">No USB tweaks available</div>
-        {/if}
+    <InfoBanner variant="info" message="">
+        Enabling <strong>MSI Mode</strong> for USB Controllers can significantly
+        reduce input variance and latency for connected devices.
+    </InfoBanner>
+
+    <div class="tweaks-wrapper">
+        <TweakList tweaks={usbTweaks} showHeader={false} />
     </div>
 </div>
 
 <style>
-    .section {
-        padding-top: 8px; /* Tab clearance */
+    .section-container {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
     }
 
-    h3 {
-        margin: 0 0 8px 0;
-        color: var(--text-color);
-        font-size: 18px;
-    }
-
-    p {
-        color: var(--text-muted);
-        margin: 0 0 24px 0;
-        font-size: 14px;
-        line-height: 1.5;
-    }
-
-    .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 16px;
-    }
-
-    .empty {
-        text-align: center;
-        padding: 32px;
-        color: var(--text-muted);
-        font-style: italic;
+    .tweaks-wrapper {
+        flex: 1;
+        overflow: hidden;
     }
 </style>

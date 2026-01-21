@@ -8,6 +8,7 @@ pub mod msi;
 pub mod ntfs;
 pub mod power;
 pub mod scanner;
+pub mod state;
 
 pub use compression::Algorithm;
 

@@ -1,5 +1,5 @@
 use crate::modules::types::{
-    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel,
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
 };
 
 pub fn get_dns_tweaks() -> Vec<Tweak> {
@@ -12,8 +12,13 @@ pub fn get_dns_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
 
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$b = $false; Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object { if ((Get-DnsClientServerAddress -InterfaceIndex $_.InterfaceIndex).ServerAddresses -contains '8.8.8.8') { $b = $true } }; $b
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -43,8 +48,13 @@ foreach ($adapter in $adapters) {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
 
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$b = $false; Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object { if ((Get-DnsClientServerAddress -InterfaceIndex $_.InterfaceIndex).ServerAddresses -contains '1.1.1.1') { $b = $true } }; $b
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -69,11 +79,11 @@ foreach ($adapter in $adapters) {
         Tweak {
             id: "net_dns_benchmark".to_string(),
             category: TweakCategory::Network,
-            name: "🔍 DNS Benchmark & Auto-Select Fastest".to_string(),
+            name: "DNS Benchmark & Auto-Select Fastest".to_string(),
             description: "Tests 25+ DNS servers and applies the fastest one (Legacy method, use Dashboard instead).".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            revert_operations: None, enabled: false,
+            revert_operations: None, tweak_type: TweakType::Action, enabled: false,
             check: None,
             operations: vec![] // Legacy Placeholder or Script
         },
@@ -92,7 +102,7 @@ foreach ($adapter in $adapters) {
                     path: "SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters".to_string(),
                     key: "MaxCacheTtl".to_string(),
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters".to_string(),
@@ -121,7 +131,7 @@ foreach ($adapter in $adapters) {
                     path: "SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters".to_string(),
                     key: "MaxNegativeCacheTtl".to_string(),
                 }
-            ]), enabled: false,
+            ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
                 path: "SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters".to_string(),
@@ -135,6 +145,71 @@ foreach ($adapter in $adapters) {
                     key: "MaxNegativeCacheTtl".to_string(),
                     value: RegistryValue::DWord(60),
                 }
+            ]
+        },
+
+        // ============================================
+        // C.15: DNS Cache Optimization
+        // ============================================
+        Tweak {
+            id: "net_dns_cache_optimization".to_string(),
+            category: TweakCategory::Network,
+            name: "Optimize DNS Cache".to_string(),
+            description: "Optimizes DNS cache with larger hash table, longer entry TTL, and faster failover for improved browsing speed.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: true,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$path = "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters"
+$hash = Get-ItemProperty -Path $path -Name "CacheHashTableSize" -ErrorAction SilentlyContinue
+$ttl = Get-ItemProperty -Path $path -Name "MaxCacheEntryTtlLimit" -ErrorAction SilentlyContinue
+$timeout = Get-ItemProperty -Path $path -Name "ServiceConnHardTimeout" -ErrorAction SilentlyContinue
+
+if (($hash.CacheHashTableSize -eq 384) -and ($ttl.MaxCacheEntryTtlLimit -eq 64000) -and ($timeout.ServiceConnHardTimeout -eq 30)) {
+    "True"
+} else {
+    "False"
+}
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
+            revert_operations: Some(vec![
+                TweakOperation::RegistryDelete {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters".to_string(),
+                    key: "CacheHashTableSize".to_string(),
+                },
+                TweakOperation::RegistryDelete {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters".to_string(),
+                    key: "MaxCacheEntryTtlLimit".to_string(),
+                },
+                TweakOperation::RegistryDelete {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters".to_string(),
+                    key: "ServiceConnHardTimeout".to_string(),
+                },
+            ]),
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters".to_string(),
+                    key: "CacheHashTableSize".to_string(),
+                    value: RegistryValue::DWord(384),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters".to_string(),
+                    key: "MaxCacheEntryTtlLimit".to_string(),
+                    value: RegistryValue::DWord(64000),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters".to_string(),
+                    key: "ServiceConnHardTimeout".to_string(),
+                    value: RegistryValue::DWord(30),
+                },
             ]
         },
     ]

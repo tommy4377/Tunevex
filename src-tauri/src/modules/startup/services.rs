@@ -6,6 +6,24 @@ use std::os::windows::process::CommandExt;
 use std::process::Command;
 
 pub fn scan() -> Vec<StartupItem> {
+    // Critical services that should NEVER be disabled
+    const CRITICAL_SERVICES: &[&str] = &[
+        "RpcSs",
+        "WinDefend",
+        "Dnscache",
+        "Dhcp",
+        "TermService",
+        "Spooler",
+        "AudioSrv",
+        "lanmanworkstation",
+        "lanmanserver",
+        "EventLog",
+        "Schedule",
+        "SENS",
+        "ProfSvc",
+        "Themes",
+    ];
+
     let output = Command::new("powershell")
         .args(&[
             "-NoProfile",
@@ -40,15 +58,22 @@ pub fn scan() -> Vec<StartupItem> {
             let desc = s["Description"].as_str().map(|s| s.to_string());
             let start_mode = s["StartMode"].as_str()?;
 
-            // Clean path for verifying existence (remove quotes, args)
-            let clean_path = path.trim_matches('"').split(' ').next().unwrap_or(&path);
-            let exists = std::path::Path::new(clean_path).exists();
+            // Verify existence using sanitized path logic
+            let clean_path = utils::sanitize_path(&path);
+            let exists = std::path::Path::new(&clean_path).exists();
 
             // Get publisher if possible
             let (publisher, extra_desc) = utils::get_file_info(&path);
             let final_desc = desc.or(extra_desc);
 
-            let rating = assess_safety(&path, publisher.as_deref());
+            // Determine safety rating
+            let mut rating = assess_safety(&path, publisher.as_deref());
+
+            // Override rating for critical services whitelist
+            if CRITICAL_SERVICES.contains(&name.as_str()) {
+                use crate::modules::startup::types::SafetyRating;
+                rating = SafetyRating::Critical;
+            }
 
             Some(StartupItem {
                 id: format!("SVC:{}", name),

@@ -1,191 +1,147 @@
 <script lang="ts">
+    import { fade } from "svelte/transition";
+    import { Gamepad2, Palette, Zap } from "lucide-svelte";
     import { invoke } from "@tauri-apps/api/core";
-    import TweakCard from "../TweakCard.svelte";
+    import { Card, CardGrid, BackButton, SectionHeader } from "../ui";
+    import TweakList from "../TweakList.svelte";
     import type { Tweak } from "$lib/types";
 
     export let allTweaks: Tweak[] = [];
 
-    // Filter gaming-related tweaks
-    $: gamingTweaks = allTweaks.filter(
-        (t) => t.category === "GameOptimizations",
-    );
+    let currentView: "dashboard" | "general" | "visuals" | "priority" =
+        "dashboard";
 
-    $: gameBarTweaks = gamingTweaks.filter(
+    // Filters
+    $: visualTweaks = allTweaks.filter(
         (t) =>
-            t.id.includes("gamebar") ||
-            t.id.includes("game_bar") ||
-            t.id.includes("gamedvr") ||
-            t.id.includes("game_dvr"),
+            t.category === "GameOptimizations" &&
+            (t.id.includes("dvr") ||
+                t.id.includes("gamebar") ||
+                t.id.includes("fso") ||
+                t.id.includes("transparency") ||
+                t.id.includes("visual")),
     );
 
-    $: fsoTweaks = gamingTweaks.filter(
-        (t) => t.id.includes("fso") || t.id.includes("fullscreen"),
-    );
-
-    $: gameModeTweaks = gamingTweaks.filter(
+    $: priorityTweaks = allTweaks.filter(
         (t) =>
-            t.id.includes("gamemode") ||
-            t.id.includes("game_mode") ||
-            t.id.includes("priority"),
+            t.category === "GameOptimizations" &&
+            (t.id.includes("mmcss") ||
+                t.id.includes("priority") ||
+                t.id.includes("affinity") ||
+                t.id.includes("throttling")),
     );
 
-    $: xboxTweaks = gamingTweaks.filter(
-        (t) => t.id.includes("xbox") && !gameBarTweaks.includes(t),
+    $: generalTweaks = allTweaks.filter(
+        (t) =>
+            t.category === "GameOptimizations" &&
+            !visualTweaks.includes(t) &&
+            !priorityTweaks.includes(t),
     );
 
-    async function toggleTweak(tweak: Tweak) {
-        try {
-            if (tweak.enabled) {
-                await invoke("undo_tweak", { id: tweak.id });
-                tweak.enabled = false;
-            } else {
-                await invoke("apply_tweak", { id: tweak.id });
-                tweak.enabled = true;
+    async function applySafeTweaks(tweaks: Tweak[]) {
+        for (const tweak of tweaks.filter((t) => t.warning_level === "Safe")) {
+            if (!tweak.enabled) {
+                try {
+                    await invoke("apply_tweak", { id: tweak.id });
+                    tweak.enabled = true;
+                } catch (e) {
+                    console.error(`Failed to apply tweak ${tweak.id}:`, e);
+                }
             }
-            allTweaks = allTweaks;
-        } catch (e) {
-            console.error("Failed to toggle tweak:", e);
         }
+        allTweaks = allTweaks;
     }
+
+    const sections = [
+        {
+            id: "general",
+            icon: Gamepad2,
+            title: "General Gaming",
+            desc: "Core Windows gaming settings and Game Mode.",
+            tweaks: () => generalTweaks,
+        },
+        {
+            id: "visuals",
+            icon: Palette,
+            title: "Visual Optimizations",
+            desc: "Disable overlays, DVR, and full-screen optimizations.",
+            tweaks: () => visualTweaks,
+        },
+        {
+            id: "priority",
+            icon: Zap,
+            title: "Process & Priority",
+            desc: "MMCSS scheduling and CPU priority boosting.",
+            tweaks: () => priorityTweaks,
+        },
+    ] as const;
+
+    $: currentSection = sections.find((s) => s.id === currentView);
+    $: currentTweaks = currentSection?.tweaks() ?? [];
 </script>
 
-<div class="gaming-dashboard">
-    <h2>🎮 Gaming Optimizations</h2>
-    <p class="subtitle">
-        Disable overlays, optimize fullscreen, and prioritize games
-    </p>
+<div class="gaming-container">
+    {#if currentView === "dashboard"}
+        <CardGrid>
+            {#each sections.filter((s) => s.tweaks().length > 0) as section}
+                <Card
+                    icon={section.icon}
+                    title={section.title}
+                    description={section.desc}
+                    status="{section.tweaks().length} tweaks"
+                    onclick={() => (currentView = section.id)}
+                />
+            {/each}
+        </CardGrid>
+    {:else}
+        <div class="detail-view" in:fade>
+            <BackButton onclick={() => (currentView = "dashboard")} />
 
-    <div class="sections">
-        <!-- Game Bar & DVR Section -->
-        {#if gameBarTweaks.length > 0}
-            <section class="tweak-section">
-                <h3>📹 Game Bar & DVR</h3>
-                <div class="tweaks-grid">
-                    {#each gameBarTweaks as tweak}
-                        <TweakCard
-                            {tweak}
-                            on:toggle={() => toggleTweak(tweak)}
-                        />
-                    {/each}
-                </div>
-            </section>
-        {/if}
-
-        <!-- FSO Section -->
-        {#if fsoTweaks.length > 0}
-            <section class="tweak-section">
-                <h3>🖥️ Fullscreen Optimizations</h3>
-                <div class="tweaks-grid">
-                    {#each fsoTweaks as tweak}
-                        <TweakCard
-                            {tweak}
-                            on:toggle={() => toggleTweak(tweak)}
-                        />
-                    {/each}
-                </div>
-            </section>
-        {/if}
-
-        <!-- Game Mode & Priority Section -->
-        {#if gameModeTweaks.length > 0}
-            <section class="tweak-section">
-                <h3>⚡ Game Mode & Priority</h3>
-                <div class="tweaks-grid">
-                    {#each gameModeTweaks as tweak}
-                        <TweakCard
-                            {tweak}
-                            on:toggle={() => toggleTweak(tweak)}
-                        />
-                    {/each}
-                </div>
-            </section>
-        {/if}
-
-        <!-- Xbox Services Section -->
-        {#if xboxTweaks.length > 0}
-            <section class="tweak-section">
-                <h3>🎮 Xbox Services</h3>
-                <div class="tweaks-grid">
-                    {#each xboxTweaks as tweak}
-                        <TweakCard
-                            {tweak}
-                            on:toggle={() => toggleTweak(tweak)}
-                        />
-                    {/each}
-                </div>
-            </section>
-        {/if}
-
-        <!-- All Gaming Tweaks (fallback) -->
-        {#if gamingTweaks.length === 0}
-            <div class="empty-state">
-                <p>No gaming tweaks available</p>
+            <div class="section-content">
+                {#if currentSection}
+                    <SectionHeader
+                        icon={currentSection.icon}
+                        title={currentSection.title}
+                        description={currentSection.desc}
+                        actionLabel="Apply Safe Tweaks"
+                        onAction={() => applySafeTweaks(currentTweaks)}
+                    />
+                    <div class="tweaks-wrapper">
+                        <TweakList tweaks={currentTweaks} showHeader={false} />
+                    </div>
+                {/if}
             </div>
-        {:else if gameBarTweaks.length === 0 && fsoTweaks.length === 0 && gameModeTweaks.length === 0}
-            <section class="tweak-section">
-                <h3>🎮 All Gaming Tweaks</h3>
-                <div class="tweaks-grid">
-                    {#each gamingTweaks as tweak}
-                        <TweakCard
-                            {tweak}
-                            on:toggle={() => toggleTweak(tweak)}
-                        />
-                    {/each}
-                </div>
-            </section>
-        {/if}
-    </div>
+        </div>
+    {/if}
 </div>
 
 <style>
-    .gaming-dashboard {
+    .gaming-container {
         height: 100%;
-        overflow-y: auto;
-        padding: 24px;
         color: var(--text-color);
-    }
-
-    h2 {
-        margin: 0 0 8px 0;
-        font-size: 24px;
-        font-weight: 600;
-    }
-
-    .subtitle {
-        color: var(--text-muted);
-        margin: 0 0 24px 0;
-        font-size: 14px;
-    }
-
-    .sections {
+        overflow: hidden;
         display: flex;
         flex-direction: column;
-        gap: 32px;
     }
 
-    .tweak-section {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 20px;
+    .detail-view {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        padding: 24px;
     }
 
-    .tweak-section h3 {
-        margin: 0 0 16px 0;
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--accent-color);
+    .section-content {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
 
-    .tweaks-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 12px;
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 48px;
-        color: var(--text-muted);
+    .tweaks-wrapper {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
 </style>

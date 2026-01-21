@@ -1,119 +1,119 @@
+/* 
+  MICA / ACRYLIC GLASS SYSTEM (DEEP GLASS PALETTE)
+  Based on Windows 11 Fluent Design Best Practices for Tauri v2
+*/
+
 :root {
-  --bg-color: #0f172a;
-  /* Midnight Blue/Slate 900 */
-  --sidebar-bg: #1e293b;
-  /* Slate 800 */
-  --content-bg: #0f172a;
-  --text-color: #e2e8f0;
-  /* Slate 200 */
-  --text-muted: #94a3b8;
-  /* Slate 400 */
-  --accent-color: #3b82f6;
-  /* Blue 500 */
-  --accent-hover: #2563eb;
-  /* Blue 600 */
+  /* 1. Base Transparency - CRITICAL for Acrylic to show through */
+  --bg-transparent: rgba(0, 0, 0, 0);
 
-  --danger-color: #ef4444;
-  --warning-color: #f59e0b;
-  --success-color: #10b981;
+  /* 2. Content Layers - semi-transparent glass surfaces */
+  /* Ultra-subtle tint for cards to let the blur shine */
+  --layer-card: rgba(255, 255, 255, 0.03);
+  /* Slightly more visible on hover */
+  --layer-hover: rgba(255, 255, 255, 0.06);
+  /* Sidebar/Nav darker tint */
+  --layer-nav: rgba(0, 0, 0, 0.2);
 
-  --border-color: #334155;
-  /* Slate 700 */
-  --radius: 16px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
+  /* 3. Typography - Segoe UI Variable for Windows 11 */
+  --font-base: "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  --text-primary: #ffffff;
+  --text-color: #ffffff;
+  /* Alias for compatibility */
+  --text-secondary: rgba(255, 255, 255, 0.75);
+  --text-muted: rgba(255, 255, 255, 0.5);
+  --border-color: rgba(255, 255, 255, 0.08);
+  /* Alias for compatibility */
 
-  --titlebar-height: 32px;
+  /* 4. Accents - Neon Cyan for high contrast on dark glass */
+  --accent: #60cdff;
+  --accent-hover: #99ebff;
+  --success: #6ccf8e;
+  --danger: #ff6b6b;
+  --warning: #facc15;
+
+  /* 5. Borders - Thin, crisp glass edges */
+  --border-glass: 1px solid rgba(255, 255, 255, 0.08);
+  --border-active: 1px solid rgba(96, 205, 255, 0.3);
+
+  /* 6. Dimensions */
+  --radius-window: 12px;
+  --radius-card: 8px;
+  --radius-sm: 4px;
+  --radius-lg: 16px;
+
+  /* 7. Toggle states */
+  --toggle-off-bg: rgba(255, 255, 255, 0.05);
+  --toggle-off-border: rgba(255, 255, 255, 0.1);
+  --toggle-off-color: rgba(255, 255, 255, 0.5);
+  --toggle-on-bg: rgba(96, 205, 255, 0.2);
+  --toggle-on-border: #60cdff;
+  --toggle-on-color: #60cdff;
+  --toggle-on-glow: 0 0 12px rgba(96, 205, 255, 0.3);
+
+  /* 8. Button variants */
+  --btn-safe-bg: rgba(20, 184, 166, 0.15);
+  --btn-safe-border: rgba(20, 184, 166, 0.3);
+  --btn-safe-color: #5eead4;
+  --btn-safe-hover-bg: rgba(20, 184, 166, 0.25);
+
+  /* 9. For rgba usage */
+  --accent-rgb: 96, 205, 255;
+  --accent-color: #60cdff;
+  --accent-hover: #99ebff;
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-  background-color: transparent;
-}
-
+/* GLOBAL RESET */
+html,
 body {
+  background: transparent !important;
+  /* FORCE transparency */
   margin: 0;
   padding: 0;
-  background-color: transparent;
-  color: var(--text-color);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  overflow: hidden;
   height: 100%;
   width: 100%;
+  overflow: hidden;
+  /* App handles scrolling internally */
+  font-family: var(--font-base);
+  color: var(--text-primary);
   user-select: none;
+  cursor: default;
+  /* Improve font rendering on dark backgrounds */
+  -webkit-font-smoothing: antialiased;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-/* Custom Scrollbar */
+/* Main App Container */
+#app-mount {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  /* No background here either - let Acrylic shine through */
+}
+
+/* UTILITIES */
+.glass-card {
+  background: var(--layer-card);
+  border: var(--border-glass);
+  backdrop-filter: blur(20px);
+  /* Internal blur for content stacking */
+  border-radius: var(--radius-card);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  background: var(--layer-hover);
+  border: var(--border-active);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+}
+
+/* Scrollbar Hiding */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  display: none;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #475569;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
-}
-
-/* Utilities */
-.rounded-window {
-  /* border-radius for custom window frame */
-  border-radius: var(--radius);
-  background-color: var(--bg-color);
-  height: 100%;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  /* overflow: hidden is not strictly needed if DWM clips, but good for safety */
-  overflow: hidden;
-}
-
-.flex {
-  display: flex;
-}
-
-.flex-col {
-  flex-direction: column;
-}
-
-.items-center {
-  align-items: center;
-}
-
-.justify-between {
-  justify-content: space-between;
-}
-
-.w-full {
-  width: 100%;
-}
-
-.h-full {
-  height: 100%;
-}
-
-.p-4 {
-  padding: 1rem;
-}
-
-.gap-2 {
-  gap: 0.5rem;
+* {
+  scrollbar-width: none;
 }

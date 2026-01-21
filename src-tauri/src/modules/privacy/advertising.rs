@@ -1,4 +1,6 @@
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 /// Advertising & Tracking
 pub fn get_tweaks() -> Vec<Tweak> {
@@ -24,8 +26,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     key: "DisabledByGroupPolicy".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows\\AdvertisingInfo".to_string(),
+                key: "DisabledByGroupPolicy".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -58,8 +65,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced".to_string(),
+                key: "ShowSyncProviderNotifications".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -91,8 +103,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     key: "DisableTailoredExperiencesWithDiagnosticData".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent".to_string(),
+                key: "DisableTailoredExperiencesWithDiagnosticData".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -149,8 +166,13 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager".to_string(),
+                key: "SubscribedContent-338388Enabled".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -189,7 +211,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "priv_all_in_one".to_string(),
             category: TweakCategory::Privacy,
-            name: "🔐 Privacy Hardening All-in-One".to_string(),
+            name: "Privacy Hardening All-in-One".to_string(),
             description: "Comprehensive privacy settings: disables feedback, handwriting reports, Copilot, Recall, web content, and more.".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: true,
@@ -228,8 +250,21 @@ Write-Host "Privacy hardening reverted" -ForegroundColor Green
 "#.to_string(),
                 }
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(crate::modules::types::TweakCheck::Powershell {
+                script: r#"
+$copilot = Get-ItemProperty -Path "HKCU:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -Name "TurnOffWindowsCopilot" -ErrorAction SilentlyContinue
+$recall = Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -Name "DisableAIDataAnalysis" -ErrorAction SilentlyContinue
+$smartscreen = Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "EnableSmartScreen" -ErrorAction SilentlyContinue
+
+if (($copilot.TurnOffWindowsCopilot -eq 1) -and ($recall.DisableAIDataAnalysis -eq 1) -and ($smartscreen.EnableSmartScreen -eq 0)) {
+    "True"
+} else {
+    "False"
+}
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"

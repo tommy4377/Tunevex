@@ -1,16 +1,21 @@
 <script lang="ts">
+    import { fade } from "svelte/transition";
+    import { Target, Plug, HardDrive, Timer } from "lucide-svelte";
     import { invoke } from "@tauri-apps/api/core";
-    import TweakCard from "../TweakCard.svelte";
+    import { Card, CardGrid, BackButton, SectionHeader } from "../ui";
+    import TweakList from "../TweakList.svelte";
     import type { Tweak } from "$lib/types";
 
     export let allTweaks: Tweak[] = [];
 
-    // Filter tweaks by CPU-related categories
+    let currentView: "dashboard" | "scheduling" | "power" | "memory" | "timer" =
+        "dashboard";
+
+    // Filters
     $: schedulingTweaks = allTweaks.filter(
         (t) =>
             t.category === "CpuPerformance" &&
             (t.id.includes("priority") ||
-                t.id.includes("mmcss") ||
                 t.id.includes("fth") ||
                 t.id.includes("svchost") ||
                 t.id.includes("page_combining") ||
@@ -37,9 +42,7 @@
                 t.id.includes("memory") ||
                 t.id.includes("cache") ||
                 t.id.includes("paging") ||
-                t.id.includes("superfetch") ||
-                t.id.includes("prefetch") ||
-                t.id.includes("background_apps")),
+                t.id.includes("prefetch")),
     );
 
     $: timerTweaks = allTweaks.filter(
@@ -53,114 +56,117 @@
                 t.id.includes("processor_check_interval")),
     );
 
-    async function toggleTweak(tweak: Tweak) {
-        try {
-            if (tweak.enabled) {
-                await invoke("undo_tweak", { id: tweak.id });
-                tweak.enabled = false;
-            } else {
-                await invoke("apply_tweak", { id: tweak.id });
-                tweak.enabled = true;
+    async function applySafeTweaks(tweaks: Tweak[]) {
+        for (const tweak of tweaks.filter((t) => t.warning_level === "Safe")) {
+            if (!tweak.enabled) {
+                try {
+                    await invoke("apply_tweak", { id: tweak.id });
+                    tweak.enabled = true;
+                } catch (e) {
+                    console.error(`Failed to apply tweak ${tweak.id}:`, e);
+                }
             }
-            allTweaks = allTweaks;
-        } catch (e) {
-            console.error("Failed to toggle tweak:", e);
         }
+        allTweaks = allTweaks;
     }
+
+    const sections = [
+        {
+            id: "scheduling",
+            icon: Target,
+            title: "Scheduling & Priority",
+            desc: "Optimize CPU thread handling and priorities.",
+            tweaks: () => schedulingTweaks,
+        },
+        {
+            id: "power",
+            icon: Plug,
+            title: "Power Management",
+            desc: "High performance power plans and throttling.",
+            tweaks: () => powerTweaks,
+        },
+        {
+            id: "memory",
+            icon: HardDrive,
+            title: "Memory & Storage",
+            desc: "RAM management, caching, and paging file.",
+            tweaks: () => memoryTweaks,
+        },
+        {
+            id: "timer",
+            icon: Timer,
+            title: "Timer & Boot",
+            desc: "System timers, HPET, and boot configuration.",
+            tweaks: () => timerTweaks,
+        },
+    ] as const;
+
+    $: currentSection = sections.find((s) => s.id === currentView);
+    $: currentTweaks = currentSection?.tweaks() ?? [];
 </script>
 
-<div class="cpu-dashboard">
-    <h2>⚡ CPU Performance Tweaks</h2>
-    <p class="subtitle">
-        Optimize CPU scheduling, power management, and memory settings
-    </p>
+<div class="cpu-container">
+    {#if currentView === "dashboard"}
+        <CardGrid>
+            {#each sections.filter((s) => s.tweaks().length > 0) as section}
+                <Card
+                    icon={section.icon}
+                    title={section.title}
+                    description={section.desc}
+                    status="{section.tweaks().length} tweaks"
+                    onclick={() => (currentView = section.id)}
+                />
+            {/each}
+        </CardGrid>
+    {:else}
+        <div class="detail-view" in:fade>
+            <BackButton onclick={() => (currentView = "dashboard")} />
 
-    <div class="sections">
-        <!-- Scheduling Section -->
-        <section class="tweak-section">
-            <h3>🎯 Scheduling & Priority</h3>
-            <div class="tweaks-grid">
-                {#each schedulingTweaks as tweak}
-                    <TweakCard {tweak} on:toggle={() => toggleTweak(tweak)} />
-                {/each}
+            <div class="section-content">
+                {#if currentSection}
+                    <SectionHeader
+                        icon={currentSection.icon}
+                        title={currentSection.title}
+                        description={currentSection.desc}
+                        actionLabel="Apply Safe Tweaks"
+                        onAction={() => applySafeTweaks(currentTweaks)}
+                    />
+                    <div class="tweaks-wrapper">
+                        <TweakList tweaks={currentTweaks} showHeader={false} />
+                    </div>
+                {/if}
             </div>
-        </section>
-
-        <!-- Power Section -->
-        <section class="tweak-section">
-            <h3>🔌 Power Management</h3>
-            <div class="tweaks-grid">
-                {#each powerTweaks as tweak}
-                    <TweakCard {tweak} on:toggle={() => toggleTweak(tweak)} />
-                {/each}
-            </div>
-        </section>
-
-        <!-- Memory Section -->
-        <section class="tweak-section">
-            <h3>💾 Memory & Storage</h3>
-            <div class="tweaks-grid">
-                {#each memoryTweaks as tweak}
-                    <TweakCard {tweak} on:toggle={() => toggleTweak(tweak)} />
-                {/each}
-            </div>
-        </section>
-
-        <!-- Timer Section -->
-        <section class="tweak-section">
-            <h3>⏱️ Timer & Boot Config</h3>
-            <div class="tweaks-grid">
-                {#each timerTweaks as tweak}
-                    <TweakCard {tweak} on:toggle={() => toggleTweak(tweak)} />
-                {/each}
-            </div>
-        </section>
-    </div>
+        </div>
+    {/if}
 </div>
 
 <style>
-    .cpu-dashboard {
+    .cpu-container {
         height: 100%;
-        overflow-y: auto;
-        padding: 24px;
         color: var(--text-color);
-    }
-
-    h2 {
-        margin: 0 0 8px 0;
-        font-size: 24px;
-        font-weight: 600;
-    }
-
-    .subtitle {
-        color: var(--text-muted);
-        margin: 0 0 24px 0;
-        font-size: 14px;
-    }
-
-    .sections {
+        overflow: hidden;
         display: flex;
         flex-direction: column;
-        gap: 32px;
     }
 
-    .tweak-section {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 20px;
+    .detail-view {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        padding: 24px;
     }
 
-    .tweak-section h3 {
-        margin: 0 0 16px 0;
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--accent-color);
+    .section-content {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
 
-    .tweaks-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 12px;
+    .tweaks-wrapper {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
 </style>

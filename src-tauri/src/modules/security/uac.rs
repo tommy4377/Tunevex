@@ -2,7 +2,9 @@
 //!
 //! Controls for UAC prompts, elevation, and admin approval mode.
 
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 pub fn get_uac_tweaks() -> Vec<Tweak> {
     vec![
@@ -10,7 +12,7 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_uac_lower".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "📉 Lower UAC Level".to_string(),
+            name: "Lower UAC Level".to_string(),
             description: "Sets UAC to 'notify only when apps try to make changes' without dimming desktop.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
@@ -28,8 +30,13 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System".to_string(),
+                key: "ConsentPromptBehaviorAdmin".to_string(),
+                expected_value: RegistryValue::DWord(5),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -50,7 +57,7 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_uac_no_secure".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "🖥️ Disable Secure Desktop for UAC".to_string(),
+            name: "Disable Secure Desktop for UAC".to_string(),
             description: "UAC prompts appear on regular desktop instead of secure (dimmed) desktop.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
@@ -62,8 +69,13 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System".to_string(),
+                key: "PromptOnSecureDesktop".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -78,7 +90,7 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_disable_uac".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "⛔ Disable UAC Prompts".to_string(),
+            name: "Disable UAC Prompts".to_string(),
             description: "Disables all UAC elevation prompts. Apps elevate silently. DANGEROUS: Malware can run elevated without warning.".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: true,
@@ -90,8 +102,13 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System".to_string(),
+                key: "EnableLUA".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -106,7 +123,7 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_uac_admin_mode".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "👑 Disable Admin Approval Mode".to_string(),
+            name: "Disable Admin Approval Mode".to_string(),
             description: "Admin accounts run with full privileges without prompts. Requires reboot.".to_string(),
             warning_level: WarningLevel::Dangerous,
             requires_restart: true,
@@ -124,8 +141,13 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(5),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System".to_string(),
+                key: "ConsentPromptBehaviorAdmin".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -146,7 +168,7 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "sec_uac_auto_elevate".to_string(),
             category: TweakCategory::SecurityPrivacy,
-            name: "⬆️ Auto-Elevate Known Apps".to_string(),
+            name: "Auto-Elevate Known Apps".to_string(),
             description: "Allows Windows to auto-elevate known Microsoft applications without prompts.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
@@ -158,8 +180,13 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System".to_string(),
+                key: "EnableInstallerDetection".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),

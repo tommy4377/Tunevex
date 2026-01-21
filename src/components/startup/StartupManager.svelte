@@ -1,6 +1,20 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { invoke } from "@tauri-apps/api/core";
+    import {
+        RefreshCw,
+        List,
+        Key,
+        Calendar,
+        Settings,
+        Folder,
+        Globe,
+        Rocket,
+        MapPin,
+        Building,
+        AlertTriangle,
+        Circle,
+    } from "lucide-svelte";
 
     type StartupCategory = string; // Backend uses strings now (Logon, Service etc)
 
@@ -25,15 +39,25 @@
     let searchTerm = "";
     let selectedCategory = "all";
 
-    // Category definitions with counts
+    // Category definitions with counts and icon components
+    const categoryIcons: Record<string, typeof List> = {
+        all: List,
+        Logon: Key,
+        ScheduledTask: Calendar,
+        Service: Settings,
+        Explorer: Folder,
+        Browser: Globe,
+        Boot: Rocket,
+    };
+
     let categories = [
-        { id: "all", label: "All Items", icon: "📋", count: 0 },
-        { id: "Logon", label: "Logon", icon: "🔑", count: 0 },
-        { id: "ScheduledTask", label: "Tasks", icon: "📅", count: 0 },
-        { id: "Service", label: "Services", icon: "⚙️", count: 0 },
-        { id: "Explorer", label: "Explorer", icon: "📁", count: 0 },
-        { id: "Browser", label: "Browser", icon: "🌐", count: 0 },
-        { id: "Boot", label: "Boot", icon: "🚀", count: 0 },
+        { id: "all", label: "All Items", count: 0 },
+        { id: "Logon", label: "Logon", count: 0 },
+        { id: "ScheduledTask", label: "Tasks", count: 0 },
+        { id: "Service", label: "Services", count: 0 },
+        { id: "Explorer", label: "Explorer", count: 0 },
+        { id: "Browser", label: "Browser", count: 0 },
+        { id: "Boot", label: "Boot", count: 0 },
     ];
 
     onMount(async () => {
@@ -111,7 +135,10 @@
     <div class="header">
         <h1>Startup Manager</h1>
         <div class="header-actions">
-            <button class="btn-primary" on:click={refresh}>🔄 Refresh</button>
+            <button class="btn-primary" on:click={refresh}>
+                <RefreshCw size={14} />
+                Refresh
+            </button>
         </div>
     </div>
 
@@ -130,7 +157,12 @@
                     class:warning={cat.id !== "all" && cat.count === 0}
                     on:click={() => (selectedCategory = cat.id)}
                 >
-                    <span class="icon">{cat.icon}</span>
+                    <span class="icon">
+                        <svelte:component
+                            this={categoryIcons[cat.id]}
+                            size={14}
+                        />
+                    </span>
                     {cat.label}
                     <span class="count">{cat.count}</span>
                 </button>
@@ -146,7 +178,10 @@
     {:else if filteredItems.length === 0}
         <div class="empty-state">
             <p>No startup items found for this filter.</p>
-            <button on:click={refresh}>🔄 Refresh</button>
+            <button on:click={refresh}>
+                <RefreshCw size={14} />
+                Refresh
+            </button>
         </div>
     {:else}
         <div class="items-grid">
@@ -176,21 +211,20 @@
                                 >{item.name}</span
                             >
                             <!-- Safety Badge -->
-                            <div class="safety-badge" title="Safety Rating">
-                                {#if item.safety_rating === "Safe"}
-                                    🟢 Safe
-                                {:else if item.safety_rating === "Careful"}
-                                    🟡 Careful
-                                {:else if item.safety_rating === "Dangerous"}
-                                    🟠 Dangerous
-                                {:else}
-                                    ⚪ Unknown
-                                {/if}
+                            <div
+                                class="safety-badge {item.safety_rating.toLowerCase()}"
+                                title="Safety Rating"
+                            >
+                                <Circle size={8} />
+                                {item.safety_rating}
                             </div>
                         </div>
 
                         <div class="details">
-                            <div class="subcategory">📍 {item.subcategory}</div>
+                            <div class="subcategory">
+                                <MapPin size={12} />
+                                {item.subcategory}
+                            </div>
 
                             <div class="command" title={item.command}>
                                 {truncate(item.command, 60)}
@@ -198,14 +232,16 @@
 
                             {#if item.publisher}
                                 <div class="publisher">
-                                    🏢 {truncate(item.publisher, 40)}
+                                    <Building size={12} />
+                                    {truncate(item.publisher, 40)}
                                 </div>
                             {/if}
 
                             <!-- File Missing Warning -->
                             {#if !item.file_exists && item.source !== "Service"}
                                 <div class="warning-badge">
-                                    ⚠️ File not found
+                                    <AlertTriangle size={12} />
+                                    File not found
                                 </div>
                             {/if}
                         </div>
@@ -303,8 +339,8 @@
 
     .items-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-        gap: 16px;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
         overflow-y: auto;
         padding-bottom: 20px;
     }
@@ -401,6 +437,25 @@
     .safety-badge {
         font-size: 11px;
         white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .safety-badge.safe :global(svg) {
+        color: #22c55e;
+        fill: #22c55e;
+    }
+    .safety-badge.careful :global(svg) {
+        color: #facc15;
+        fill: #facc15;
+    }
+    .safety-badge.dangerous :global(svg) {
+        color: #f97316;
+        fill: #f97316;
+    }
+    .safety-badge.unknown :global(svg) {
+        color: rgba(255, 255, 255, 0.5);
+        fill: rgba(255, 255, 255, 0.5);
     }
 
     .details {

@@ -1,4 +1,6 @@
-use crate::modules::types::{Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 pub fn get_monitor_tweaks() -> Vec<Tweak> {
     vec![
@@ -12,19 +14,99 @@ fn tweak_max_refresh_rate() -> Tweak {
     Tweak {
         id: "display_max_refresh_rate".to_string(),
         category: TweakCategory::DisplayMonitor,
-        name: "🖥️ Set Monitor to Maximum Refresh Rate".to_string(),
+        name: "Set Monitor to Maximum Refresh Rate".to_string(),
         description: "Automatically sets your monitor to its maximum supported refresh rate (120Hz/144Hz/165Hz/240Hz/360Hz).".to_string(),
         warning_level: WarningLevel::Safe,
         requires_restart: false,
         revert_operations: Some(vec![TweakOperation::Powershell {
             script: r#"
-            Write-Host "To revert, go to:" -ForegroundColor Yellow
-            Write-Host "Settings > Display > Advanced display > Choose a refresh rate" -ForegroundColor Cyan
-            Write-Host "Or use Windows Display Settings to select your preferred refresh rate." -ForegroundColor Cyan
-        "#.to_string(),
+Write-Host "This tweak cannot be reverted automatically - it only sets to maximum." -ForegroundColor Yellow
+Write-Host "Your monitor is now at its maximum supported refresh rate." -ForegroundColor Cyan
+Write-Host "To change: Settings > Display > Advanced display > Choose a refresh rate" -ForegroundColor Cyan
+"#.to_string(),
         }]),
-        enabled: false,
-        check: None,
+        tweak_type: TweakType::Toggle, enabled: false,
+        check: Some(TweakCheck::Powershell {
+            script: r#"
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class DisplayConfig {
+    [DllImport("user32.dll")]
+    public static extern int EnumDisplaySettings(string deviceName, int modeNum, ref DEVMODE devMode);
+    
+    public const int ENUM_CURRENT_SETTINGS = -1;
+    
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct DEVMODE {
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string dmDeviceName;
+        public short dmSpecVersion;
+        public short dmDriverVersion;
+        public short dmSize;
+        public short dmDriverExtra;
+        public int dmFields;
+        public int dmPositionX;
+        public int dmPositionY;
+        public int dmDisplayOrientation;
+        public int dmDisplayFixedOutput;
+        public short dmColor;
+        public short dmDuplex;
+        public short dmYResolution;
+        public short dmTTOption;
+        public short dmCollate;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string dmFormName;
+        public short dmLogPixels;
+        public int dmBitsPerPel;
+        public int dmPelsWidth;
+        public int dmPelsHeight;
+        public int dmDisplayFlags;
+        public int dmDisplayFrequency;
+        public int dmICMMethod;
+        public int dmICMIntent;
+        public int dmMediaType;
+        public int dmDitherType;
+        public int dmReserved1;
+        public int dmReserved2;
+        public int dmPanningWidth;
+        public int dmPanningHeight;
+    }
+}
+"@
+
+$devmode = New-Object DisplayConfig+DEVMODE
+$devmode.dmSize = [System.Runtime.InteropServices.Marshal]::SizeOf($devmode)
+
+# Get current display settings
+[DisplayConfig]::EnumDisplaySettings($null, [DisplayConfig]::ENUM_CURRENT_SETTINGS, [ref]$devmode)
+$currentHz = $devmode.dmDisplayFrequency
+
+# Find max Hz for current resolution
+$maxHz = $currentHz
+$modeNum = 0
+while ($true) {
+    $testMode = New-Object DisplayConfig+DEVMODE
+    $testMode.dmSize = [System.Runtime.InteropServices.Marshal]::SizeOf($testMode)
+    
+    $result = [DisplayConfig]::EnumDisplaySettings($null, $modeNum, [ref]$testMode)
+    if ($result -eq 0) { break }
+    
+    if ($testMode.dmPelsWidth -eq $devmode.dmPelsWidth -and 
+        $testMode.dmPelsHeight -eq $devmode.dmPelsHeight -and
+        $testMode.dmBitsPerPel -eq $devmode.dmBitsPerPel) {
+        
+        if ($testMode.dmDisplayFrequency -gt $maxHz) {
+            $maxHz = $testMode.dmDisplayFrequency
+        }
+    }
+    $modeNum++
+}
+
+if ($currentHz -ge $maxHz) { "True" } else { "False" }
+"#.to_string(),
+            expected_output: "True".to_string(),
+        }),
         operations: vec![TweakOperation::Powershell {
             script: r#"
 Add-Type @"
@@ -144,7 +226,7 @@ fn tweak_dpi_100() -> Tweak {
     Tweak {
         id: "display_dpi_100".to_string(),
         category: TweakCategory::DisplayMonitor,
-        name: "📐 Set DPI Scaling to 100%".to_string(),
+        name: "Set DPI Scaling to 100%".to_string(),
         description: "Forces DPI scaling to 100% to avoid blur and rendering overhead in games. May make UI smaller on high-resolution displays.".to_string(),
         warning_level: WarningLevel::Careful,
         requires_restart: true,
@@ -163,8 +245,13 @@ fn tweak_dpi_100() -> Tweak {
             Write-Host "Sign out and sign in for changes to take effect" -ForegroundColor Yellow
         "#.to_string(),
         }]),
-        enabled: false,
-        check: None,
+        tweak_type: TweakType::Toggle, enabled: false,
+        check: Some(TweakCheck::Registry {
+            root_key: "HKCU".to_string(),
+            path: "Control Panel\\Desktop".to_string(),
+            key: "LogPixels".to_string(),
+            expected_value: RegistryValue::DWord(96),
+        }),
         operations: vec![TweakOperation::Powershell {
             script: r#"
 Write-Host "Setting DPI scaling to 100%..." -ForegroundColor Cyan
@@ -193,7 +280,7 @@ fn tweak_8bit_color() -> Tweak {
     Tweak {
         id: "display_8bit_color".to_string(),
         category: TweakCategory::DisplayMonitor,
-        name: "🎨 Force 8-bit Color Depth".to_string(),
+        name: "Force 8-bit Color Depth".to_string(),
         description: "Sets display to 8-bit (32bpp) instead of 10-bit for better compatibility with high refresh rates (144Hz+).".to_string(),
         warning_level: WarningLevel::Safe,
         requires_restart: false,
@@ -203,8 +290,13 @@ fn tweak_8bit_color() -> Tweak {
             Write-Host "Settings > Display > Advanced display > Choose a bit depth > 10-bit" -ForegroundColor Cyan
         "#.to_string(),
         }]),
-        enabled: false,
-        check: None,
+        tweak_type: TweakType::Toggle, enabled: false,
+        check: Some(TweakCheck::Powershell {
+            script: r#"
+if ((Get-CimInstance -ClassName Win32_VideoController -ErrorAction SilentlyContinue).CurrentBitsPerPixel -eq 32) { "True" } else { "False" }
+"#.to_string(),
+            expected_output: "True".to_string(),
+        }),
         operations: vec![TweakOperation::Powershell {
             script: r#"
 Write-Host "Setting color depth to 8-bit (32bpp)..." -ForegroundColor Cyan

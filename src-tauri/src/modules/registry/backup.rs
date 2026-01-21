@@ -13,6 +13,21 @@ pub struct BackupEntry {
     pub key: String,
     pub original_value: Option<RegistryValue>,
     pub timestamp: u64,
+    pub os_build: String, // New: OS Build version
+}
+
+fn get_current_build() -> String {
+    use winreg::enums::*;
+    use winreg::RegKey;
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    if let Ok(key) =
+        hklm.open_subkey_with_flags("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", KEY_READ)
+    {
+        return key
+            .get_value("CurrentBuild")
+            .unwrap_or_else(|_| "Unknown".to_string());
+    }
+    "Unknown".to_string()
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -22,29 +37,37 @@ pub struct RegistryBackup {
 
 impl RegistryBackup {
     pub fn new(_path: PathBuf) -> Self {
-        // In this simplified version we don't hold the path in struct,
-        // we just load/save to it. Ideally we'd store it.
         RegistryBackup::default()
     }
 
     pub fn backup_value(&mut self, root: &str, path: &str, key: &str) -> Result<()> {
         use crate::modules::registry::operations::{get_root_key, open_subkey, read_value};
+        use winreg::enums::KEY_READ;
 
         let root_key = get_root_key(root);
         // Try to read existing value
-        let original = if let Ok(subkey) = open_subkey(&root_key, path, false) {
+        let original = if let Ok(subkey) = open_subkey(&root_key, path, KEY_READ) {
             read_value(&subkey, key).ok()
         } else {
             None
         };
 
-        let id = format!("{}::{}::{}", root, path, key); // Simple unique ID for now
+        let id = format!("{}::{}::{}", root, path, key);
+        let current_build = get_current_build();
 
-        // Only backup if not exists? Or overwrite?
-        // If we want multiple restore points, we need a better ID (e.g. timestamped)
-        // For simple TOGGLE logic, we just want the state before we messed with it.
-        // If we already have a backup, maybe don't overwrite it (preserve ORIGINAL original state)
-        if !self.entries.contains_key(&id) {
+        // Logic: Backup if missing OR if current backup is from different/older build?
+        // Actually, for a Tweak Tool, if the user toggles ON, we backup.
+        // If they toggle OFF, we restore.
+        // If they toggle ON again, we should probably backup the NEW state if it differs from our old backup?
+        // Or if the OS updated, the "default" might have changed, so our old backup is dangerous.
+
+        let needs_backup = if let Some(entry) = self.entries.get(&id) {
+            entry.os_build != current_build
+        } else {
+            true
+        };
+
+        if needs_backup {
             self.entries.insert(
                 id.clone(),
                 BackupEntry {
@@ -55,6 +78,7 @@ impl RegistryBackup {
                     timestamp: std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)?
                         .as_secs(),
+                    os_build: current_build,
                 },
             );
         }

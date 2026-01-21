@@ -1,15 +1,15 @@
-# Tunevex v0.1.0
+# Tunevex v0.2.0
 
-Core tuning engine
+Shared UI and Windows 11 shell
 
 Tunevex is a Windows system tuning and optimization utility built with Rust, Tauri and Svelte.
 
 ## Highlights
 
-- Initial Rust and Tauri Windows tuning engine
-- CPU, network, privacy, security, gaming, storage and input modules
-- Stateful apply and undo operations
-- Svelte desktop interface
+- Reusable dashboard and control components
+- Windows 11 style shell and Mica treatment
+- Cleaner system monitoring and quick actions
+- Removal of abandoned shell experiments
 
 ## Safety
 

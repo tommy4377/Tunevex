@@ -18,9 +18,13 @@
         HardDrive,
         Gamepad,
         Palette,
+        Key,
+        Home,
     } from "lucide-svelte";
 
     const categories: { id: TweakCategory; label: string; icon: any }[] = [
+        { id: "Home", label: "Home", icon: Home },
+        { id: "Activation", label: "Activation", icon: Key },
         { id: "Network", label: "Network", icon: Network },
         { id: "SecurityPrivacy", label: "Security", icon: Lock },
         { id: "Privacy", label: "Privacy", icon: Shield },
@@ -29,6 +33,7 @@
         { id: "GpuOptimization", label: "GPU", icon: Palette },
         { id: "GameOptimizations", label: "Gaming", icon: Gamepad },
         { id: "System", label: "System", icon: Settings },
+        { id: "InterfaceUx", label: "Interface", icon: Monitor },
         { id: "StartupServices", label: "Startup", icon: PlayCircle },
         { id: "MouseInput", label: "Input", icon: MousePointer },
         { id: "DisplayMonitor", label: "Display", icon: Monitor },
@@ -57,29 +62,34 @@
 <style>
     .sidebar {
         width: 240px;
-        background: var(--sidebar-bg);
+        background: transparent;
         border-right: 1px solid var(--border-color);
         padding: 16px 0;
         display: flex;
         flex-direction: column;
+        justify-content: center; /* Center items vertically */
     }
 
     .menu {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 2px;
         padding: 0 12px;
+        /* Ensure menu doesn't overflow if too tall when centered */
+        max-height: 100%;
+        overflow-y: auto;
     }
+    /* ... rest of styles ... */
 
     button {
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 10px 12px;
+        padding: 8px 12px;
         border: none;
         background: transparent;
         color: var(--text-muted);
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 500;
         cursor: pointer;
         border-radius: var(--radius-md);
@@ -93,8 +103,12 @@
     }
 
     button.active {
-        background: var(--accent-color);
-        color: white;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text-color);
+    }
+
+    button.active :global(svg) {
+        color: var(--accent-color);
     }
 
     .label {

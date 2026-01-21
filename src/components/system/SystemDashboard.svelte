@@ -1,224 +1,134 @@
 <script lang="ts">
     import { fade } from "svelte/transition";
-    import TweakCard from "../TweakCard.svelte";
+    import { Brush, Settings, Monitor } from "lucide-svelte";
     import { invoke } from "@tauri-apps/api/core";
+    import { Card, CardGrid, BackButton, SectionHeader } from "../ui";
+    import TweakList from "../TweakList.svelte";
     import type { Tweak } from "$lib/types";
 
     export let allTweaks: Tweak[] = [];
 
-    // Filter System tweaks
-    // Category is "System"
-    // We can also split by ID prefix or analysis
-    $: systemTweaks = allTweaks.filter((t) => t.category === "System");
-    $: hardwareTweaks = allTweaks.filter(
-        (t) => t.category === "Hardware" || t.id.includes("msi_global"),
-    ); // Including global msi if mapped to Hardware or System
+    let currentView: "dashboard" | "maintenance" | "services" | "system" =
+        "dashboard";
 
-    // Grouping
-    // Services, Maintenance, MSI (Hardware)
-    // Actually backend System module: maintenance, services, msi.
-    // msi.rs tweak category is "Hardware" in my previous edit?
-    // Let's check msi.rs content again or just assume catch-all.
-    // Wait, I set category to "Hardware" in system/msi.rs but user said "Hardware shouldn't exist".
-    // I should probably map "Hardware" category in sidebar to SystemDashboard if I keep it, or I should have changed category to "System".
-    // I entered "Hardware" in msi.rs.
-    // Let's filter for both "System" and "Hardware" categories here to be safe and show them.
-
-    $: combinedTweaks = allTweaks.filter(
-        (t) => t.category === "System" || t.category === "Hardware",
+    // Filters
+    $: maintenanceTweaks = allTweaks.filter(
+        (t) =>
+            t.category === "System" &&
+            (t.id.includes("maintenance") ||
+                t.id.includes("restore") ||
+                t.id.includes("cleanup") ||
+                t.id.includes("bso_d") ||
+                t.id.includes("restart")),
     );
 
-    $: maintenanceTweaks = combinedTweaks.filter(
-        (t) => t.id.includes("maintenance") || t.id.includes("cleanup"),
+    $: servicesTweaks = allTweaks.filter(
+        (t) =>
+            t.category === "System" &&
+            (t.id.includes("service") ||
+                t.id.includes("update") ||
+                t.id.includes("fax") ||
+                t.id.includes("print") ||
+                t.id.includes("bloat")),
     );
-    $: serviceTweaks = combinedTweaks.filter(
-        (t) => t.id.includes("service") || t.id.includes("svc"),
-    );
-    $: msiTweaks = combinedTweaks.filter((t) => t.id.includes("msi"));
 
-    async function toggleTweak(tweak: Tweak) {
-        try {
-            if (tweak.enabled) {
-                await invoke("undo_tweak", { id: tweak.id });
-                tweak.enabled = false;
-            } else {
-                await invoke("apply_tweak", { id: tweak.id });
-                tweak.enabled = true;
+    $: systemTweaks = allTweaks.filter(
+        (t) =>
+            t.category === "System" &&
+            !maintenanceTweaks.includes(t) &&
+            !servicesTweaks.includes(t),
+    );
+
+    async function applySafeTweaks(tweaks: Tweak[]) {
+        for (const tweak of tweaks.filter((t) => t.warning_level === "Safe")) {
+            if (!tweak.enabled) {
+                try {
+                    await invoke("apply_tweak", { id: tweak.id });
+                    tweak.enabled = true;
+                } catch (e) {
+                    console.error(`Failed to apply tweak ${tweak.id}:`, e);
+                }
             }
-            allTweaks = allTweaks;
-        } catch (e) {
-            console.error("Failed to toggle tweak:", e);
         }
+        allTweaks = allTweaks;
     }
 
-    let activeTab: "general" | "services" | "hardware" = "general";
+    const sections = [
+        {
+            id: "system",
+            icon: Monitor,
+            title: "System & Hardware",
+            desc: "General system tweaks and hardware configurations.",
+            tweaks: () => systemTweaks,
+        },
+    ] as const;
+
+    $: currentSection = sections.find((s) => s.id === currentView);
+    $: currentTweaks = currentSection?.tweaks() ?? [];
 </script>
 
-<div class="system-dashboard">
-    <div class="header-section">
-        <h1>System Optimization</h1>
-        <p>
-            Manage system services, maintenance tasks, and hardware interrupts.
-        </p>
-    </div>
+<div class="system-container">
+    {#if currentView === "dashboard"}
+        <CardGrid>
+            {#each sections.filter((s) => s.tweaks().length > 0) as section}
+                <Card
+                    icon={section.icon}
+                    title={section.title}
+                    description={section.desc}
+                    status="{section.tweaks().length} tweaks"
+                    onclick={() => (currentView = section.id)}
+                />
+            {/each}
+        </CardGrid>
+    {:else}
+        <div class="detail-view" in:fade>
+            <BackButton onclick={() => (currentView = "dashboard")} />
 
-    <div class="tabs">
-        <button
-            class:active={activeTab === "general"}
-            on:click={() => (activeTab = "general")}
-        >
-            <span class="icon">🛠️</span>
-            <span>Maintenance</span>
-        </button>
-        <button
-            class:active={activeTab === "services"}
-            on:click={() => (activeTab = "services")}
-        >
-            <span class="icon">⚙️</span>
-            <span>Services</span>
-        </button>
-        <button
-            class:active={activeTab === "hardware"}
-            on:click={() => (activeTab = "hardware")}
-        >
-            <span class="icon">⚡</span>
-            <span>Hardware / MSI</span>
-        </button>
-    </div>
-
-    <div class="content">
-        {#if activeTab === "general"}
-            <div class="grid" in:fade>
-                {#each maintenanceTweaks as tweak}
-                    <TweakCard {tweak} on:toggle={() => toggleTweak(tweak)} />
-                {/each}
-                {#if maintenanceTweaks.length === 0}
-                    <div class="empty">No maintenance tweaks found.</div>
+            <div class="section-content">
+                {#if currentSection}
+                    <SectionHeader
+                        icon={currentSection.icon}
+                        title={currentSection.title}
+                        description={currentSection.desc}
+                        actionLabel="Apply Safe Tweaks"
+                        onAction={() => applySafeTweaks(currentTweaks)}
+                    />
+                    <div class="tweaks-wrapper">
+                        <TweakList tweaks={currentTweaks} showHeader={false} />
+                    </div>
                 {/if}
             </div>
-        {:else if activeTab === "services"}
-            <div class="grid" in:fade>
-                {#each serviceTweaks as tweak}
-                    <TweakCard {tweak} on:toggle={() => toggleTweak(tweak)} />
-                {/each}
-                {#if serviceTweaks.length === 0}
-                    <div class="empty">No service tweaks found.</div>
-                {/if}
-            </div>
-        {:else if activeTab === "hardware"}
-            <div class="grid" in:fade>
-                <div class="info-banner">
-                    <span class="icon">ℹ️</span>
-                    <p>
-                        Global MSI Mode attempts to enable Message Signaled
-                        Interrupts for all supported devices. Use with caution.
-                    </p>
-                </div>
-                {#each msiTweaks as tweak}
-                    <TweakCard {tweak} on:toggle={() => toggleTweak(tweak)} />
-                {/each}
-                {#if msiTweaks.length === 0}
-                    <div class="empty">No hardware/MSI tweaks found.</div>
-                {/if}
-            </div>
-        {/if}
-    </div>
+        </div>
+    {/if}
 </div>
 
 <style>
-    .system-dashboard {
+    .system-container {
+        height: 100%;
+        color: var(--text-color);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .detail-view {
         height: 100%;
         display: flex;
         flex-direction: column;
         padding: 24px;
-        color: var(--text-color);
-        box-sizing: border-box;
-        overflow: hidden;
     }
 
-    .header-section {
-        margin-bottom: 24px;
-        flex-shrink: 0;
-    }
-
-    h1 {
-        font-size: 24px;
-        font-weight: 700;
-        margin: 0 0 8px 0;
-    }
-
-    p {
-        color: var(--text-muted);
-        font-size: 14px;
-        margin: 0;
-    }
-
-    .tabs {
-        display: flex;
-        gap: 12px;
-        margin-bottom: 24px;
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: 0;
-        flex-shrink: 0;
-    }
-
-    .tabs button {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 12px 16px;
-        background: transparent;
-        border: none;
-        border-bottom: 2px solid transparent;
-        color: var(--text-muted);
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 500;
-        transition: all 0.2s;
-    }
-
-    .tabs button:hover {
-        color: var(--text-color);
-        background: rgba(255, 255, 255, 0.03);
-    }
-
-    .tabs button.active {
-        color: var(--accent-color);
-        border-bottom-color: var(--accent-color);
-    }
-
-    .content {
+    .section-content {
         flex: 1;
-        overflow-y: auto;
-        padding-bottom: 20px;
-    }
-
-    .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 16px;
-    }
-
-    .info-banner {
-        grid-column: 1 / -1;
-        background: rgba(245, 158, 11, 0.1);
-        border: 1px solid rgba(245, 158, 11, 0.2);
-        border-radius: var(--radius-sm);
-        padding: 12px 16px;
+        overflow: hidden;
         display: flex;
-        gap: 12px;
-        align-items: flex-start;
-        color: var(--text-color);
-        font-size: 14px;
-        line-height: 1.5;
-        margin-bottom: 8px;
+        flex-direction: column;
     }
 
-    .empty {
-        text-align: center;
-        padding: 40px;
-        color: var(--text-muted);
-        font-style: italic;
-        grid-column: 1 / -1;
+    .tweaks-wrapper {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
 </style>

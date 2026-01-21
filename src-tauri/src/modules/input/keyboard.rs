@@ -1,4 +1,6 @@
-use crate::modules::types::{RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 /// Keyboard Optimization Tweaks
 pub fn get_keyboard_tweaks() -> Vec<Tweak> {
@@ -25,8 +27,13 @@ pub fn get_keyboard_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::String("1".to_string()), // Default usually 1
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "Control Panel\\Keyboard".to_string(),
+                key: "KeyboardDelay".to_string(),
+                expected_value: RegistryValue::String("0".to_string()),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -59,8 +66,13 @@ pub fn get_keyboard_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::String("510".to_string()),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "Control Panel\\Accessibility\\StickyKeys".to_string(),
+                key: "Flags".to_string(),
+                expected_value: RegistryValue::String("506".to_string()),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -87,8 +99,13 @@ pub fn get_keyboard_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::String("126".to_string()),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "Control Panel\\Accessibility\\Keyboard Response".to_string(),
+                key: "Flags".to_string(),
+                expected_value: RegistryValue::String("122".to_string()),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -115,8 +132,13 @@ pub fn get_keyboard_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::String("62".to_string()),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "Control Panel\\Accessibility\\ToggleKeys".to_string(),
+                key: "Flags".to_string(),
+                expected_value: RegistryValue::String("58".to_string()),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -149,8 +171,13 @@ pub fn get_keyboard_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "SOFTWARE\\Microsoft\\TabletTip\\1.7".to_string(),
+                key: "EnableAutoShiftEngage".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -183,8 +210,13 @@ pub fn get_keyboard_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::String("2".to_string()), // Default 2 often
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "Control Panel\\Keyboard".to_string(),
+                key: "InitialKeyboardIndicators".to_string(),
+                expected_value: RegistryValue::String("2".to_string()),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
@@ -210,8 +242,13 @@ pub fn get_keyboard_tweaks() -> Vec<Tweak> {
                     key: "KeyboardDataQueueSize".to_string(),
                 },
             ]),
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Services\\kbdclass\\Parameters".to_string(),
+                key: "KeyboardDataQueueSize".to_string(),
+                expected_value: RegistryValue::DWord(50),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),

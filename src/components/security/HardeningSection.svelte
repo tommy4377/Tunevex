@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { Lock } from "lucide-svelte";
+    import { SectionHeader } from "../ui";
     import TweakList from "../TweakList.svelte";
     import type { Tweak } from "$lib/types";
     import { invoke } from "@tauri-apps/api/core";
@@ -12,20 +14,18 @@
                 tweak.enabled = true;
             }
         }
+        tweaks = tweaks; // Trigger reactivity
     }
 </script>
 
 <div class="section-container">
-    <div class="header">
-        <h2>🔒 Security Hardening</h2>
-        <p>
-            Network hardening: disable SMBv1, LLMNR, NetBIOS, block SAM
-            enumeration, and more.
-        </p>
-        <button class="optimize-btn" on:click={hardenAll}>
-            🔒 Apply Safe Hardening
-        </button>
-    </div>
+    <SectionHeader
+        icon={Lock}
+        title="Security Hardening"
+        description="Network hardening: disable SMBv1, LLMNR, NetBIOS, block SAM enumeration, and more."
+        actionLabel="Apply Safe Hardening"
+        onAction={hardenAll}
+    />
     <div class="tweaks-wrapper">
         <TweakList {tweaks} showHeader={false} />
     </div>
@@ -36,32 +36,6 @@
         display: flex;
         flex-direction: column;
         height: 100%;
-    }
-    .header {
-        margin-bottom: 24px;
-        padding-bottom: 16px;
-        border-bottom: 1px solid var(--border-color);
-    }
-    h2 {
-        font-size: 20px;
-        margin-bottom: 8px;
-    }
-    p {
-        color: var(--text-muted);
-        font-size: 14px;
-        margin-bottom: 16px;
-    }
-    .optimize-btn {
-        background: #10b981;
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 6px;
-        font-weight: 500;
-        cursor: pointer;
-    }
-    .optimize-btn:hover {
-        background: #059669;
     }
     .tweaks-wrapper {
         flex: 1;

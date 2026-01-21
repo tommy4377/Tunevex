@@ -2,7 +2,9 @@
 //!
 //! NVMe and storage power optimization tweaks moved from CPU module
 
-use crate::modules::types::{Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 /// Returns all storage power management tweaks
 pub fn get_storage_power_tweaks() -> Vec<Tweak> {
@@ -17,8 +19,14 @@ pub fn get_storage_power_tweaks() -> Vec<Tweak> {
             description: "Sets NVMe idle timeout to 0ms to prevent drive from entering low-power mode.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$out = powercfg /query scheme_current 0012ee47-9041-4b5d-9b77-535fba8b1442 d3d55efd-c1ff-424e-9dc3-441be7833010
+if ($out -match "Current AC Power Setting Index: 0x00000000") { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"
@@ -55,8 +63,15 @@ powercfg /setactive scheme_current
             description: "Prevents storage devices from entering D3 cold state during Modern Standby.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
-            enabled: false,
-            check: None,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$d3 = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Storage" -Name "StorageD3InModernStandby" -ErrorAction SilentlyContinue
+$nvme = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\stornvme\Parameters\Device" -Name "IdlePowerMode" -ErrorAction SilentlyContinue
+if (($d3.StorageD3InModernStandby -eq 0) -and ($nvme.IdlePowerMode -eq 0)) { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::Powershell {
                     script: r#"

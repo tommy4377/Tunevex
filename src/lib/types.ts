@@ -18,7 +18,13 @@ export type TweakCategory =
     | 'Advanced'
     | 'Monitoring'
     | 'BackupRestore'
-    | 'Privacy';
+    | 'Privacy'
+    | 'Programs'
+    | 'Restore'
+    | 'Activation'
+    | 'Home';
+
+export type TweakType = 'Toggle' | 'Action';
 
 export interface Tweak {
     id: string;
@@ -26,6 +32,7 @@ export interface Tweak {
     name: string;
     description: string;
     warning_level: WarningLevel;
+    tweak_type: TweakType;
     requires_restart: boolean;
     enabled?: boolean; // Frontend state
     check?: TweakCheck;
