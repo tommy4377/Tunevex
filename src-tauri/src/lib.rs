@@ -18,40 +18,8 @@ use crate::modules::storage::get_storage_tweaks;
 // use crate::modules::startup::get_startup_tweaks;
 use crate::modules::interface::get_interface_tweaks;
 use crate::modules::system::get_system_tweaks;
-use std::os::windows::process::CommandExt;
 use std::sync::Mutex;
 
-#[tauri::command]
-fn init_ep_install_only() -> Result<String, String> {
-    // DETACHED thread + NO_WINDOW per zero freeze
-    std::thread::spawn(|| {
-        let script = r#"
-$ErrorActionPreference = 'SilentlyContinue'
-$ep_ui = "${env:ProgramFiles}\ExplorerPatcher\ExplorerPatcherUI.exe"
-if (!(Test-Path $ep_ui)) {
-    # Download latest SILENT
-    $releases = irm 'https://api.github.com/repos/valinet/ExplorerPatcher/releases/latest'
-    $url = ($releases.assets | ? name -eq 'ep_setup.exe').browser_download_url
-    $temp = "$env:TEMP\ep_setup.exe"
-    iwr $url -OutFile $temp -UseBasicParsing
-    
-    # 100% SILENT install - Arguments must be careful
-    Start-Process $temp -ArgumentList "/VERYSILENT","/NORESTART","/SUPPRESSMSGBOXES" -Wait -WindowStyle Hidden
-    Remove-Item $temp -Force
-    
-    Add-MpPreference -ExclusionPath "${env:ProgramFiles}\ExplorerPatcher" -EA 0
-}
-'Installed'
-"#;
-
-        let _ = std::process::Command::new("powershell")
-            .args(["-ep", "Bypass", "-c", script])
-            .creation_flags(0x08000000u32) // CREATE_NO_WINDOW
-            .spawn();
-    });
-
-    Ok("EP install started (background, no freeze)".to_string())
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -93,7 +61,6 @@ pub fn run() {
             crate::modules::utils::process_manager::ProcessManager::new(),
         ))
         .invoke_handler(tauri::generate_handler![
-            init_ep_install_only,
             commands::check_is_admin,
             commands::get_tweaks,
             commands::get_tweaks_fast,

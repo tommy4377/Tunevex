@@ -83,10 +83,13 @@ $url = "https://raw.githubusercontent.com/massgravel/Microsoft-Activation-Script
 $path = "$env:LOCALAPPDATA\TommyTweaker\mas\mas_aio.cmd"
 
 if (!(Test-Path $path)) {
-    Write-Host "Downloading MAS Script..." -ForegroundColor Cyan
+    Write-Host "Downloading MAS Script (first run)..." -ForegroundColor Cyan
     New-Item -ItemType Directory -Force (Split-Path $path) | Out-Null
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Invoke-WebRequest -Uri $url -OutFile $path
+    Write-Host "Download complete." -ForegroundColor Green
+} else {
+    Write-Host "Using cached MAS script..." -ForegroundColor Green
 }
 
 Write-Host "Starting MAS (HWID)..." -ForegroundColor Green
@@ -184,10 +187,13 @@ $url = "https://raw.githubusercontent.com/massgravel/Microsoft-Activation-Script
 $path = "$env:LOCALAPPDATA\TommyTweaker\mas\mas_aio.cmd"
 
 if (!(Test-Path $path)) {
-    Write-Host "Downloading MAS Script..." -ForegroundColor Cyan
+    Write-Host "Downloading MAS Script (first run)..." -ForegroundColor Cyan
     New-Item -ItemType Directory -Force (Split-Path $path) | Out-Null
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Invoke-WebRequest -Uri $url -OutFile $path
+    Write-Host "Download complete." -ForegroundColor Green
+} else {
+    Write-Host "Using cached MAS script..." -ForegroundColor Green
 }
 
 Write-Host "Starting MAS (Ohook)..." -ForegroundColor Green

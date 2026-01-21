@@ -188,7 +188,7 @@
 <div class="security-container">
     {#if currentView === "dashboard"}
         <CardGrid>
-            {#each sections as section}
+            {#each sections.filter((s) => s.tweaks().length > 0) as section}
                 <Card
                     icon={section.icon}
                     title={section.title}

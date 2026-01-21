@@ -2,6 +2,7 @@
     import { createEventDispatcher } from "svelte";
     import { invoke } from "@tauri-apps/api/core";
     import { listen } from "@tauri-apps/api/event";
+    import { Loader2 } from "lucide-svelte";
     import type { Tweak } from "$lib/types";
 
     export let tweak: Tweak;
@@ -56,9 +57,7 @@
 
     <p class="description">{tweak.description}</p>
 
-    {#if isApplying}
-        <div class="loading-bar animate-pulse"></div>
-    {/if}
+
 
     <div class="footer">
         <button
@@ -69,7 +68,7 @@
             disabled={isApplying}
         >
             {#if isApplying}
-                Applying...
+                <Loader2 class="spinner" size={16} />
             {:else if tweak.tweak_type === "Action"}
                 Run
             {:else}
@@ -189,26 +188,17 @@
         cursor: wait;
     }
 
-    .loading-bar {
-        height: 2px;
-        width: 100%;
-        background: var(--accent-color);
-        margin-top: 8px;
-        border-radius: 2px;
-        opacity: 0.8;
+    .apply-btn :global(.spinner) {
+        animation: spin 1s linear infinite;
     }
 
-    @keyframes pulse {
-        0%,
-        100% {
-            opacity: 1;
+    @keyframes spin {
+        from {
+            transform: rotate(0deg);
         }
-        50% {
-            opacity: 0.5;
+        to {
+            transform: rotate(360deg);
         }
     }
 
-    .animate-pulse {
-        animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-    }
 </style>

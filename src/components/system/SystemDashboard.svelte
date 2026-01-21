@@ -55,20 +55,6 @@
 
     const sections = [
         {
-            id: "maintenance",
-            icon: Brush,
-            title: "Maintenance",
-            desc: "System cleanup, restore points, and auto-restart settings.",
-            tweaks: () => maintenanceTweaks,
-        },
-        {
-            id: "services",
-            icon: Settings,
-            title: "Windows Services",
-            desc: "Optimize background services and disable bloat.",
-            tweaks: () => servicesTweaks,
-        },
-        {
             id: "system",
             icon: Monitor,
             title: "System & Hardware",
@@ -84,7 +70,7 @@
 <div class="system-container">
     {#if currentView === "dashboard"}
         <CardGrid>
-            {#each sections as section}
+            {#each sections.filter((s) => s.tweaks().length > 0) as section}
                 <Card
                     icon={section.icon}
                     title={section.title}

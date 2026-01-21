@@ -198,6 +198,7 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 24px;
+        align-items: stretch;
     }
 
     .card {
@@ -209,6 +210,8 @@
         transition:
             transform 0.2s,
             background 0.2s;
+        display: flex;
+        flex-direction: column;
     }
 
     .card:hover {
@@ -242,6 +245,7 @@
         display: flex;
         flex-direction: column;
         gap: 20px;
+        flex: 1;
     }
 
     .action-row {

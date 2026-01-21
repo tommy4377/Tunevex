@@ -286,7 +286,35 @@
         transform: translateX(4px);
     }
 
-    /* ... skipped ... */
+    .info {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .top-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 6px;
+    }
+
+    .name {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-color);
+    }
+
+    .description {
+        font-size: 13px;
+        color: var(--text-muted);
+        line-height: 1.4;
+        margin: 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
 
     .badge {
         font-size: 10px;
@@ -294,9 +322,8 @@
         border-radius: 12px; /* Pill shape */
         font-weight: 700;
         text-transform: uppercase;
+        flex-shrink: 0;
     }
-
-    /* ... skipped ... */
 
     /* Toggle Button - Disabled State */
     .toggle-btn {

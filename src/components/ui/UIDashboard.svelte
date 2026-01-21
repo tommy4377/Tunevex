@@ -1,8 +1,8 @@
 <script lang="ts">
     import { invoke } from "@tauri-apps/api/core";
     import { fade } from "svelte/transition";
-    import { Target, Moon, Folder, Menu, LayoutTemplate } from "lucide-svelte";
-    import { Card, CardGrid, BackButton, TaskbarSection } from "../ui";
+    import { Moon, Folder, Menu } from "lucide-svelte";
+    import { Card, CardGrid, BackButton } from "../ui";
     import TweakCard from "../TweakCard.svelte";
     import type { Tweak } from "$lib/types";
 
@@ -10,16 +10,6 @@
 
     // Filter UI tweaks
     $: uiTweaks = allTweaks.filter((t) => t.category === "InterfaceUx");
-
-    // Organize by section
-    // Include EP-style tweaks and all taskbar tweaks
-    $: taskbarTweaks = uiTweaks.filter(
-        (t) =>
-            t.id.startsWith("taskbar_") ||
-            t.id.startsWith("ep_") ||
-            t.id.includes("interface_taskbar_") ||
-            t.id.includes("end_task"),
-    );
 
     $: contextTweaks = uiTweaks.filter(
         (t) =>
@@ -41,13 +31,6 @@
     );
 
     const sectionsMeta = [
-        {
-            id: "taskbar",
-            icon: LayoutTemplate,
-            title: "Taskbar",
-            desc: "Alignment, size, and position.",
-            tweaks: () => taskbarTweaks,
-        },
         {
             id: "context",
             icon: Menu,
@@ -121,7 +104,7 @@
 <div class="ui-dashboard" in:fade>
     {#if currentView === "dashboard"}
         <CardGrid>
-            {#each sections as section}
+            {#each sections.filter((s) => s.tweaks().length > 0) as section}
                 <Card
                     icon={section.icon}
                     title={section.title}
@@ -136,20 +119,13 @@
             <BackButton onclick={goBack} />
             <h2>{selectedSection.title}</h2>
             <div class="tweak-list">
-                {#if selectedSection.id === "taskbar"}
-                    <TaskbarSection
-                        tweaks={selectedSection.tweaks()}
-                        on:refresh={refreshTweaks}
+                {#each selectedSection.tweaks() as tweak}
+                    <TweakCard
+                        {tweak}
+                        on:apply={() => applyTweak(tweak)}
+                        on:revert={() => revertTweak(tweak)}
                     />
-                {:else}
-                    {#each selectedSection.tweaks() as tweak}
-                        <TweakCard
-                            {tweak}
-                            on:apply={() => applyTweak(tweak)}
-                            on:revert={() => revertTweak(tweak)}
-                        />
-                    {/each}
-                {/if}
+                {/each}
             </div>
         </div>
     {/if}
