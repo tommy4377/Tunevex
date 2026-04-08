@@ -6,7 +6,7 @@ Legend: [x] = fixed & committed · [~] = partial · [ ] = pending
 - [x] FIX-FRONTEND `tauri.conf.json` / `vite.config.ts` / `index.html` — Fix empty index.html and ensure Svelte frontend correctly connects to Tauri backend during build
 
 ## Priority 1 — User-visible bugs
-- [ ] FIX-A `defender.rs` — TamperProtection not checked before apply operations
+- [x] FIX-A `defender.rs` — TamperProtection not checked before apply operations
 - [ ] FIX-B `adapter.rs` — net_disable_power_mgmt check/apply use different metrics
 
 ## Priority 2 — Architectural issues
