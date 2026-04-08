@@ -42,6 +42,7 @@ sysinfo = "0.37"
 winreg = "0.52"
 window-vibrancy = "0.5"
 vite = "0.1.0"
+# wmi removed: unused dep that conflicts with windows = "0.61" (windows_core version mismatch)
 
 [dependencies.windows]
 version = "0.61.3"
