@@ -54,6 +54,15 @@ if ($status.IsTamperProtected) {
                 expected_output: "True".to_string(),
             }),
             operations: vec![
+                TweakOperation::Powershell {
+                    script: r#"
+$status = Get-MpComputerStatus -EA 0
+if ($status.IsTamperProtected) {
+    Write-Error "Tamper Protection is enabled. You must disable it manually in Windows Security before applying this tweak."
+    exit 1
+}
+"#.to_string(),
+                },
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
                     path: "SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Real-Time Protection".to_string(),
@@ -283,6 +292,15 @@ foreach ($svc in $services) {
                 }
             ]),
             operations: vec![
+                TweakOperation::Powershell {
+                    script: r#"
+$status = Get-MpComputerStatus -EA 0
+if ($status.IsTamperProtected) {
+    Write-Error "Tamper Protection is enabled. You must disable it manually in Windows Security before applying this tweak."
+    exit 1
+}
+"#.to_string(),
+                },
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
                     path: "SOFTWARE\\Policies\\Microsoft\\Windows Defender".to_string(),
