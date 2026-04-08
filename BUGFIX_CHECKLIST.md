@@ -10,11 +10,11 @@ Legend: [x] = fixed & committed · [~] = partial · [ ] = pending
 - [x] FIX-B `adapter.rs` — net_disable_power_mgmt check/apply use different metrics
 
 ## Priority 2 — Architectural issues
-- [ ] FIX-C `tommy-tweaker-memory.json` — BUG-05 missing memory entry
-- [ ] FIX-D `commands.rs` — ServiceDisable/ServiceSetMode spawn powershell.exe (~300ms overhead)
-- [ ] FIX-E `commands.rs` — ScheduledTaskDisable spawns powershell.exe
-- [ ] FIX-F `commands.rs` — get_tweaks uses .unwrap() on mutex (panic risk)
-- [ ] FIX-G `commands.rs` — kill_tweak_process uses .unwrap() on mutex (panic risk)
+- [x] FIX-C `tommy-tweaker-memory.json` — BUG-05 missing memory entry
+- [x] FIX-D `commands.rs` — ServiceDisable/ServiceSetMode spawn powershell.exe (~300ms overhead)
+- [x] FIX-E `commands.rs` — ScheduledTaskDisable spawns powershell.exe
+- [x] FIX-F `commands.rs` — get_tweaks uses .unwrap() on mutex (panic risk)
+- [x] FIX-G `commands.rs` — kill_tweak_process uses .unwrap() on mutex (panic risk)
 
 ## Priority 3 — Minor behavioral issues
 - [ ] FIX-H `adapter.rs` — net_configure_rss revert applies same value as apply
