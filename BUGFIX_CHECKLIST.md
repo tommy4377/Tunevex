@@ -22,4 +22,4 @@ Legend: [x] = fixed & committed · [~] = partial · [ ] = pending
 - [x] FIX-J `vendor.rs` — gpu_amd_ulps check uses PowerShell for pure registry read
 
 ## Documentation
-- [ ] README.md — write from scratch after FIX-J
+- [x] README.md — write from scratch after FIX-J
