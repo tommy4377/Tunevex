@@ -137,11 +137,11 @@ pub async fn apply_dns_server(primary: String, secondary: String) -> Result<(), 
 }
 
 #[tauri::command]
-pub fn get_tweaks(ctx: State<Mutex<TweakContext>>, state: State<Mutex<AppState>>) -> Vec<Tweak> {
-    let context = ctx.lock().unwrap();
-    let app_state = state.lock().unwrap();
+pub fn get_tweaks(ctx: State<Mutex<TweakContext>>, state: State<Mutex<AppState>>) -> Result<Vec<Tweak>, String> {
+    let context = ctx.lock().map_err(|e| e.to_string())?;
+    let app_state = state.lock().map_err(|e| e.to_string())?;
 
-    context
+    Ok(context
         .tweaks
         .iter()
         .map(|t| {
@@ -157,7 +157,7 @@ pub fn get_tweaks(ctx: State<Mutex<TweakContext>>, state: State<Mutex<AppState>>
             
             tweak
         })
-        .collect()
+        .collect())
 }
 
 /// Fast version - returns tweaks immediately without running any checks
@@ -416,65 +416,60 @@ pub async fn apply_tweak(
                 }
                 TweakOperation::ServiceDisable { name } => {
                     println!("  -> ServiceDisable: {}", name);
-                    let output = Command::new("powershell")
-                        .args(&["-Command", &format!("Stop-Service -Name '{}' -Force -ErrorAction SilentlyContinue; Set-Service -Name '{}' -StartupType Disabled", name, name)])
+                    let output = Command::new("sc")
+                        .args(&["stop", name])
+                        .creation_flags(0x08000000)
+                        .output()
+                        .map_err(|e| format!("Failed to stop service {}: {}", name, e))?;
+
+                    if !output.status.success() {
+                        // ignore error, service might already be stopped
+                    }
+
+                    let output_config = Command::new("sc")
+                        .args(&["config", name, "start=", "disabled"])
                         .creation_flags(0x08000000)
                         .output()
                         .map_err(|e| format!("Failed to disable service {}: {}", name, e))?;
 
-                    if !output.stdout.is_empty() {
-                         println!("    [SVC STDOUT] {}", String::from_utf8_lossy(&output.stdout));
-                    }
-                    if !output.stderr.is_empty() {
-                         eprintln!("    [SVC STDERR] {}", String::from_utf8_lossy(&output.stderr));
-                    }
-
-                    if !output.status.success() {
+                    if !output_config.status.success() {
                         eprintln!("Warning: Failed to disable service {}", name);
                     }
                 }
                 TweakOperation::ServiceSetMode { name, mode } => {
                     println!("  -> ServiceSetMode: {} -> {}", name, mode);
-                    let output = Command::new("powershell")
-                        .args(&[
-                            "-Command",
-                            &format!("Set-Service -Name '{}' -StartupType {}", name, mode),
-                        ])
+                    
+                    let sc_mode = match mode.to_lowercase().as_str() {
+                        "automatic" | "auto" => "auto",
+                        "manual" | "demand" => "demand",
+                        "disabled" => "disabled",
+                        "delayed-auto" | "delayedauto" => "delayed-auto",
+                        _ => "demand", // default fallback
+                    };
+
+                    let output = Command::new("sc")
+                        .args(&["config", name, "start=", sc_mode])
                         .creation_flags(0x08000000)
                         .output()
                         .map_err(|e| format!("Failed to set service mode {}: {}", name, e))?;
 
-                    if !output.stdout.is_empty() {
-                         println!("    [SVC STDOUT] {}", String::from_utf8_lossy(&output.stdout));
-                    }
-                    if !output.stderr.is_empty() {
-                         eprintln!("    [SVC STDERR] {}", String::from_utf8_lossy(&output.stderr));
-                    }
-                    
                     if !output.status.success() {
                         eprintln!("Warning: Failed to set service mode {}", name);
                     }
                 }
                 TweakOperation::ScheduledTaskDisable { path, name } => {
                     println!("  -> ScheduledTaskDisable: {}\\{}", path, name);
-                    let output = Command::new("powershell")
-                        .args(&[
-                            "-Command",
-                            &format!(
-                                "Disable-ScheduledTask -TaskPath '{}' -TaskName '{}' -ErrorAction SilentlyContinue",
-                                path, name
-                            ),
-                        ])
+                    let full_path = if path == "\\" || path.is_empty() {
+                        format!("\\{}", name)
+                    } else {
+                        format!("{}\\{}", path, name)
+                    };
+                    
+                    let output = Command::new("schtasks")
+                        .args(&["/Change", "/TN", &full_path, "/Disable"])
                         .creation_flags(0x08000000)
                         .output()
                         .map_err(|e| format!("Failed to disable task {}: {}", name, e))?;
-
-                    if !output.stdout.is_empty() {
-                         println!("    [TASK STDOUT] {}", String::from_utf8_lossy(&output.stdout));
-                    }
-                    if !output.stderr.is_empty() {
-                         eprintln!("    [TASK STDERR] {}", String::from_utf8_lossy(&output.stderr));
-                    }
 
                     if !output.status.success() {
                         eprintln!("Warning: Failed to disable task {}", name);
@@ -558,7 +553,7 @@ pub fn kill_tweak_process(
     
     // We need to look up the PID
     let pid = {
-        let mgr = proc_mgr.lock().unwrap();
+        let mgr = proc_mgr.lock().map_err(|e| e.to_string())?;
         mgr.get_pid(&id)
     };
 
@@ -702,21 +697,19 @@ pub async fn undo_tweak(
                     }
                     TweakOperation::ServiceSetMode { name, mode } => {
                         println!("  -> Revert ServiceSetMode: {} -> {}", name, mode);
-                        let output = Command::new("powershell")
-                            .args([
-                                "-Command",
-                                &format!("Set-Service -Name '{}' -StartupType {}", name, mode),
-                            ])
+                        let sc_mode = match mode.to_lowercase().as_str() {
+                            "automatic" | "auto" => "auto",
+                            "manual" | "demand" => "demand",
+                            "disabled" => "disabled",
+                            "delayed-auto" | "delayedauto" => "delayed-auto",
+                            _ => "demand", // default fallback
+                        };
+
+                        let output = Command::new("sc")
+                            .args(&["config", name, "start=", sc_mode])
                             .creation_flags(0x08000000)
                             .output()
                             .map_err(|e| format!("Revert service failed: {}", e))?;
-
-                        if !output.stdout.is_empty() {
-                             println!("    [REVERT SVC STDOUT] {}", String::from_utf8_lossy(&output.stdout));
-                        }
-                        if !output.stderr.is_empty() {
-                             eprintln!("    [REVERT SVC STDERR] {}", String::from_utf8_lossy(&output.stderr));
-                        }
 
                         if !output.status.success() {
                             eprintln!("Warning: Failed to revert service mode {}", name);
