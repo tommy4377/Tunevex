@@ -345,7 +345,13 @@ if ((Get-NetOffloadGlobalSetting).PacketCoalescingFilter -eq 'Disabled') { "True
 $adapters = Get-NetAdapter
 $enabled = $true
 foreach ($a in $adapters) {
-    if ((Get-NetAdapterPowerManagement -Name $a.Name).WakeOnMagicPacket -eq 'Enabled') { $enabled = $false; break }
+    $pm = Get-NetAdapterPowerManagement -Name $a.Name -ErrorAction SilentlyContinue
+    if ($pm.WakeOnMagicPacket -eq 'Enabled' -or $pm.WakeOnPattern -eq 'Enabled') { $enabled = $false; break }
+    $pnpDeviceId = (Get-CimInstance Win32_NetworkAdapter | Where-Object { $_.InterfaceIndex -eq $a.InterfaceIndex }).PNPDeviceID
+    if ($pnpDeviceId) {
+        $caps = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Enum\$pnpDeviceId\Device Parameters" -Name 'PnPCapabilities' -ErrorAction SilentlyContinue).PnPCapabilities
+        if ($caps -ne 24) { $enabled = $false; break }
+    }
 }
 $enabled
 "#.to_string(),
