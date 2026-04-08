@@ -457,6 +457,33 @@ fn check_tweak_enabled(check: &TweakCheck) -> bool {
         TweakCheck::RegistryKeyAbsent { root_key, path } => {
             check_registry_key_absent(root_key, path)
         }
+        TweakCheck::ScheduledTaskDisabled { name } => {
+            let output = Command::new("schtasks")
+                .args(&["/query", "/tn", name, "/v", "/fo", "list"])
+                .creation_flags(0x08000000)
+                .output()
+                .unwrap_or_else(|_| std::process::Output {
+                    status: std::os::windows::process::ExitStatusExt::from_raw(1),
+                    stdout: Vec::new(),
+                    stderr: Vec::new(),
+                });
+            let out_str = String::from_utf8_lossy(&output.stdout).to_string();
+            // In English Windows, "Status: Disabled"
+            out_str.contains("Disabled") || out_str.contains("Disabilitato")
+        }
+        TweakCheck::ServiceDisabled { name } => {
+            let output = Command::new("sc")
+                .args(&["qc", name])
+                .creation_flags(0x08000000)
+                .output()
+                .unwrap_or_else(|_| std::process::Output {
+                    status: std::os::windows::process::ExitStatusExt::from_raw(1),
+                    stdout: Vec::new(),
+                    stderr: Vec::new(),
+                });
+            let out_str = String::from_utf8_lossy(&output.stdout).to_string();
+            out_str.contains("DISABLED") || out_str.contains("4  DISABLED")
+        }
     }
 }
 
@@ -906,6 +933,24 @@ pub async fn apply_tweak(
                         eprintln!("Warning: Failed to disable task {}", name);
                     }
                 }
+                TweakOperation::ScheduledTaskEnable { path, name } => {
+                    println!("  -> ScheduledTaskEnable: {}\\{}", path, name);
+                    let full_path = if path == "\\" || path.is_empty() {
+                        format!("\\{}", name)
+                    } else {
+                        format!("{}\\{}", path, name)
+                    };
+                    
+                    let output = Command::new("schtasks")
+                        .args(&["/Change", "/TN", &full_path, "/Enable"])
+                        .creation_flags(0x08000000)
+                        .output()
+                        .map_err(|e| format!("Failed to enable task {}: {}", name, e))?;
+
+                    if !output.status.success() {
+                        eprintln!("Warning: Failed to enable task {}", name);
+                    }
+                }
                 TweakOperation::FileOperation(file_op) => {
                     use crate::modules::types::FileOp;
                     use std::fs;
@@ -1181,6 +1226,38 @@ pub async fn undo_tweak(
                         if !output.status.success() {
                             eprintln!("Warning: Failed to revert service mode {}", name);
                         }
+                    }
+                    TweakOperation::ScheduledTaskDisable { path, name } => {
+                        let full_path = if path == "\\" || path.is_empty() {
+                            format!("\\{}", name)
+                        } else {
+                            format!("{}\\{}", path, name)
+                        };
+                        let _ = Command::new("schtasks")
+                            .args(&["/Change", "/TN", &full_path, "/Disable"])
+                            .creation_flags(0x08000000)
+                            .output();
+                    }
+                    TweakOperation::ScheduledTaskEnable { path, name } => {
+                        let full_path = if path == "\\" || path.is_empty() {
+                            format!("\\{}", name)
+                        } else {
+                            format!("{}\\{}", path, name)
+                        };
+                        let _ = Command::new("schtasks")
+                            .args(&["/Change", "/TN", &full_path, "/Enable"])
+                            .creation_flags(0x08000000)
+                            .output();
+                    }
+                    TweakOperation::ServiceDisable { name } => {
+                        let _ = Command::new("sc")
+                            .args(&["stop", name])
+                            .creation_flags(0x08000000)
+                            .output();
+                        let _ = Command::new("sc")
+                            .args(&["config", name, "start=", "disabled"])
+                            .creation_flags(0x08000000)
+                            .output();
                     }
                     TweakOperation::Command { cmd, args } => {
                         println!("  -> Revert Command: {} {:?}", cmd, args);

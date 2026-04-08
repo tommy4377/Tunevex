@@ -72,6 +72,10 @@ pub enum TweakOperation {
         path: String, // Task path usually
         name: String,
     },
+    ScheduledTaskEnable {
+        path: String,
+        name: String,
+    },
     FileOperation(FileOp),
     Command {
         cmd: String,

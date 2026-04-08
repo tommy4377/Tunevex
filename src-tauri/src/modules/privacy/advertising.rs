@@ -1,4 +1,6 @@
-use crate::modules::types::{TweakType, TweakCheck, RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 /// Advertising & Tracking
 pub fn get_tweaks() -> Vec<Tweak> {
@@ -205,7 +207,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
             ]
         },
         
-        // 🔒 Comprehensive Privacy All-in-One
+        // Comprehensive Privacy All-in-One
         Tweak {
             id: "priv_all_in_one".to_string(),
             category: TweakCategory::Privacy,
@@ -214,93 +216,44 @@ pub fn get_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Dangerous,
             requires_restart: true,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Write-Host "Reverting Privacy Hardening..." -ForegroundColor Yellow
-
-# Feedback frequency (delete to reset)
-Remove-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Siuf\Rules" -Name "NumberOfSIUFInPeriod" -Force -EA 0
-
-# Handwriting reports
-Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\HandwritingErrorReports" -Name "PreventHandwritingErrorReports" -Force -EA 0
-
-# Recall
-Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -Name "DisableAIDataAnalysis" -Force -EA 0
-
-# Copilot
-Remove-ItemProperty -Path "HKCU:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -Name "TurnOffWindowsCopilot" -Force -EA 0
-
-# SmartScreen (Enable = 1)
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "EnableSmartScreen" -Value 1 -Type DWord -Force -EA 0
-
-# Web search in Start
-Remove-ItemProperty -Path "HKCU:\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "DisableSearchBoxSuggestions" -Force -EA 0
-
-# Enable content suggestions
-$cdmPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
-$subs = @("338393","353694","353696","338388","338389","310093","314563")
-foreach ($s in $subs) {
-    Set-ItemProperty -Path $cdmPath -Name "SubscribedContent-${s}Enabled" -Value 1 -Type DWord -Force -EA 0
-}
-Set-ItemProperty -Path $cdmPath -Name "SystemPaneSuggestionsEnabled" -Value 1 -Type DWord -Force -EA 0
-
-Write-Host "Privacy hardening reverted" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistryDelete { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Siuf\\Rules".to_string(), key: "NumberOfSIUFInPeriod".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\HandwritingErrorReports".to_string(), key: "PreventHandwritingErrorReports".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI".to_string(), key: "DisableAIDataAnalysis".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKCU".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsCopilot".to_string(), key: "TurnOffWindowsCopilot".to_string() },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\System".to_string(), key: "EnableSmartScreen".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistryDelete { root_key: "HKCU".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer".to_string(), key: "DisableSearchBoxSuggestions".to_string() },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager".to_string(), key: "SubscribedContent-338393Enabled".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager".to_string(), key: "SubscribedContent-353694Enabled".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager".to_string(), key: "SubscribedContent-353696Enabled".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager".to_string(), key: "SubscribedContent-338388Enabled".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager".to_string(), key: "SubscribedContent-338389Enabled".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager".to_string(), key: "SubscribedContent-310093Enabled".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager".to_string(), key: "SubscribedContent-314563Enabled".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager".to_string(), key: "SystemPaneSuggestionsEnabled".to_string(), value: RegistryValue::DWord(1) },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(crate::modules::types::TweakCheck::Powershell {
-                script: r#"
-$copilot = Get-ItemProperty -Path "HKCU:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -Name "TurnOffWindowsCopilot" -ErrorAction SilentlyContinue
-$recall = Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -Name "DisableAIDataAnalysis" -ErrorAction SilentlyContinue
-$smartscreen = Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "EnableSmartScreen" -ErrorAction SilentlyContinue
-
-if (($copilot.TurnOffWindowsCopilot -eq 1) -and ($recall.DisableAIDataAnalysis -eq 1) -and ($smartscreen.EnableSmartScreen -eq 0)) {
-    "True"
-} else {
-    "False"
-}
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::MultiRegistry {
+                checks: vec![
+                    crate::modules::types::RegistryCheck { root_key: "HKCU".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsCopilot".to_string(), key: "TurnOffWindowsCopilot".to_string(), expected_value: RegistryValue::DWord(1) },
+                    crate::modules::types::RegistryCheck { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI".to_string(), key: "DisableAIDataAnalysis".to_string(), expected_value: RegistryValue::DWord(1) },
+                    crate::modules::types::RegistryCheck { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\System".to_string(), key: "EnableSmartScreen".to_string(), expected_value: RegistryValue::DWord(0) },
+                ]
             }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Write-Host "=== Comprehensive Privacy Hardening ===" -ForegroundColor Cyan
-
-# Feedback frequency
-Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Siuf\Rules" -Name "NumberOfSIUFInPeriod" -Value 0 -Type DWord -Force -EA 0
-
-# Handwriting reports
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\HandwritingErrorReports" -Name "PreventHandwritingErrorReports" -Value 1 -Type DWord -Force -EA 0
-
-# Recall / AI Features
-$recallPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
-if (!(Test-Path $recallPath)) { New-Item -Path $recallPath -Force | Out-Null }
-Set-ItemProperty -Path $recallPath -Name "DisableAIDataAnalysis" -Value 1 -Type DWord -Force
-
-# Copilot
-$copilotPath = "HKCU:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot"
-if (!(Test-Path $copilotPath)) { New-Item -Path $copilotPath -Force | Out-Null }
-Set-ItemProperty -Path $copilotPath -Name "TurnOffWindowsCopilot" -Value 1 -Type DWord -Force
-
-# SmartScreen
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "EnableSmartScreen" -Value 0 -Type DWord -Force -EA 0
-
-# Web search in Start
-Set-ItemProperty -Path "HKCU:\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "DisableSearchBoxSuggestions" -Value 1 -Type DWord -Force -EA 0
-
-# Disable content suggestions
-$cdmPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
-$subs = @("338393","353694","353696","338388","338389","310093","314563")
-foreach ($s in $subs) {
-    Set-ItemProperty -Path $cdmPath -Name "SubscribedContent-${s}Enabled" -Value 0 -Type DWord -Force -EA 0
-}
-Set-ItemProperty -Path $cdmPath -Name "SystemPaneSuggestionsEnabled" -Value 0 -Type DWord -Force -EA 0
-
-Write-Host "Privacy hardening complete!" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Siuf\\Rules".to_string(), key: "NumberOfSIUFInPeriod".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\HandwritingErrorReports".to_string(), key: "PreventHandwritingErrorReports".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI".to_string(), key: "DisableAIDataAnalysis".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsCopilot".to_string(), key: "TurnOffWindowsCopilot".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\System".to_string(), key: "EnableSmartScreen".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer".to_string(), key: "DisableSearchBoxSuggestions".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager".to_string(), key: "SubscribedContent-338393Enabled".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager".to_string(), key: "SubscribedContent-353694Enabled".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager".to_string(), key: "SubscribedContent-353696Enabled".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager".to_string(), key: "SubscribedContent-338388Enabled".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager".to_string(), key: "SubscribedContent-338389Enabled".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager".to_string(), key: "SubscribedContent-310093Enabled".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager".to_string(), key: "SubscribedContent-314563Enabled".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager".to_string(), key: "SystemPaneSuggestionsEnabled".to_string(), value: RegistryValue::DWord(0) },
             ]
         },
     ]
