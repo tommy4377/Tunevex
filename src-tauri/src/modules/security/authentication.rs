@@ -122,31 +122,68 @@ pub fn get_authentication_tweaks() -> Vec<Tweak> {
             requires_restart: false,
             tweak_type: TweakType::Toggle,
             enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$res = powercfg /q SCHEME_CURRENT SUB_NONE CONSOLELOCK
-if ($res -match "0x00000000") { "True" } else { "False" }
-"#
-                .to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "powercfg".to_string(),
+                args: vec![
+                    "/q".to_string(),
+                    "SCHEME_CURRENT".to_string(),
+                    "SUB_NONE".to_string(),
+                    "CONSOLELOCK".to_string(),
+                ],
+                contains: "0x00000000".to_string(),
             }),
-            revert_operations: Some(vec![TweakOperation::Powershell {
-                script: r#"
-powercfg /SETACVALUEINDEX SCHEME_CURRENT SUB_NONE CONSOLELOCK 1
-powercfg /SETDCVALUEINDEX SCHEME_CURRENT SUB_NONE CONSOLELOCK 1
-powercfg /SETACTIVE SCHEME_CURRENT
-"#
-                .to_string(),
-            }]),
-            operations: vec![TweakOperation::Powershell {
-                script: r#"
-powercfg /SETACVALUEINDEX SCHEME_CURRENT SUB_NONE CONSOLELOCK 0
-powercfg /SETDCVALUEINDEX SCHEME_CURRENT SUB_NONE CONSOLELOCK 0
-powercfg /SETACTIVE SCHEME_CURRENT
-Write-Host "Sign-in after sleep disabled" -ForegroundColor Green
-"#
-                .to_string(),
-            }],
+            revert_operations: Some(vec![
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec![
+                        "/SETACVALUEINDEX".to_string(),
+                        "SCHEME_CURRENT".to_string(),
+                        "SUB_NONE".to_string(),
+                        "CONSOLELOCK".to_string(),
+                        "1".to_string(),
+                    ],
+                },
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec![
+                        "/SETDCVALUEINDEX".to_string(),
+                        "SCHEME_CURRENT".to_string(),
+                        "SUB_NONE".to_string(),
+                        "CONSOLELOCK".to_string(),
+                        "1".to_string(),
+                    ],
+                },
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec!["/SETACTIVE".to_string(), "SCHEME_CURRENT".to_string()],
+                },
+            ]),
+            operations: vec![
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec![
+                        "/SETACVALUEINDEX".to_string(),
+                        "SCHEME_CURRENT".to_string(),
+                        "SUB_NONE".to_string(),
+                        "CONSOLELOCK".to_string(),
+                        "0".to_string(),
+                    ],
+                },
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec![
+                        "/SETDCVALUEINDEX".to_string(),
+                        "SCHEME_CURRENT".to_string(),
+                        "SUB_NONE".to_string(),
+                        "CONSOLELOCK".to_string(),
+                        "0".to_string(),
+                    ],
+                },
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec!["/SETACTIVE".to_string(), "SCHEME_CURRENT".to_string()],
+                },
+            ],
         },
         // Disable Automatic Login
         Tweak {
