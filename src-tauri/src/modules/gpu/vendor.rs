@@ -143,12 +143,11 @@ May slightly increase idle power consumption.".to_string(),
             requires_restart: true,
             tweak_type: TweakType::Toggle,
             enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$key = Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000" -Name "EnableUlps" -EA 0
-if ($key.EnableUlps -eq 0) { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\0000".to_string(),
+                key: "EnableUlps".to_string(),
+                expected_value: RegistryValue::DWord(0),
             }),
             revert_operations: Some(vec![TweakOperation::Powershell {
                 script: r#"
