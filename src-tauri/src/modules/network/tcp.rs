@@ -210,12 +210,15 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
             revert_operations: Some(vec![
                 TweakOperation::Command {
                     cmd: "netsh".to_string(),
-                    args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "autotuninglevel=normal".into()], // Re-apply normal as revert (idempotent, but safe)
+                    args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "autotuninglevel=normal".into()],
                 }
             ]), tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
-                script: "(Get-NetTCPSetting -SettingName Internet).AutoTuningLevelLocal".to_string(),
-                expected_output: "Normal".to_string(),
+                script: r#"
+$level = (Get-NetTCPSetting -SettingName Internet).AutoTuningLevelLocal
+if ($level -eq 'Normal') { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
             }),
             operations: vec![
                 TweakOperation::Command {

@@ -80,6 +80,18 @@ if (($panel.ShowStartupPanel -eq 0) -and ($capture.AppCaptureEnabled -eq 0)) { "
                     key: "GamePanelStartupTipIndex".to_string(),
                     value: RegistryValue::DWord(3),
                 },
+                TweakOperation::Powershell {
+                    script: r#"
+$services = @("XblAuthManager", "XblGameSave", "XboxGipSvc", "XboxNetApiSvc")
+foreach ($svc in $services) {
+    $s = Get-Service -Name $svc -EA 0
+    if ($s) {
+        Stop-Service -Name $svc -Force -EA 0
+        Set-Service -Name $svc -StartupType Disabled -EA 0
+    }
+}
+"#.to_string(),
+                },
             ]
         },
 

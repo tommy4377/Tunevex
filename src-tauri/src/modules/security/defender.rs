@@ -42,10 +42,9 @@ pub fn get_defender_tweaks() -> Vec<Tweak> {
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
-# Check if real-time protection is disabled AND Tamper Protection is off
 $status = Get-MpComputerStatus -EA 0
 if ($status.IsTamperProtected) {
-    Write-Output "TamperProtectionEnabled"
+    Write-Output "False"
 } elseif (-not $status.RealTimeProtectionEnabled) {
     Write-Output "True"
 } else {
@@ -260,10 +259,9 @@ Write-Host "Developer exclusions added to Windows Defender" -ForegroundColor Gre
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
-# Check if Defender is disabled AND Tamper Protection is off
 $status = Get-MpComputerStatus -EA 0
 if ($status.IsTamperProtected) {
-    Write-Output "TamperProtectionEnabled"
+    Write-Output "False"
 } elseif ($status.AntivirusEnabled -eq $false -and $status.AntispywareEnabled -eq $false) {
     Write-Output "True"
 } else {

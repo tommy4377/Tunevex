@@ -5,44 +5,15 @@
 //! - disable-paging.yml
 //! - prompt.md memory optimizations
 
-use crate::modules::types::{TweakType, RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 /// Returns all memory and NTFS related tweaks
 pub fn get_memory_tweaks() -> Vec<Tweak> {
     vec![
-        // ============================================
-        // Memory Management
-        // ============================================
-        Tweak {
-            id: "cpu_large_system_cache".to_string(),
-            category: TweakCategory::CpuPerformance,
-            name: "Optimize for Programs (Not System Cache)".to_string(),
-            description: "Sets LargeSystemCache to 0, prioritizing memory for applications over file caching.".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: true,
-            tweak_type: TweakType::Toggle, enabled: false,
-            revert_operations: Some(vec![
-                TweakOperation::RegistryDelete {
-                    root_key: "HKLM".to_string(),
-                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management".to_string(),
-                    key: "LargeSystemCache".to_string(),
-                }
-            ]),
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management".to_string(),
-                key: "LargeSystemCache".to_string(),
-                expected_value: RegistryValue::DWord(0),
-            }),
-            operations: vec![
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management".to_string(),
-                    key: "LargeSystemCache".to_string(),
-                    value: RegistryValue::DWord(0),
-                }
-            ]
-        },
+        // NOTE: cpu_large_system_cache removed — LargeSystemCache=0 is already the Windows default
+        // (key absent is equivalent to 0). Setting it explicitly has no behavioral effect.
         Tweak {
             id: "cpu_disable_paging_executive".to_string(),
             category: TweakCategory::CpuPerformance,

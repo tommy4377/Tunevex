@@ -1,4 +1,6 @@
-use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakOperation, WarningLevel, TweakCheck, RegistryValue};
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 /// Mouse Optimization Tweaks
 pub fn get_mouse_tweaks() -> Vec<Tweak> {
@@ -136,19 +138,19 @@ if (($speed.MouseSpeed -eq 0) -and ($thresh1.MouseThreshold1 -eq 0) -and ($thres
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::RegistrySet {
+                TweakOperation::RegistryDelete {
                     root_key: "HKCU".to_string(),
                     path: "Control Panel\\Mouse".to_string(),
                     key: "MouseTrails".to_string(),
-                    value: RegistryValue::String("0".to_string()), // 0 is actually disabled/default too
                 },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKCU".to_string(),
-                path: "Control Panel\\Mouse".to_string(),
-                key: "MouseTrails".to_string(),
-                expected_value: RegistryValue::String("0".to_string()),
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$val = Get-ItemProperty -Path 'HKCU:\Control Panel\Mouse' -Name 'MouseTrails' -EA 0
+if (-not $val -or $val.MouseTrails -eq '0' -or $val.MouseTrails -eq '') { "True" } else { "False" }
+"#.to_string(),
+                expected_output: "True".to_string(),
             }),
             operations: vec![
                 TweakOperation::RegistrySet {

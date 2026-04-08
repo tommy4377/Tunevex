@@ -41,6 +41,7 @@ sysinfo = "0.37"
 # Windows Dependencies (Now Mandatory)
 winreg = "0.52"
 window-vibrancy = "0.5"
+vite = "0.1.0"
 
 [dependencies.windows]
 version = "0.61.3"

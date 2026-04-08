@@ -17,10 +17,11 @@ pub fn get_timer_tweaks() -> Vec<Tweak> {
             requires_restart: true,
             tweak_type: TweakType::Toggle, enabled: false,
             revert_operations: Some(vec![
-                TweakOperation::RegistryDelete {
+                TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
                     path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Kernel".to_string(),
                     key: "GlobalTimerResolutionRequests".to_string(),
+                    value: RegistryValue::DWord(0),
                 }
             ]),
             check: Some(TweakCheck::Registry {

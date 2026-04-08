@@ -115,69 +115,71 @@ pub async fn compress_folder(
         1 => Algorithm::Xpress8K,
         2 => Algorithm::Xpress16K,
         3 => Algorithm::Lzx,
-        _ => Algorithm::Xpress4K, // Default to safest algorithm
+        _ => Algorithm::Xpress4K,
     };
-    
-    // Compress files in folder (with safety filtering)
-    let mut count = 0;
-    let mut skipped = 0;
-    let mut bytes_processed: u64 = 0;
-    
-    let walker = walkdir::WalkDir::new(&path).into_iter();
-    
-    for (_i, entry) in walker.filter_map(|e| e.ok()).enumerate() {
-        // Check cancellation
-        if cancel_token.load(Ordering::SeqCst) {
-             let _ = app.emit("compactor-status", "Compression Cancelled");
-             return Ok("Cancelled".to_string());
-        }
 
-        if entry.file_type().is_file() {
-            // Get file size before checking
-            let file_size = entry.metadata().map(|m| m.len()).unwrap_or(0);
-            
-            // Check if file should be skipped (safety check)
-            if should_skip_file(entry.path(), file_size) {
-                skipped += 1;
-                continue;
+    let path_clone = path.clone();
+    let app_clone = app.clone();
+    let cancel_clone = cancel_token.clone();
+
+    let result = tokio::task::spawn_blocking(move || -> Result<String, String> {
+        let mut count = 0;
+        let mut skipped = 0;
+        let mut bytes_processed: u64 = 0;
+
+        let walker = walkdir::WalkDir::new(&path_clone).into_iter();
+
+        for entry in walker.filter_map(|e| e.ok()) {
+            if cancel_clone.load(Ordering::SeqCst) {
+                let _ = app_clone.emit("compactor-status", "Compression Cancelled");
+                return Ok("Cancelled".to_string());
             }
-            
-            // Emit current file being processed
-            if let Some(path_str) = entry.path().to_str() {
-                let _ = app.emit("compactor-file", path_str.to_string());
-            }
-            
-            // Try to compress, silently continue on error (don't crash on protected files)
-            match compress_file(entry.path(), algo) {
-                Ok(_) => {
-                    count += 1;
-                    bytes_processed += file_size;
-                    // Emit progress every 5 files to avoid flooding
-                    if count % 5 == 0 {
-                        let _ = app.emit("compactor-progress", count);
-                        let _ = app.emit("compactor-bytes", bytes_processed);
+
+            if entry.file_type().is_file() {
+                let file_size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+
+                if should_skip_file(entry.path(), file_size) {
+                    skipped += 1;
+                    continue;
+                }
+
+                if let Some(path_str) = entry.path().to_str() {
+                    let _ = app_clone.emit("compactor-file", path_str.to_string());
+                }
+
+                match compress_file(entry.path(), algo) {
+                    Ok(_) => {
+                        count += 1;
+                        bytes_processed += file_size;
+                        if count % 5 == 0 {
+                            let _ = app_clone.emit("compactor-progress", count);
+                            let _ = app_clone.emit("compactor-bytes", bytes_processed);
+                        }
+                    }
+                    Err(_) => {
+                        skipped += 1;
                     }
                 }
-                Err(_) => {
-                    // Silently skip files that fail (e.g., permission denied, locked files)
-                    skipped += 1;
-                }
             }
         }
-    }
-    // Final emit
-    let _ = app.emit("compactor-progress", count);
-    
-    // Persist state
+
+        let _ = app_clone.emit("compactor-progress", count);
+
+        Ok(format!("Compressed {} files ({} skipped)", count, skipped))
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    // Persist state after spawn_blocking completes
     {
         let mut app_state = state.lock().map_err(|e| e.to_string())?;
         app_state.compressed_folders.insert(path.clone());
-        if let Ok(path) = get_state_path() {
-            let _ = app_state.save(path);
+        if let Ok(p) = get_state_path() {
+            let _ = app_state.save(p);
         }
     }
-    
-    Ok(format!("Compressed {} files ({} skipped)", count, skipped))
+
+    Ok(result)
 }
 
 #[tauri::command]
@@ -186,32 +188,40 @@ pub async fn decompress_folder(
     path: String,
     state: State<'_, Mutex<AppState>>,
 ) -> Result<String, String> {
-    let mut count = 0;
-    
-    let walker = walkdir::WalkDir::new(&path).into_iter();
+    let path_clone = path.clone();
+    let app_clone = app.clone();
 
-    for entry in walker.filter_map(|e| e.ok()) {
-        if entry.file_type().is_file() {
-            // Emit current file being processed
-            if let Some(path_str) = entry.path().to_str() {
-                let _ = app.emit("compactor-file", path_str.to_string());
-            }
-            if let Ok(_) = decompress_file(entry.path()) {
-                count += 1;
-                 if count % 5 == 0 {
-                     let _ = app.emit("compactor-progress", count);
+    let count = tokio::task::spawn_blocking(move || -> usize {
+        let mut count = 0;
+
+        let walker = walkdir::WalkDir::new(&path_clone).into_iter();
+
+        for entry in walker.filter_map(|e| e.ok()) {
+            if entry.file_type().is_file() {
+                if let Some(path_str) = entry.path().to_str() {
+                    let _ = app_clone.emit("compactor-file", path_str.to_string());
+                }
+                if decompress_file(entry.path()).is_ok() {
+                    count += 1;
+                    if count % 5 == 0 {
+                        let _ = app_clone.emit("compactor-progress", count);
+                    }
                 }
             }
         }
-    }
-    let _ = app.emit("compactor-progress", count);
+
+        let _ = app_clone.emit("compactor-progress", count);
+        count
+    })
+    .await
+    .map_err(|e| e.to_string())?;
 
     // Update State
     {
         let mut app_state = state.lock().map_err(|e| e.to_string())?;
         app_state.compressed_folders.remove(&path);
-        if let Ok(path) = get_state_path() {
-            let _ = app_state.save(path);
+        if let Ok(p) = get_state_path() {
+            let _ = app_state.save(p);
         }
     }
 

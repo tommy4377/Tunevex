@@ -1,4 +1,6 @@
-use crate::modules::types::{TweakType, TweakCheck, RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 /// Windows Core Telemetry
 /// From: disallow-data-collection.yml, disable-diagnostic-tracing.yml, disable-ceip.yml
@@ -16,17 +18,15 @@ pub fn get_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Careful,
             requires_restart: true,
             revert_operations: Some(vec![
-                TweakOperation::RegistrySet {
+                TweakOperation::RegistryDelete {
                     root_key: "HKLM".to_string(),
                     path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\DataCollection".to_string(),
                     key: "AllowTelemetry".to_string(),
-                    value: RegistryValue::DWord(3), // Default: Full/Optional
                 },
-                TweakOperation::RegistrySet {
+                TweakOperation::RegistryDelete {
                     root_key: "HKLM".to_string(),
                     path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\DataCollection".to_string(),
                     key: "MaxTelemetryAllowed".to_string(),
-                    value: RegistryValue::DWord(3),
                 },
                 // Delete Policy Keys to restore default behavior
                 TweakOperation::RegistryDelete {

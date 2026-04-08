@@ -5,7 +5,9 @@
 //! - CPU Idle scripts
 //! - Various power optimization sources
 
-use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 /// Returns all CPU power management tweaks
 pub fn get_power_tweaks() -> Vec<Tweak> {
@@ -36,15 +38,16 @@ if ($scheme -match "e9a42b02-d5df-448d-aa00-03f14749eb61") { "True" } else { "Fa
             operations: vec![
                 TweakOperation::Powershell {
                     script: r#"
-# Duplicate Ultimate Performance power plan
 $guid = powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 2>$null
 if ($LASTEXITCODE -eq 0) {
-    # Extract GUID and set as active
-    $newGuid = ($guid -split ' ')[-1]
-    powercfg -setactive $newGuid
-    Write-Host "Ultimate Performance power plan enabled"
+    $newGuid = [regex]::Match($guid, '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}').Value
+    if ($newGuid) {
+        powercfg -setactive $newGuid
+        Write-Host "Ultimate Performance power plan enabled"
+    } else {
+        Write-Host "Failed to extract GUID from powercfg output" -ForegroundColor Red
+    }
 } else {
-    # If already exists, just activate it
     powercfg -setactive e9a42b02-d5df-448d-aa00-03f14749eb61 2>$null
 }
 "#.to_string(),

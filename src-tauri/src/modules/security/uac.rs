@@ -31,11 +31,18 @@ pub fn get_uac_tweaks() -> Vec<Tweak> {
                 },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System".to_string(),
-                key: "ConsentPromptBehaviorAdmin".to_string(),
-                expected_value: RegistryValue::DWord(5),
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$regPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"
+$consent = Get-ItemProperty -Path $regPath -Name 'ConsentPromptBehaviorAdmin' -EA 0
+$secure = Get-ItemProperty -Path $regPath -Name 'PromptOnSecureDesktop' -EA 0
+if ($consent.ConsentPromptBehaviorAdmin -eq 5 -and $secure.PromptOnSecureDesktop -eq 0) {
+    Write-Output "True"
+} else {
+    Write-Output "False"
+}
+"#.to_string(),
+                expected_output: "True".to_string(),
             }),
             operations: vec![
                 TweakOperation::RegistrySet {

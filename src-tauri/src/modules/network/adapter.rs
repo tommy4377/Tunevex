@@ -1,4 +1,6 @@
-use crate::modules::types::{TweakType, RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 pub fn get_adapter_tweaks() -> Vec<Tweak> {
     vec![
@@ -114,6 +116,9 @@ Get-NetAdapter | ForEach-Object {
     Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName '*IPChecksumOffloadIPv4' -DisplayValue 'Rx & Tx Enabled' -ErrorAction SilentlyContinue
     Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName '*TCPChecksumOffloadIPv4' -DisplayValue 'Rx & Tx Enabled' -ErrorAction SilentlyContinue
     Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName '*UDPChecksumOffloadIPv4' -DisplayValue 'Rx & Tx Enabled' -ErrorAction SilentlyContinue
+    Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName '*IPChecksumOffloadIPv6' -DisplayValue 'Rx & Tx Enabled' -ErrorAction SilentlyContinue
+    Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName '*TCPChecksumOffloadIPv6' -DisplayValue 'Rx & Tx Enabled' -ErrorAction SilentlyContinue
+    Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName '*UDPChecksumOffloadIPv6' -DisplayValue 'Rx & Tx Enabled' -ErrorAction SilentlyContinue
 }
 "#.to_string(),
                 }
@@ -125,6 +130,9 @@ Get-NetAdapter | ForEach-Object {
     Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName '*IPChecksumOffloadIPv4' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue
     Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName '*TCPChecksumOffloadIPv4' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue
     Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName '*UDPChecksumOffloadIPv4' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue
+    Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName '*IPChecksumOffloadIPv6' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue
+    Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName '*TCPChecksumOffloadIPv6' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue
+    Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName '*UDPChecksumOffloadIPv6' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue
 }
 "#.to_string(),
                 }
@@ -141,7 +149,7 @@ Get-NetAdapter | ForEach-Object {
                 TweakOperation::Powershell {
                     script: r#"
 Get-NetAdapter | ForEach-Object {
-    Set-NetAdapterRss -Name $_.Name -Profile NUMAStatic -ErrorAction SilentlyContinue
+    Set-NetAdapterRss -Name $_.Name -Profile ClosestProcessor -ErrorAction SilentlyContinue
 }
 "#.to_string(),
                 }
@@ -350,7 +358,8 @@ Get-NetAdapterPowerManagement | ForEach-Object {
     $_ | Set-NetAdapterPowerManagement -WakeOnMagicPacket Enabled -WakeOnPattern Enabled -ErrorAction SilentlyContinue
 }
 Get-NetAdapter | ForEach-Object {
-    $pnpDeviceId = (Get-CimInstance Win32_NetworkAdapter | Where-Object { $_.NetConnectionID -eq $_.Name }).PNPDeviceID
+    $adapter = $_
+    $pnpDeviceId = (Get-CimInstance Win32_NetworkAdapter | Where-Object { $_.InterfaceIndex -eq $adapter.InterfaceIndex }).PNPDeviceID
     if ($pnpDeviceId) {
         $instancePath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$pnpDeviceId\Device Parameters"
         Set-ItemProperty -Path $instancePath -Name 'PnPCapabilities' -Value 0 -ErrorAction SilentlyContinue
@@ -366,7 +375,8 @@ Get-NetAdapterPowerManagement | ForEach-Object {
     $_ | Set-NetAdapterPowerManagement -WakeOnMagicPacket Disabled -WakeOnPattern Disabled -ErrorAction SilentlyContinue
 }
 Get-NetAdapter | ForEach-Object {
-    $pnpDeviceId = (Get-CimInstance Win32_NetworkAdapter | Where-Object { $_.NetConnectionID -eq $_.Name }).PNPDeviceID
+    $adapter = $_
+    $pnpDeviceId = (Get-CimInstance Win32_NetworkAdapter | Where-Object { $_.InterfaceIndex -eq $adapter.InterfaceIndex }).PNPDeviceID
     if ($pnpDeviceId) {
         $instancePath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$pnpDeviceId\Device Parameters"
         Set-ItemProperty -Path $instancePath -Name 'PnPCapabilities' -Value 24 -ErrorAction SilentlyContinue

@@ -184,7 +184,7 @@ if (-not $found) { Write-Host "Office not installed." -ForegroundColor Gray }
                 script: r#"
 $ErrorActionPreference = "Stop"
 $url = "https://raw.githubusercontent.com/massgravel/Microsoft-Activation-Scripts/da0b2800d9c783e63af33a6178267ac2201adb2a/MAS/All-In-One-Version-KL/MAS_AIO.cmd"
-$path = "$env:LOCALAPPDATA\TommyTweaker\mas\mas_aio.cmd"
+$path = "$env:LOCALAPPDATA\TommyTweaker\mas\mas_ohook.cmd"
 
 if (!(Test-Path $path)) {
     Write-Host "Downloading MAS Script (first run)..." -ForegroundColor Cyan
@@ -224,7 +224,7 @@ if ($process.ExitCode -eq 0) {
 $path = "$env:LOCALAPPDATA\TommyTweaker\mas\mas_aio.cmd"
 if (!(Test-Path $path)) {
    Write-Host "MAS script not found. Please run 'Activate Office' check first to download it properly." -ForegroundColor Red
-   return
+   exit 1
 }
 Write-Host "Removing Office Activation..." -ForegroundColor Yellow
 $process = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$path`" /Ohook /Uninstall" -PassThru -NoNewWindow -Wait

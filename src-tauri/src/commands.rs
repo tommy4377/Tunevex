@@ -68,9 +68,10 @@ fn check_registry_value(
                 .map(|v| v.bytes == *expected)
                 .unwrap_or(false)
         }
-        RegistryValue::MultiString(_) => {
-            // MultiString rarely used for tweak checks, skip for now
-            false
+        RegistryValue::MultiString(expected) => {
+            regkey.get_value::<Vec<String>, _>(key)
+                .map(|v| v == *expected)
+                .unwrap_or(false)
         }
     }
 
@@ -79,7 +80,7 @@ fn check_registry_value(
 /// Check if PowerShell script output matches expected value
 fn check_powershell_output(script: &str, expected_output: &str) -> bool {
     let output = Command::new("powershell")
-        .args(&["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script])
+        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script])
         .creation_flags(0x08000000) // CREATE_NO_WINDOW
         .output();
 
@@ -102,24 +103,37 @@ pub fn check_is_admin() -> bool {
 // Startup Manager Commands
 #[tauri::command]
 pub async fn scan_startup() -> Result<Vec<crate::modules::startup::types::StartupItem>, String> {
-    Ok(crate::modules::startup::scan_all_startup_items())
+    tokio::task::spawn_blocking(crate::modules::startup::scan_all_startup_items)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn set_startup_item_enabled(id: String, enable: bool) -> Result<(), String> {
-    crate::modules::startup::toggle_item(id, enable)
+    let id_clone = id.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::modules::startup::toggle_item(id_clone, enable)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 use crate::modules::network::dns_benchmark::{self, DnsBenchmarkResult};
 
 #[tauri::command]
 pub async fn benchmark_dns() -> Result<Vec<DnsBenchmarkResult>, String> {
-    Ok(dns_benchmark::run_benchmark())
+    tokio::task::spawn_blocking(dns_benchmark::run_benchmark)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn apply_dns_server(primary: String, secondary: String) -> Result<(), String> {
-    dns_benchmark::apply_dns(primary, secondary)
+    tokio::task::spawn_blocking(move || {
+        dns_benchmark::apply_dns(primary, secondary)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -204,7 +218,7 @@ pub async fn check_category(
         let _ = app_clone.emit("category-check-complete", serde_json::json!({
             "category": category_clone
         }));
-    });
+    }).await.map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -240,9 +254,14 @@ pub async fn apply_tweak(
     let id_closure = id.clone();
     let app_closure = app.clone();
 
-    let _result = tokio::task::spawn_blocking(move || -> Result<(), String> {
+    tokio::task::spawn_blocking(move || -> Result<(), String> {
         let id = id_closure;
         let app = app_closure;
+
+        // Create a single backup manager for all registry operations
+        let backup_path = crate::modules::utils::dirs::get_backup_dir()
+            .unwrap_or_else(|_| std::path::PathBuf::from("backups"));
+        let mut backup_mgr = RegistryBackup::new(backup_path.clone());
 
         println!("[TWEAK APPLY] Applying ID: {}", tweak_clone.id);
         for (i, op) in tweak_clone.operations.iter().enumerate() {
@@ -255,11 +274,6 @@ pub async fn apply_tweak(
                     value,
                 } => {
                     println!("  -> RegistrySet: {}\\{}\\{} = {:?}", root_key, path, key, value);
-                    // Perform BACKUP before applying
-                    let backup_path = crate::modules::utils::dirs::get_backup_dir()
-                        .unwrap_or_else(|_| std::path::PathBuf::from("backups"));
-                    let mut backup_mgr = RegistryBackup::new(backup_path);
-
                     if let Err(e) = backup_mgr.backup_value(root_key, path, key) {
                         eprintln!("  -> Backup warning for {}: {}", key, e);
                     }
@@ -276,10 +290,6 @@ pub async fn apply_tweak(
                     key,
                 } => {
                     println!("  -> RegistryDelete: {}\\{}\\{}", root_key, path, key);
-                    let backup_path = crate::modules::utils::dirs::get_backup_dir()
-                        .unwrap_or_else(|_| std::path::PathBuf::from("backups"));
-                    let mut backup_mgr = RegistryBackup::new(backup_path);
-
                     if let Err(e) = backup_mgr.backup_value(root_key, path, key) {
                         eprintln!("  -> Backup warning for {}: {}", key, e);
                     }
@@ -322,7 +332,7 @@ pub async fn apply_tweak(
                         }));
                     };
 
-                    log(format!("Executing Script..."));
+                    log("Executing Script...".to_string());
 
                     use std::io::{BufRead, BufReader};
                     use std::process::Stdio;
@@ -331,7 +341,7 @@ pub async fn apply_tweak(
                     let id_clone = id.clone();
 
                     let mut child = Command::new("powershell")
-                        .args(&[
+                        .args([
                             "-NoProfile",
                             "-ExecutionPolicy",
                             "Bypass",
@@ -445,14 +455,14 @@ pub async fn apply_tweak(
                         eprintln!("Warning: Failed to set service mode {}", name);
                     }
                 }
-                TweakOperation::ScheduledTaskDisable { path: _path, name } => {
-                    println!("  -> ScheduledTaskDisable: {}", name);
+                TweakOperation::ScheduledTaskDisable { path, name } => {
+                    println!("  -> ScheduledTaskDisable: {}\\{}", path, name);
                     let output = Command::new("powershell")
                         .args(&[
                             "-Command",
                             &format!(
-                                "Disable-ScheduledTask -TaskName '{}' -ErrorAction SilentlyContinue",
-                                name
+                                "Disable-ScheduledTask -TaskPath '{}' -TaskName '{}' -ErrorAction SilentlyContinue",
+                                path, name
                             ),
                         ])
                         .creation_flags(0x08000000)
@@ -470,11 +480,50 @@ pub async fn apply_tweak(
                         eprintln!("Warning: Failed to disable task {}", name);
                     }
                 }
-                TweakOperation::FileOperation(_) => {
-                    eprintln!("Warning: FileOperation skipped (not implemented)");
+                TweakOperation::FileOperation(file_op) => {
+                    use crate::modules::types::FileOp;
+                    use std::fs;
+
+                    match file_op {
+                        FileOp::Delete { path } => {
+                            println!("  -> FileOp Delete: {}", path);
+                            let p = std::path::Path::new(path);
+                            if p.is_dir() {
+                                fs::remove_dir_all(path)
+                                    .map_err(|e| format!("Failed to delete directory {}: {}", path, e))?;
+                            } else {
+                                fs::remove_file(path)
+                                    .map_err(|e| format!("Failed to delete file {}: {}", path, e))?;
+                            }
+                        }
+                        FileOp::Copy { src, dest } => {
+                            println!("  -> FileOp Copy: {} -> {}", src, dest);
+                            if let Some(parent) = std::path::Path::new(dest).parent() {
+                                fs::create_dir_all(parent)
+                                    .map_err(|e| format!("Failed to create dest dir: {}", e))?;
+                            }
+                            fs::copy(src, dest)
+                                .map_err(|e| format!("Failed to copy {} to {}: {}", src, dest, e))?;
+                        }
+                        FileOp::Move { src, dest } => {
+                            println!("  -> FileOp Move: {} -> {}", src, dest);
+                            if let Some(parent) = std::path::Path::new(dest).parent() {
+                                fs::create_dir_all(parent)
+                                    .map_err(|e| format!("Failed to create dest dir: {}", e))?;
+                            }
+                            fs::rename(src, dest)
+                                .map_err(|e| format!("Failed to move {} to {}: {}", src, dest, e))?;
+                        }
+                    }
                 }
             }
         }
+
+        // Persist all registry backups to disk
+        if let Err(e) = backup_mgr.save(backup_path) {
+            eprintln!("Warning: Failed to persist backup: {}", e);
+        }
+
         Ok(())
     }).await.map_err(|e| e.to_string())??;
 
@@ -527,129 +576,177 @@ pub fn kill_tweak_process(
 }
 
 #[tauri::command]
-pub fn undo_tweak(
+pub async fn undo_tweak(
     id: String,
-    ctx: State<Mutex<TweakContext>>,
-    state: State<Mutex<AppState>>,
+    ctx: State<'_, Mutex<TweakContext>>,
+    state: State<'_, Mutex<AppState>>,
+    app: tauri::AppHandle,
 ) -> Result<(), String> {
-    let context = ctx.lock().unwrap();
-    // ... existing implementation ...
-    // Note: Since I can't fit the entire undo_tweak implementation here due to size limits, 
-    // I am only replacing the end of apply_tweak and adding kill_tweak_process.
-    // The user should ensure undo_tweak remains if outside the replace block.
-    // Wait, the REPLACE block targets EndLine: 605 which IS the end of the file.
-    // So I need to include undo_tweak fully.
-    
-    let tweak = context
-        .tweaks
-        .iter()
-        .find(|t| t.id == id)
-        .ok_or("Tweak ID not found")?;
+    let _ = app.emit("tweak-progress", serde_json::json!({
+        "id": id.clone(),
+        "status": "reverting",
+        "progress": 0
+    }));
+
+    let tweak = {
+        let context = ctx.lock().map_err(|e| e.to_string())?;
+        context
+            .tweaks
+            .iter()
+            .find(|t| t.id == id)
+            .cloned()
+            .ok_or("Tweak ID not found")?
+    };
 
     let backup_path = crate::modules::utils::dirs::get_backup_dir()
         .unwrap_or_else(|_| std::path::PathBuf::from("backups"));
 
-    // Try to load backup manager for registry operations
-    let backup_mgr = RegistryBackup::load(backup_path.clone()).ok();
+    let id_clone = id.clone();
+    let app_clone = app.clone();
 
-    // First, restore registry values from backup
-    for op in &tweak.operations {
-        match op {
-            TweakOperation::RegistrySet {
-                root_key,
-                path,
-                key,
-                ..
-            }
-            | TweakOperation::RegistryDelete {
-                root_key,
-                path,
-                key,
-            } => {
-                if let Some(ref mgr) = backup_mgr {
-                    let _ = mgr.restore_tweak_backup(root_key, path, key);
-                }
-            }
-            _ => {}
-        }
-    }
+    tokio::task::spawn_blocking(move || -> Result<(), String> {
+        let id = id_clone;
+        let _app = app_clone;
 
-    // Then, execute explicit revert operations (for PowerShell, Services, etc.)
+        // Try to load backup manager for registry operations
+        let backup_mgr = RegistryBackup::load(backup_path.clone()).ok();
 
-    println!("[TWEAK REVERT] Reverting ID: {}", id);
-    if let Some(ref revert_ops) = tweak.revert_operations {
-        for (i, op) in revert_ops.iter().enumerate() {
-            println!("[TWEAK REVERT] Operation {}/{}: {:?}", i + 1, revert_ops.len(), op);
+        // Track which registry keys were restored from backup (to avoid double-revert)
+        let mut restored_keys: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+        // First, restore registry values from backup
+        for op in &tweak.operations {
             match op {
-                TweakOperation::RegistrySet { .. } | TweakOperation::RegistryDelete { .. } => {
-                     println!("  -> Registry Operation (Revert): {:?}", op);
-                     apply_registry_tweak(op).map_err(|e| format!("Revert registry error: {:?}", e))?;
-                     println!("  -> Revert Registry Success");
+                TweakOperation::RegistrySet {
+                    root_key,
+                    path,
+                    key,
+                    ..
                 }
-                TweakOperation::Powershell { script } => {
-                    println!("  -> Revert PowerShell: {}", script);
-                    let output = Command::new("powershell")
-                        .args(&[
-                            "-NoProfile",
-                            "-ExecutionPolicy",
-                            "Bypass",
-                            "-Command",
-                            script,
-                        ])
-                        .creation_flags(0x08000000)
-                        .output()
-                        .map_err(|e| format!("Revert PowerShell failed: {}", e))?;
-
-                    if !output.stdout.is_empty() {
-                         println!("    [REVERT STDOUT] {}", String::from_utf8_lossy(&output.stdout));
-                    }
-                    if !output.stderr.is_empty() {
-                         eprintln!("    [REVERT STDERR] {}", String::from_utf8_lossy(&output.stderr));
-                    }
-
-                    if !output.status.success() {
-                        eprintln!("Warning: Revert PowerShell script returned non-zero");
+                | TweakOperation::RegistryDelete {
+                    root_key,
+                    path,
+                    key,
+                } => {
+                    if let Some(ref mgr) = backup_mgr {
+                        if mgr.restore_tweak_backup(root_key, path, key).unwrap_or(false) {
+                            restored_keys.insert(format!("{}::{}::{}", root_key, path, key));
+                        }
                     }
                 }
-                TweakOperation::ServiceSetMode { name, mode } => {
-                    println!("  -> Revert ServiceSetMode: {} -> {}", name, mode);
-                    let output = Command::new("powershell")
-                        .args(&[
-                            "-Command",
-                            &format!("Set-Service -Name '{}' -StartupType {}", name, mode),
-                        ])
-                        .creation_flags(0x08000000)
-                        .output()
-                        .map_err(|e| format!("Revert service failed: {}", e))?;
-                    
-                    if !output.stdout.is_empty() {
-                         println!("    [REVERT SVC STDOUT] {}", String::from_utf8_lossy(&output.stdout));
-                    }
-                    if !output.stderr.is_empty() {
-                         eprintln!("    [REVERT SVC STDERR] {}", String::from_utf8_lossy(&output.stderr));
-                    }
+                _ => {}
+            }
+        }
 
-                    if !output.status.success() {
-                        eprintln!("Warning: Failed to revert service mode {}", name);
+        // Then, execute explicit revert operations (skip keys already restored from backup)
+        println!("[TWEAK REVERT] Reverting ID: {}", id);
+        if let Some(ref revert_ops) = tweak.revert_operations {
+            for (i, op) in revert_ops.iter().enumerate() {
+                println!("[TWEAK REVERT] Operation {}/{}: {:?}", i + 1, revert_ops.len(), op);
+
+                // Skip registry operations that were already restored from backup
+                match op {
+                    TweakOperation::RegistrySet {
+                        root_key,
+                        path,
+                        key,
+                        ..
                     }
+                    | TweakOperation::RegistryDelete {
+                        root_key,
+                        path,
+                        key,
+                    } => {
+                        let key_id = format!("{}::{}::{}", root_key, path, key);
+                        if restored_keys.contains(&key_id) {
+                            println!("  -> Skipped (already restored from backup): {}", key_id);
+                            continue;
+                        }
+                    }
+                    _ => {}
                 }
-                _ => {
-                    println!("  -> Skipped unknown revert op: {:?}", op);
-                    // Other operations not yet supported for revert
+
+                match op {
+                    TweakOperation::RegistrySet { .. } | TweakOperation::RegistryDelete { .. } => {
+                         println!("  -> Registry Operation (Revert): {:?}", op);
+                         apply_registry_tweak(op).map_err(|e| format!("Revert registry error: {:?}", e))?;
+                         println!("  -> Revert Registry Success");
+                    }
+                    TweakOperation::Powershell { script } => {
+                        println!("  -> Revert PowerShell: {}", script);
+                        use std::process::Stdio;
+                        let output = Command::new("powershell")
+                            .args([
+                                "-NoProfile",
+                                "-ExecutionPolicy",
+                                "Bypass",
+                                "-Command",
+                                script,
+                            ])
+                            .creation_flags(0x08000000)
+                            .stdout(Stdio::piped())
+                            .stderr(Stdio::piped())
+                            .output()
+                            .map_err(|e| format!("Revert PowerShell failed: {}", e))?;
+
+                        if !output.stdout.is_empty() {
+                             println!("    [REVERT STDOUT] {}", String::from_utf8_lossy(&output.stdout));
+                        }
+                        if !output.stderr.is_empty() {
+                             eprintln!("    [REVERT STDERR] {}", String::from_utf8_lossy(&output.stderr));
+                        }
+
+                        if !output.status.success() {
+                            eprintln!("Warning: Revert PowerShell script returned non-zero");
+                        }
+                    }
+                    TweakOperation::ServiceSetMode { name, mode } => {
+                        println!("  -> Revert ServiceSetMode: {} -> {}", name, mode);
+                        let output = Command::new("powershell")
+                            .args([
+                                "-Command",
+                                &format!("Set-Service -Name '{}' -StartupType {}", name, mode),
+                            ])
+                            .creation_flags(0x08000000)
+                            .output()
+                            .map_err(|e| format!("Revert service failed: {}", e))?;
+
+                        if !output.stdout.is_empty() {
+                             println!("    [REVERT SVC STDOUT] {}", String::from_utf8_lossy(&output.stdout));
+                        }
+                        if !output.stderr.is_empty() {
+                             eprintln!("    [REVERT SVC STDERR] {}", String::from_utf8_lossy(&output.stderr));
+                        }
+
+                        if !output.status.success() {
+                            eprintln!("Warning: Failed to revert service mode {}", name);
+                        }
+                    }
+                    _ => {
+                        println!("  -> Skipped unknown revert op: {:?}", op);
+                    }
                 }
             }
         }
-    }
+
+        Ok(())
+    }).await.map_err(|e| e.to_string())??;
 
     // Update State (Remove from applied)
     {
-        let mut app_state = state.lock().unwrap();
+        let mut app_state = state.lock().map_err(|e| e.to_string())?;
         if app_state.applied_tweaks.remove(&id) {
             let state_path = crate::modules::utils::dirs::get_state_path()
                 .unwrap_or_else(|_| std::path::PathBuf::from("state.json"));
             let _ = app_state.save(state_path);
         }
     }
+
+    let _ = app.emit("tweak-progress", serde_json::json!({
+        "id": id,
+        "status": "revert-success",
+        "progress": 100
+    }));
 
     Ok(())
 }

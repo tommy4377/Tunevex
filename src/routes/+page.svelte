@@ -30,7 +30,6 @@
   let checkedCategories: Set<string> = new Set();
   let unlistenCheckResult: (() => void) | null = null;
 
-  // Map UI category names to Rust TweakCategory debug names
   const categoryMap: Record<string, string> = {
     Network: "Network",
     SecurityPrivacy: "SecurityPrivacy",
@@ -49,7 +48,6 @@
     Home: "Home",
   };
 
-  // Queue of categories to check in background
   let checkQueue: string[] = [];
   let isChecking = false;
 
@@ -57,7 +55,6 @@
     const prevCat = currentCat;
     currentCat = c;
 
-    // If category changed and not already checked, prioritize it
     if (c && prevCat !== c && !checkedCategories.has(c)) {
       checkCategoryNow(c);
     }
@@ -65,7 +62,6 @@
 
   async function checkCategoryNow(cat: string) {
     const rustCategory = categoryMap[cat];
-    // Skip Home as it has no tweaks to check, preventing unnecessary overhead
     if (!rustCategory || checkedCategories.has(cat) || cat === "Home") return;
 
     checkedCategories.add(cat);
@@ -84,7 +80,6 @@
       const cat = checkQueue.shift()!;
       if (!checkedCategories.has(cat)) {
         await checkCategoryNow(cat);
-        // Small delay between categories to avoid overwhelming
         await new Promise((r) => setTimeout(r, 100));
       }
     }
@@ -94,11 +89,9 @@
 
   onMount(async () => {
     try {
-      // 1. Fast load - instant UI
       tweaks = await invoke("get_tweaks_fast");
       loading = false;
 
-      // 2. Listen for check results
       unlistenCheckResult = await listen<{ id: string; enabled: boolean }>(
         "tweak-check-result",
         (event: any) => {
@@ -107,11 +100,9 @@
         },
       );
 
-      // 3. Check current category first (Home by default)
       const startCategory = currentCat || "Home";
       await checkCategoryNow(startCategory);
 
-      // 4. Queue other categories for background loading
       const allCategories = Object.keys(categoryMap);
       checkQueue = allCategories.filter((c) => c !== startCategory);
       processBackgroundQueue();
@@ -191,7 +182,7 @@
     flex: 1;
     height: 100%;
     overflow: hidden;
-    display: flex; /* Ensure children fill height */
+    display: flex;
     flex-direction: column;
   }
 

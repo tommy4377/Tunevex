@@ -170,37 +170,38 @@ pub fn toggle_boot_item(id: &str, enable: bool) -> Result<(), String> {
 }
 
 fn toggle_ifeo_item(id: &str, enable: bool) -> Result<(), String> {
-    let exe_name = id.strip_prefix("IFEO:")
-        .ok_or("Invalid IFEO ID format")?;
-    
+    let exe_name = id.strip_prefix("IFEO:").ok_or("Invalid IFEO ID format")?;
+
     let path = format!(
         r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\{}",
         exe_name
     );
-    
+
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let key = hklm.open_subkey_with_flags(&path, KEY_ALL_ACCESS)
+    let key = hklm
+        .open_subkey_with_flags(&path, KEY_ALL_ACCESS)
         .map_err(|e| format!("Cannot open IFEO key: {}", e))?;
-    
+
     if enable {
         // Re-enabling IFEO is dangerous - refuse
         return Err("Cannot re-enable IFEO debugger hijacks - too dangerous. \
-                    If this was legitimate software, reinstall it.".to_string());
+                    If this was legitimate software, reinstall it."
+            .to_string());
     }
-    
+
     // Backup before deletion
     if let Ok(debugger) = key.get_value::<String, _>("Debugger") {
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
         let backup_path = format!(r"Software\TommyTweaker\Backups\IFEO\{}", exe_name);
         if let Ok((backup_key, _)) = hkcu.create_subkey(&backup_path) {
-             let _ = backup_key.set_value("Debugger", &debugger);
+            let _ = backup_key.set_value("Debugger", &debugger);
         }
     }
-    
+
     // Delete the debugger value
     key.delete_value("Debugger")
         .map_err(|e| format!("Cannot remove debugger: {}", e))?;
-    
+
     Ok(())
 }
 
@@ -211,13 +212,13 @@ fn toggle_appinit_item(id: &str, enable: bool) -> Result<(), String> {
     } else {
         r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows"
     };
-    
+
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     if let Ok(key) = hklm.open_subkey_with_flags(path, KEY_ALL_ACCESS) {
         if enable {
             return Err("Cannot re-enable AppInit_DLLs - too dangerous".to_string());
         }
-        
+
         // Backup
         if let Ok(current) = key.get_value::<String, _>("AppInit_DLLs") {
             let hkcu = RegKey::predef(HKEY_CURRENT_USER);
@@ -230,9 +231,10 @@ fn toggle_appinit_item(id: &str, enable: bool) -> Result<(), String> {
                 let _ = backup_key.set_value("AppInit_DLLs", &current);
             }
         }
-        
+
         // Clear
-        key.set_value("AppInit_DLLs", &"").map_err(|e| e.to_string())?;
+        key.set_value("AppInit_DLLs", &"")
+            .map_err(|e| e.to_string())?;
         let _ = key.set_value("LoadAppInit_DLLs", &0u32); // Disable loading
         Ok(())
     } else {
@@ -242,5 +244,6 @@ fn toggle_appinit_item(id: &str, enable: bool) -> Result<(), String> {
 
 fn toggle_bootexec_item(_id: &str, _enable: bool) -> Result<(), String> {
     Err("BootExecute items cannot be toggled safely. \
-         Use 'msconfig' or 'autoruns' for manual editing.".to_string())
+         Use 'msconfig' or 'autoruns' for manual editing."
+        .to_string())
 }

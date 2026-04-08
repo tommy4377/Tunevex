@@ -17,10 +17,11 @@ pub fn get_hardening_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::RegistryDelete {
+                TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
                     path: "SYSTEM\\CurrentControlSet\\Control\\Lsa".to_string(),
                     key: "RestrictAnonymousSAM".to_string(),
+                    value: RegistryValue::DWord(0),
                 },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
@@ -173,10 +174,11 @@ Write-Host "SMBv1 disabled" -ForegroundColor Green
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::RegistryDelete {
+                TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
                     path: "SOFTWARE\\Policies\\Microsoft\\Windows\\DeliveryOptimization".to_string(),
                     key: "DODownloadMode".to_string(),
+                    value: RegistryValue::DWord(1),
                 },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
@@ -271,10 +273,11 @@ Write-Host "SMBv1 disabled" -ForegroundColor Green
             warning_level: WarningLevel::Careful,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::RegistryDelete {
+                TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
                     path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Schedule\\Maintenance".to_string(),
                     key: "MaintenanceDisabled".to_string(),
+                    value: RegistryValue::DWord(0),
                 },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,

@@ -34,8 +34,13 @@ pub fn get_update_tweaks() -> Vec<Tweak> {
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {
                 script: r#"
-$svc = Get-Service -Name "wuauserv" -EA 0
-if ($svc.StartType -eq 'Disabled') { "True" } else { "False" }
+$services = @("wuauserv", "UsoSvc", "WaaSMedicSvc", "BITS", "DoSvc", "uhssvc", "InstallService")
+$allDisabled = $true
+foreach ($name in $services) {
+    $svc = Get-Service -Name $name -EA 0
+    if (-not $svc -or $svc.StartType -ne 'Disabled') { $allDisabled = $false }
+}
+if ($allDisabled) { "True" } else { "False" }
 "#.to_string(),
                 expected_output: "True".to_string(),
             }),

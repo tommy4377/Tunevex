@@ -1,4 +1,6 @@
-use crate::modules::types::{TweakType, TweakCheck, RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 /// Application Telemetry (NVIDIA, Office, VS, Chrome, Firefox, etc.)
 pub fn get_tweaks() -> Vec<Tweak> {
@@ -11,7 +13,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
             category: TweakCategory::Privacy,
             name: "Disable NVIDIA Telemetry".to_string(),
             description: "Disables NVIDIA telemetry: services, scheduled tasks, registry keys. From privacy.sexy scripts.".to_string(),
-            warning_level: WarningLevel::Safe,
+            warning_level: WarningLevel::Careful,
             requires_restart: false,
             revert_operations: Some(vec![
                 TweakOperation::Powershell {

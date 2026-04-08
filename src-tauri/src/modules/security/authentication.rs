@@ -17,15 +17,17 @@ pub fn get_authentication_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::RegistryDelete {
+                TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
                     path: "SOFTWARE\\Policies\\Microsoft\\PassportForWork".to_string(),
                     key: "Enabled".to_string(),
+                    value: RegistryValue::DWord(1),
                 },
-                TweakOperation::RegistryDelete {
+                TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
                     path: "SOFTWARE\\Policies\\Microsoft\\PassportForWork".to_string(),
                     key: "DisablePostLogonProvisioning".to_string(),
+                    value: RegistryValue::DWord(0),
                 },
             ]),
             tweak_type: TweakType::Toggle,
@@ -60,10 +62,11 @@ pub fn get_authentication_tweaks() -> Vec<Tweak> {
                 .to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
-            revert_operations: Some(vec![TweakOperation::RegistryDelete {
+            revert_operations: Some(vec![TweakOperation::RegistrySet {
                 root_key: "HKLM".to_string(),
                 path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Personalization".to_string(),
                 key: "NoLockScreen".to_string(),
+                value: RegistryValue::DWord(0),
             }]),
             tweak_type: TweakType::Toggle,
             enabled: false,
@@ -88,10 +91,11 @@ pub fn get_authentication_tweaks() -> Vec<Tweak> {
             description: "Hides the 'eye' button that reveals password in text fields.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            revert_operations: Some(vec![TweakOperation::RegistryDelete {
+            revert_operations: Some(vec![TweakOperation::RegistrySet {
                 root_key: "HKLM".to_string(),
                 path: "SOFTWARE\\Policies\\Microsoft\\Windows\\CredUI".to_string(),
                 key: "DisablePasswordReveal".to_string(),
+                value: RegistryValue::DWord(0),
             }]),
             tweak_type: TweakType::Toggle,
             enabled: false,

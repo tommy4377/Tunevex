@@ -1,5 +1,6 @@
 use std::os::windows::process::CommandExt;
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -11,20 +12,28 @@ pub struct SystemMonitor {
     disks: Disks,
     gpu_usage: Arc<Mutex<f32>>,
     gpu_name: String,
+    _gpu_thread_handle: Option<thread::JoinHandle<()>>,
+    _gpu_cancel: Arc<AtomicBool>,
 }
 
 impl SystemMonitor {
     pub fn new() -> Self {
         let gpu_usage = Arc::new(Mutex::new(0.0));
+        let gpu_cancel = Arc::new(AtomicBool::new(false));
+
         let gpu_usage_clone = gpu_usage.clone();
+        let gpu_cancel_clone = gpu_cancel.clone();
 
         // Spawn background thread for GPU monitoring via PowerShell Get-Counter
-        thread::spawn(move || {
+        let gpu_thread = thread::spawn(move || {
             loop {
+                if gpu_cancel_clone.load(Ordering::SeqCst) {
+                    break;
+                }
+
                 {
-                    // Use PowerShell Get-Counter which is more reliable than typeperf
                     let output = Command::new("powershell")
-                        .args(&[
+                        .args([
                             "-NoProfile",
                             "-Command",
                             r#"
@@ -35,23 +44,27 @@ if ($counters) {
 } else { 0 }
 "#,
                         ])
-                        .creation_flags(0x08000000) // CREATE_NO_WINDOW
+                        .creation_flags(0x08000000)
                         .output();
 
-                    match output {
-                        Ok(out) => {
-                            let stdout = String::from_utf8_lossy(&out.stdout);
-                            if let Ok(usage) = stdout.trim().parse::<f32>() {
-                                let clamped = usage.min(100.0).max(0.0);
-                                if let Ok(mut g) = gpu_usage_clone.lock() {
-                                    *g = clamped;
-                                }
+                    if let Ok(out) = output {
+                        let stdout = String::from_utf8_lossy(&out.stdout);
+                        if let Ok(usage) = stdout.trim().parse::<f32>() {
+                            let clamped = usage.clamp(0.0, 100.0);
+                            if let Ok(mut g) = gpu_usage_clone.lock() {
+                                *g = clamped;
                             }
                         }
-                        Err(_) => {}
                     }
                 }
-                thread::sleep(Duration::from_millis(2000));
+
+                // Sleep in small increments to allow cancellation
+                for _ in 0..20 {
+                    if gpu_cancel_clone.load(Ordering::SeqCst) {
+                        return;
+                    }
+                    thread::sleep(Duration::from_millis(100));
+                }
             }
         });
 
@@ -68,6 +81,8 @@ if ($counters) {
             disks: Disks::new_with_refreshed_list(),
             gpu_usage,
             gpu_name,
+            _gpu_thread_handle: Some(gpu_thread),
+            _gpu_cancel: gpu_cancel,
         }
     }
 
@@ -75,6 +90,15 @@ if ($counters) {
         self.sys.refresh_cpu_all();
         self.sys.refresh_memory();
         self.disks.refresh(true);
+    }
+}
+
+impl Drop for SystemMonitor {
+    fn drop(&mut self) {
+        self._gpu_cancel.store(true, Ordering::SeqCst);
+        if let Some(handle) = self._gpu_thread_handle.take() {
+            let _ = handle.join();
+        }
     }
 }
 
@@ -129,44 +153,43 @@ fn get_gpu_name() -> Option<String> {
 
 #[command]
 pub async fn get_quick_stats(app: tauri::AppHandle) -> Result<SystemStats, String> {
-    let stats = tokio::task::spawn_blocking(move || {
+    let stats = tokio::task::spawn_blocking(move || -> Result<SystemStats, String> {
         let state = app.state::<Mutex<SystemMonitor>>();
-        let mut monitor = state.lock().unwrap();
+        let mut monitor = state.lock().map_err(|e| e.to_string())?;
         monitor.sys.refresh_cpu_all();
         monitor.sys.refresh_memory();
 
         let username = std::env::var("USERNAME").unwrap_or_else(|_| "User".to_string());
 
-        SystemStats {
+        let gpu_usage_val = *monitor.gpu_usage.lock().map_err(|e| e.to_string())?;
+
+        Ok(SystemStats {
             cpu_usage: monitor.sys.global_cpu_usage(),
             ram_usage: monitor.sys.used_memory(),
             ram_total: monitor.sys.total_memory(),
             uptime: sysinfo::System::uptime(),
             username,
             disks: Vec::new(),
-            gpu: Some({
-                let usage = *monitor.gpu_usage.lock().unwrap();
-                GpuStats {
-                    name: monitor.gpu_name.clone(),
-                    usage,
-                }
+            gpu: Some(GpuStats {
+                name: monitor.gpu_name.clone(),
+                usage: gpu_usage_val,
             }),
-        }
+        })
     })
     .await
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| e.to_string())??;
 
     Ok(stats)
 }
 
 #[command]
 pub async fn get_disk_stats(app: tauri::AppHandle) -> Result<Vec<DiskStats>, String> {
-    let disks = tokio::task::spawn_blocking(move || {
+    let disks = tokio::task::spawn_blocking(move || -> Result<Vec<DiskStats>, String> {
         let state = app.state::<Mutex<SystemMonitor>>();
-        let mut monitor = state.lock().unwrap();
+        let mut monitor = state.lock().map_err(|e| e.to_string())?;
         monitor.disks.refresh(true);
 
-        monitor
+        Ok(monitor
             .disks
             .iter()
             .map(|disk| DiskStats {
@@ -176,10 +199,10 @@ pub async fn get_disk_stats(app: tauri::AppHandle) -> Result<Vec<DiskStats>, Str
                 available_space: disk.available_space(),
                 is_removable: disk.is_removable(),
             })
-            .collect()
+            .collect())
     })
     .await
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| e.to_string())??;
 
     Ok(disks)
 }

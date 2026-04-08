@@ -1,15 +1,18 @@
 //! App removal tweaks (Microsoft, Third-Party, OEM bloatware)
 
-use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakOperation, WarningLevel, TweakCheck, RegistryValue};
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 fn create_bloatware_removal_script(apps: &[&str]) -> String {
-    let app_list = apps.iter()
+    let app_list = apps
+        .iter()
         .map(|a| format!("'{}'", a))
         .collect::<Vec<_>>()
         .join(", ");
-    
-    format!(r#"
-$ErrorActionPreference = "SilentlyContinue"
+
+    format!(
+        r#"
 $apps = @({})
 $removed = 0
 $failed = 0
@@ -20,7 +23,6 @@ Write-Host "Starting bloatware removal..." -ForegroundColor Cyan
 foreach ($appPattern in $apps) {{
     Write-Host "Processing: $appPattern" -ForegroundColor White
     
-    # Try to remove installed package
     $packages = Get-AppxPackage -AllUsers | Where-Object {{ $_.Name -like "*$appPattern*" }}
     
     if ($packages) {{
@@ -38,7 +40,6 @@ foreach ($appPattern in $apps) {{
         $notFound++
     }}
     
-    # Also remove provisioned package (prevents reinstall for new users)
     $provisioned = Get-AppxProvisionedPackage -Online | Where-Object {{ $_.DisplayName -like "*$appPattern*" }}
     
     if ($provisioned) {{
@@ -57,7 +58,14 @@ Write-Host "`n=== Summary ===" -ForegroundColor Cyan
 Write-Host "Removed: $removed" -ForegroundColor Green
 Write-Host "Failed: $failed" -ForegroundColor $(if ($failed -gt 0) {{ "Red" }} else {{ "Green" }})
 Write-Host "Not found: $notFound" -ForegroundColor Yellow
-"#, app_list)
+
+if ($removed -eq 0 -and $failed -gt 0) {{
+    Write-Host "ERROR: No packages removed, all attempts failed" -ForegroundColor Red
+    exit 1
+}}
+"#,
+        app_list
+    )
 }
 
 pub fn get_tweaks() -> Vec<Tweak> {
