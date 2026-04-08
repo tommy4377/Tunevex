@@ -7,7 +7,7 @@ Legend: [x] = fixed & committed · [~] = partial · [ ] = pending
 
 ## Priority 1 — User-visible bugs
 - [x] FIX-A `defender.rs` — TamperProtection not checked before apply operations
-- [ ] FIX-B `adapter.rs` — net_disable_power_mgmt check/apply use different metrics
+- [x] FIX-B `adapter.rs` — net_disable_power_mgmt check/apply use different metrics
 
 ## Priority 2 — Architectural issues
 - [ ] FIX-C `tommy-tweaker-memory.json` — BUG-05 missing memory entry
