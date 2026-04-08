@@ -149,7 +149,7 @@ Get-NetAdapter | ForEach-Object {
                 TweakOperation::Powershell {
                     script: r#"
 Get-NetAdapter | ForEach-Object {
-    Set-NetAdapterRss -Name $_.Name -Profile ClosestProcessor -ErrorAction SilentlyContinue
+    Set-NetAdapterRss -Name $_.Name -Profile NUMAStatic -ErrorAction SilentlyContinue
 }
 "#.to_string(),
                 }
