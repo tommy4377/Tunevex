@@ -16,85 +16,31 @@ pub fn get_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Careful,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Write-Host "Re-enabling NVIDIA Telemetry..." -ForegroundColor Yellow
-
-# Registry keys
-$nvPaths = @(
-    @{Path="HKLM:\SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client"; Name="OptInOrOutPreference"; Value=1},
-    @{Path="HKLM:\SOFTWARE\NVIDIA Corporation\Global\FTS"; Name="EnableRID44231"; Value=1},
-    @{Path="HKLM:\SOFTWARE\NVIDIA Corporation\Global\FTS"; Name="EnableRID64640"; Value=1},
-    @{Path="HKLM:\SOFTWARE\NVIDIA Corporation\Global\FTS"; Name="EnableRID66610"; Value=1},
-    @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\Startup"; Name="SendTelemetryData"; Value=1}
-)
-foreach ($item in $nvPaths) {
-    if (Test-Path $item.Path) {
-        Set-ItemProperty -Path $item.Path -Name $item.Name -Value $item.Value -Type DWord -Force -EA 0
-    }
-}
-
-# Enable NvTelemetryContainer service
-Set-Service -Name 'NvTelemetryContainer' -StartupType Automatic -EA 0
-Start-Service -Name 'NvTelemetryContainer' -EA 0
-
-# Enable scheduled tasks
-schtasks /change /TN "NvTmMon_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}" /ENABLE 2>$null
-schtasks /change /TN "NvTmRep_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}" /ENABLE 2>$null
-schtasks /change /TN "NvTmRepOnLogon_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}" /ENABLE 2>$null
-
-Write-Host "NVIDIA telemetry re-enabled (files cannot be restored)" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\NVIDIA Corporation\\NvControlPanel2\\Client".to_string(), key: "OptInOrOutPreference".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\NVIDIA Corporation\\Global\\FTS".to_string(), key: "EnableRID44231".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\NVIDIA Corporation\\Global\\FTS".to_string(), key: "EnableRID64640".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\NVIDIA Corporation\\Global\\FTS".to_string(), key: "EnableRID66610".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SYSTEM\\CurrentControlSet\\Services\\nvlddmkm\\Global\\Startup".to_string(), key: "SendTelemetryData".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::ServiceSetMode { name: "NvTelemetryContainer".to_string(), mode: "Auto".to_string() },
+                TweakOperation::Command { cmd: "sc".to_string(), args: vec!["start".to_string(), "NvTelemetryContainer".to_string()] },
+                TweakOperation::ScheduledTaskEnable { path: "\\".to_string(), name: "NvTmMon_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}".to_string() },
+                TweakOperation::ScheduledTaskEnable { path: "\\".to_string(), name: "NvTmRep_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}".to_string() },
+                TweakOperation::ScheduledTaskEnable { path: "\\".to_string(), name: "NvTmRepOnLogon_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}".to_string() }
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(crate::modules::types::TweakCheck::Powershell {
-                script: r#"
-$s = Get-Service -Name 'NvTelemetryContainer' -ErrorAction SilentlyContinue
-$t = Get-ScheduledTask | Where-Object { $_.TaskName -like 'NvTm*' -and $_.State -eq 'Ready' }
-if (($s -and $s.StartType -ne 'Disabled') -or $t) { return 'False' }
-return 'True'
-"#.to_string(),
-                expected_output: "True".to_string(),
-            }),
+            check: Some(TweakCheck::ServiceDisabled { name: "NvTelemetryContainer".to_string() }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Write-Host "Disabling NVIDIA Telemetry..." -ForegroundColor Yellow
-
-# Registry keys
-$nvPaths = @(
-    @{Path="HKLM:\SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client"; Name="OptInOrOutPreference"; Value=0},
-    @{Path="HKLM:\SOFTWARE\NVIDIA Corporation\Global\FTS"; Name="EnableRID44231"; Value=0},
-    @{Path="HKLM:\SOFTWARE\NVIDIA Corporation\Global\FTS"; Name="EnableRID64640"; Value=0},
-    @{Path="HKLM:\SOFTWARE\NVIDIA Corporation\Global\FTS"; Name="EnableRID66610"; Value=0},
-    @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\Startup"; Name="SendTelemetryData"; Value=0}
-)
-foreach ($item in $nvPaths) {
-    if (Test-Path $item.Path) {
-        Set-ItemProperty -Path $item.Path -Name $item.Name -Value $item.Value -Type DWord -Force -EA 0
-    }
-}
-
-# Disable NvTelemetryContainer service
-$svc = Get-Service -Name 'NvTelemetryContainer' -EA 0
-if ($svc) {
-    Stop-Service -Name 'NvTelemetryContainer' -Force -EA 0
-    Set-Service -Name 'NvTelemetryContainer' -StartupType Disabled -EA 0
-}
-
-# Disable scheduled tasks
-schtasks /change /TN "NvTmMon_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}" /DISABLE 2>$null
-schtasks /change /TN "NvTmRep_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}" /DISABLE 2>$null
-schtasks /change /TN "NvTmRepOnLogon_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}" /DISABLE 2>$null
-
-# Clear telemetry files
-Remove-Item "$env:ProgramData\NVIDIA Corporation\NVTelemetry" -Recurse -Force -EA 0
-Remove-Item "$env:ProgramData\NVIDIA Corporation\CrashDumps" -Recurse -Force -EA 0
-
-Write-Host "NVIDIA telemetry disabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\NVIDIA Corporation\\NvControlPanel2\\Client".to_string(), key: "OptInOrOutPreference".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\NVIDIA Corporation\\Global\\FTS".to_string(), key: "EnableRID44231".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\NVIDIA Corporation\\Global\\FTS".to_string(), key: "EnableRID64640".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\NVIDIA Corporation\\Global\\FTS".to_string(), key: "EnableRID66610".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SYSTEM\\CurrentControlSet\\Services\\nvlddmkm\\Global\\Startup".to_string(), key: "SendTelemetryData".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::ServiceDisable { name: "NvTelemetryContainer".to_string() },
+                TweakOperation::ScheduledTaskDisable { path: "\\".to_string(), name: "NvTmMon_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}".to_string() },
+                TweakOperation::ScheduledTaskDisable { path: "\\".to_string(), name: "NvTmRep_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}".to_string() },
+                TweakOperation::ScheduledTaskDisable { path: "\\".to_string(), name: "NvTmRepOnLogon_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}".to_string() },
+                TweakOperation::Command { cmd: "cmd".to_string(), args: vec!["/c".to_string(), "rmdir".to_string(), "/s".to_string(), "/q".to_string(), "%ProgramData%\\NVIDIA Corporation\\NVTelemetry".to_string()] },
+                TweakOperation::Command { cmd: "cmd".to_string(), args: vec!["/c".to_string(), "rmdir".to_string(), "/s".to_string(), "/q".to_string(), "%ProgramData%\\NVIDIA Corporation\\CrashDumps".to_string()] }
             ]
         },
         
@@ -172,37 +118,21 @@ Write-Host "NVIDIA telemetry disabled" -ForegroundColor Green
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Write-Host "Re-enabling Visual Studio telemetry..." -ForegroundColor Yellow
-
-# VSCEIP SQM OptIn (enable = 1)
-$versions = @("14.0", "15.0", "16.0", "17.0")
-foreach ($v in $versions) {
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\Microsoft\VSCommon\$v\SQM" -Name "OptIn" -Value 1 -Type DWord -Force -EA 0
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\VSCommon\$v\SQM" -Name "OptIn" -Value 1 -Type DWord -Force -EA 0
-}
-
-# Policy SQM
-Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\VisualStudio\SQM" -Name "OptIn" -Force -EA 0
-
-# Telemetry TurnOffSwitch
-Remove-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\VisualStudio\Telemetry" -Name "TurnOffSwitch" -Force -EA 0
-
-# Feedback
-Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\VisualStudio\Feedback" -Name "DisableFeedbackDialog" -Force -EA 0
-Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\VisualStudio\Feedback" -Name "DisableEmailInput" -Force -EA 0
-Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\VisualStudio\Feedback" -Name "DisableScreenshotCapture" -Force -EA 0
-
-# IntelliCode
-Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\VisualStudio\IntelliCode" -Name "DisableRemoteAnalysis" -Force -EA 0
-
-# Enable VSStandardCollectorService
-Set-Service -Name 'VSStandardCollectorService150' -StartupType Manual -EA 0
-
-Write-Host "Visual Studio telemetry re-enabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Wow6432Node\\Microsoft\\VSCommon\\14.0\\SQM".to_string(), key: "OptIn".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Wow6432Node\\Microsoft\\VSCommon\\15.0\\SQM".to_string(), key: "OptIn".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Wow6432Node\\Microsoft\\VSCommon\\16.0\\SQM".to_string(), key: "OptIn".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Wow6432Node\\Microsoft\\VSCommon\\17.0\\SQM".to_string(), key: "OptIn".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Microsoft\\VSCommon\\14.0\\SQM".to_string(), key: "OptIn".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Microsoft\\VSCommon\\15.0\\SQM".to_string(), key: "OptIn".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Microsoft\\VSCommon\\16.0\\SQM".to_string(), key: "OptIn".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Microsoft\\VSCommon\\17.0\\SQM".to_string(), key: "OptIn".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\VisualStudio\\SQM".to_string(), key: "OptIn".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\VisualStudio\\Telemetry".to_string(), key: "TurnOffSwitch".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\VisualStudio\\Feedback".to_string(), key: "DisableFeedbackDialog".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\VisualStudio\\Feedback".to_string(), key: "DisableEmailInput".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\VisualStudio\\Feedback".to_string(), key: "DisableScreenshotCapture".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\VisualStudio\\IntelliCode".to_string(), key: "DisableRemoteAnalysis".to_string() },
+                TweakOperation::ServiceSetMode { name: "VSStandardCollectorService150".to_string(), mode: "Manual".to_string() }
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
@@ -212,44 +142,21 @@ Write-Host "Visual Studio telemetry re-enabled" -ForegroundColor Green
                 expected_value: RegistryValue::DWord(0),
             }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Write-Host "Disabling Visual Studio telemetry..." -ForegroundColor Yellow
-
-# VSCEIP SQM OptIn (both architectures)
-$versions = @("14.0", "15.0", "16.0", "17.0")
-foreach ($v in $versions) {
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\Microsoft\VSCommon\$v\SQM" -Name "OptIn" -Value 0 -Type DWord -Force -EA 0
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\VSCommon\$v\SQM" -Name "OptIn" -Value 0 -Type DWord -Force -EA 0
-}
-
-# Policy SQM
-$sqmPath = "HKLM:\SOFTWARE\Policies\Microsoft\VisualStudio\SQM"
-if (!(Test-Path $sqmPath)) { New-Item -Path $sqmPath -Force | Out-Null }
-Set-ItemProperty -Path $sqmPath -Name "OptIn" -Value 0 -Type DWord -Force
-
-# Telemetry TurnOffSwitch
-Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\VisualStudio\Telemetry" -Name "TurnOffSwitch" -Value 1 -Type DWord -Force -EA 0
-
-# Feedback
-$fbPath = "HKLM:\SOFTWARE\Policies\Microsoft\VisualStudio\Feedback"
-if (!(Test-Path $fbPath)) { New-Item -Path $fbPath -Force | Out-Null }
-Set-ItemProperty -Path $fbPath -Name "DisableFeedbackDialog" -Value 1 -Type DWord -Force
-Set-ItemProperty -Path $fbPath -Name "DisableEmailInput" -Value 1 -Type DWord -Force
-Set-ItemProperty -Path $fbPath -Name "DisableScreenshotCapture" -Value 1 -Type DWord -Force
-
-# IntelliCode
-$icPath = "HKLM:\SOFTWARE\Policies\Microsoft\VisualStudio\IntelliCode"
-if (!(Test-Path $icPath)) { New-Item -Path $icPath -Force | Out-Null }
-Set-ItemProperty -Path $icPath -Name "DisableRemoteAnalysis" -Value 1 -Type DWord -Force
-
-# Disable VSStandardCollectorService
-Stop-Service -Name 'VSStandardCollectorService150' -Force -EA 0
-Set-Service -Name 'VSStandardCollectorService150' -StartupType Disabled -EA 0
-
-Write-Host "Visual Studio telemetry disabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Wow6432Node\\Microsoft\\VSCommon\\14.0\\SQM".to_string(), key: "OptIn".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Wow6432Node\\Microsoft\\VSCommon\\15.0\\SQM".to_string(), key: "OptIn".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Wow6432Node\\Microsoft\\VSCommon\\16.0\\SQM".to_string(), key: "OptIn".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Wow6432Node\\Microsoft\\VSCommon\\17.0\\SQM".to_string(), key: "OptIn".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Microsoft\\VSCommon\\14.0\\SQM".to_string(), key: "OptIn".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Microsoft\\VSCommon\\15.0\\SQM".to_string(), key: "OptIn".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Microsoft\\VSCommon\\16.0\\SQM".to_string(), key: "OptIn".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Microsoft\\VSCommon\\17.0\\SQM".to_string(), key: "OptIn".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\VisualStudio\\SQM".to_string(), key: "OptIn".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\VisualStudio\\Telemetry".to_string(), key: "TurnOffSwitch".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\VisualStudio\\Feedback".to_string(), key: "DisableFeedbackDialog".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\VisualStudio\\Feedback".to_string(), key: "DisableEmailInput".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\VisualStudio\\Feedback".to_string(), key: "DisableScreenshotCapture".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\VisualStudio\\IntelliCode".to_string(), key: "DisableRemoteAnalysis".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::ServiceDisable { name: "VSStandardCollectorService150".to_string() }
             ]
         },
         

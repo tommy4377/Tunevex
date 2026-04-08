@@ -484,6 +484,21 @@ fn check_tweak_enabled(check: &TweakCheck) -> bool {
             let out_str = String::from_utf8_lossy(&output.stdout).to_string();
             out_str.contains("DISABLED") || out_str.contains("4  DISABLED")
         }
+        TweakCheck::MultiServiceDisabled { names } => {
+            names.iter().all(|name| {
+                let output = Command::new("sc")
+                    .args(&["qc", name])
+                    .creation_flags(0x08000000)
+                    .output()
+                    .unwrap_or_else(|_| std::process::Output {
+                        status: std::os::windows::process::ExitStatusExt::from_raw(1),
+                        stdout: Vec::new(),
+                        stderr: Vec::new(),
+                    });
+                let out_str = String::from_utf8_lossy(&output.stdout).to_string();
+                out_str.contains("DISABLED") || out_str.contains("4  DISABLED")
+            })
+        }
     }
 }
 

@@ -1,4 +1,6 @@
-use crate::modules::types::{TweakType, TweakCheck, RegistryValue, Tweak, TweakCategory, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 /// System Maintenance & Storage Privacy
 pub fn get_tweaks() -> Vec<Tweak> {
@@ -27,29 +29,15 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 expected_value: RegistryValue::DWord(1),
             }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$path = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy"
-if (!(Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
-# Enable Storage Sense
-Set-ItemProperty -Path $path -Name "01" -Value 1 -Type DWord -Force
-# Run Storage Sense
-Set-ItemProperty -Path $path -Name "1024" -Value 1 -Type DWord -Force
-# Run every 30 days
-Set-ItemProperty -Path $path -Name "2048" -Value 30 -Type DWord -Force
-# Enable temp file cleanup
-Set-ItemProperty -Path $path -Name "04" -Value 1 -Type DWord -Force
-# Disable Downloads cleanup
-Set-ItemProperty -Path $path -Name "32" -Value 0 -Type DWord -Force
-# Disable OneDrive cleanup
-Set-ItemProperty -Path $path -Name "02" -Value 0 -Type DWord -Force
-Set-ItemProperty -Path $path -Name "128" -Value 0 -Type DWord -Force
-# Disable Recycle Bin cleanup
-Set-ItemProperty -Path $path -Name "08" -Value 0 -Type DWord -Force
-Set-ItemProperty -Path $path -Name "256" -Value 0 -Type DWord -Force
-Write-Host "Storage Sense configured" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\StorageSense\\Parameters\\StoragePolicy".to_string(), key: "01".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\StorageSense\\Parameters\\StoragePolicy".to_string(), key: "1024".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\StorageSense\\Parameters\\StoragePolicy".to_string(), key: "2048".to_string(), value: RegistryValue::DWord(30) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\StorageSense\\Parameters\\StoragePolicy".to_string(), key: "04".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\StorageSense\\Parameters\\StoragePolicy".to_string(), key: "32".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\StorageSense\\Parameters\\StoragePolicy".to_string(), key: "02".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\StorageSense\\Parameters\\StoragePolicy".to_string(), key: "128".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\StorageSense\\Parameters\\StoragePolicy".to_string(), key: "08".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\StorageSense\\Parameters\\StoragePolicy".to_string(), key: "256".to_string(), value: RegistryValue::DWord(0) }
             ]
         },
         
@@ -62,26 +50,21 @@ Write-Host "Storage Sense configured" -ForegroundColor Green
             warning_level: WarningLevel::Careful,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-dism /Online /Set-ReservedStorageState /State:Enabled 2>$null
-Write-Host "Reserved storage enabled" -ForegroundColor Green
-"#.to_string(),
+                TweakOperation::Command {
+                    cmd: "dism".to_string(),
+                    args: vec!["/Online".to_string(), "/Set-ReservedStorageState".to_string(), "/State:Enabled".to_string()],
                 }
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-if ((dism /Online /Get-ReservedStorageState) -match "Disabled") { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "dism".to_string(),
+                args: vec!["/Online".to_string(), "/Get-ReservedStorageState".to_string()],
+                contains: "Disabled".to_string(),
             }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-dism /Online /Set-ReservedStorageState /State:Disabled 2>$null
-Write-Host "Reserved storage disabled" -ForegroundColor Green
-"#.to_string(),
+                TweakOperation::Command {
+                    cmd: "dism".to_string(),
+                    args: vec!["/Online".to_string(), "/Set-ReservedStorageState".to_string(), "/State:Disabled".to_string()],
                 }
             ]
         },

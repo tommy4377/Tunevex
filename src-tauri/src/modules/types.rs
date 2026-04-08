@@ -189,6 +189,8 @@ pub enum TweakCheck {
     ScheduledTaskDisabled { name: String },
     /// Returns true if the specified service is disabled
     ServiceDisabled { name: String },
+    /// Returns true if all specified services are disabled
+    MultiServiceDisabled { names: Vec<String> },
 }
 
 /// A single registry check used inside TweakCheck::MultiRegistry.
