@@ -17,9 +17,9 @@ Legend: [x] = fixed & committed · [~] = partial · [ ] = pending
 - [x] FIX-G `commands.rs` — kill_tweak_process uses .unwrap() on mutex (panic risk)
 
 ## Priority 3 — Minor behavioral issues
-- [ ] FIX-H `adapter.rs` — net_configure_rss revert applies same value as apply
-- [ ] FIX-I `operations.rs` — RegistryDelete returns error if key absent on revert
-- [ ] FIX-J `vendor.rs` — gpu_amd_ulps check uses PowerShell for pure registry read
+- [x] FIX-H `adapter.rs` — net_configure_rss revert applies same value as apply
+- [x] FIX-I `operations.rs` — RegistryDelete returns error if key absent on revert
+- [x] FIX-J `vendor.rs` — gpu_amd_ulps check uses PowerShell for pure registry read
 
 ## Documentation
 - [ ] README.md — write from scratch after FIX-J
