@@ -47,9 +47,7 @@
 <style>
     /* New Minimal Layout Styles */
     #app-mount {
-        /* This container MUST be transparent */
-        background: transparent;
-        /* DWM handles rounding if window is undecorated */
+        background: rgba(32, 32, 32, 0.95);
     }
 
     .content-area {

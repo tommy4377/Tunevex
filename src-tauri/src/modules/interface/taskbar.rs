@@ -60,24 +60,19 @@ pub fn get_taskbar_tweaks() -> Vec<Tweak> {
                 expected_value: RegistryValue::DWord(1),
             }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings"
-if (!(Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
-Set-ItemProperty -Path $path -Name "TaskbarEndTask" -Value 1 -Type DWord -Force
-Write-Host "End Task in Taskbar enabled" -ForegroundColor Green
-"#.to_string(),
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings".to_string(),
+                    key: "TaskbarEndTask".to_string(),
+                    value: RegistryValue::DWord(1),
                 }
             ],
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings"
-if (Test-Path $path) {
-    Set-ItemProperty -Path $path -Name "TaskbarEndTask" -Value 0 -Type DWord -Force
-}
-Write-Host "End Task in Taskbar disabled" -ForegroundColor Green
-"#.to_string(),
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings".to_string(),
+                    key: "TaskbarEndTask".to_string(),
+                    value: RegistryValue::DWord(0),
                 }
             ]),
         },

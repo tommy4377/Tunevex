@@ -80,6 +80,10 @@ if (($panel.ShowStartupPanel -eq 0) -and ($capture.AppCaptureEnabled -eq 0)) { "
                     key: "GamePanelStartupTipIndex".to_string(),
                     value: RegistryValue::DWord(3),
                 },
+                TweakOperation::ServiceDisable { name: "XblAuthManager".to_string() },
+                TweakOperation::ServiceDisable { name: "XblGameSave".to_string() },
+                TweakOperation::ServiceDisable { name: "XboxGipSvc".to_string() },
+                TweakOperation::ServiceDisable { name: "XboxNetApiSvc".to_string() },
             ]
         },
 
@@ -378,44 +382,15 @@ if (($panel.ShowStartupPanel -eq 0) -and ($capture.AppCaptureEnabled -eq 0)) { "
                 expected_value: RegistryValue::DWord(2),
             }),
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-# Restore default visual effects (Let Windows choose)
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Value 0 -Type DWord -Force -EA 0
-# Remove custom UserPreferencesMask to use defaults
-Remove-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "UserPreferencesMask" -EA 0
-Write-Host "Visual effects restored to Windows defaults" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistryDelete { root_key: "HKCU".to_string(), path: "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\VisualEffects".to_string(), key: "VisualFXSetting".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKCU".to_string(), path: "Control Panel\\Desktop".to_string(), key: "UserPreferencesMask".to_string() },
             ]),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-# Set visual effects to "Best Performance"
-# VisualFXSetting: 0=Let Windows choose, 1=Best appearance, 2=Best performance, 3=Custom
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Value 2 -Type DWord -Force -EA 0
-
-# Disable individual animations
-$explorerAdvanced = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
-Set-ItemProperty -Path $explorerAdvanced -Name "TaskbarAnimations" -Value 0 -Type DWord -Force -EA 0
-
-# Disable menu animations
-$desktop = "HKCU:\Control Panel\Desktop"
-Set-ItemProperty -Path $desktop -Name "MenuShowDelay" -Value "0" -Force -EA 0
-
-# Disable window animations
-$windowMetrics = "HKCU:\Control Panel\Desktop\WindowMetrics"
-Set-ItemProperty -Path $windowMetrics -Name "MinAnimate" -Value "0" -Force -EA 0
-
-# UserPreferencesMask for performance (disables most visual effects)
-# This is a binary value that controls many visual settings
-$perfMask = [byte[]](0x90,0x12,0x03,0x80,0x10,0x00,0x00,0x00)
-Set-ItemProperty -Path $desktop -Name "UserPreferencesMask" -Value $perfMask -Type Binary -Force -EA 0
-
-Write-Host "Visual effects disabled for best performance" -ForegroundColor Green
-Write-Host "You may need to restart Explorer or log off for all changes to apply" -ForegroundColor Yellow
-"#.to_string(),
-                }
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\VisualEffects".to_string(), key: "VisualFXSetting".to_string(), value: RegistryValue::DWord(2) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced".to_string(), key: "TaskbarAnimations".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "Control Panel\\Desktop".to_string(), key: "MenuShowDelay".to_string(), value: RegistryValue::String("0".to_string()) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "Control Panel\\Desktop\\WindowMetrics".to_string(), key: "MinAnimate".to_string(), value: RegistryValue::String("0".to_string()) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "Control Panel\\Desktop".to_string(), key: "UserPreferencesMask".to_string(), value: RegistryValue::Binary(vec![0x90,0x12,0x03,0x80,0x10,0x00,0x00,0x00]) },
             ],
         },
 
@@ -438,23 +413,10 @@ if ($svc.StartType -eq 'Disabled') { 'True' } else { 'False' }
                 expected_output: "True".to_string(),
             }),
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Set-Service -Name "MMCSS" -StartupType Automatic -EA 0
-Start-Service -Name "MMCSS" -EA 0
-Write-Host "MMCSS service re-enabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::ServiceSetMode { name: "MMCSS".to_string(), mode: "auto".to_string() }
             ]),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Stop-Service -Name "MMCSS" -Force -EA 0
-Set-Service -Name "MMCSS" -StartupType Disabled -EA 0
-Write-Host "MMCSS service disabled" -ForegroundColor Yellow
-Write-Host "Restart required for changes to take effect" -ForegroundColor Cyan
-"#.to_string(),
-                }
+                TweakOperation::ServiceDisable { name: "MMCSS".to_string() }
             ],
         },
     ]);

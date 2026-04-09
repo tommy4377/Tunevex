@@ -107,28 +107,21 @@ pub fn get_error_reporting_tweaks() -> Vec<Tweak> {
             requires_restart: false,
             tweak_type: TweakType::Toggle,
             enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$svc = Get-Service -Name "WerSvc" -EA 0
-if ($svc.StartType -eq 'Disabled') { "True" } else { "False" }
-"#
-                .to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::ServiceDisabled {
+                name: "WerSvc".to_string(),
             }),
-            revert_operations: Some(vec![TweakOperation::Powershell {
-                script: r#"
-Set-Service WerSvc -StartupType Manual -ErrorAction SilentlyContinue
-Start-Service WerSvc -ErrorAction SilentlyContinue
-"#
-                .to_string(),
-            }]),
-            operations: vec![TweakOperation::Powershell {
-                script: r#"
-Stop-Service WerSvc -Force -ErrorAction SilentlyContinue
-Set-Service WerSvc -StartupType Disabled -ErrorAction SilentlyContinue
-Write-Host "Windows Error Reporting Service disabled" -ForegroundColor Green
-"#
-                .to_string(),
+            revert_operations: Some(vec![
+                TweakOperation::ServiceSetMode {
+                    name: "WerSvc".to_string(),
+                    mode: "Manual".to_string(),
+                },
+                TweakOperation::Command {
+                    cmd: "sc".to_string(),
+                    args: vec!["start".to_string(), "WerSvc".to_string()],
+                },
+            ]),
+            operations: vec![TweakOperation::ServiceDisable {
+                name: "WerSvc".to_string(),
             }],
         },
         // Disable Problem Reporting Dialog

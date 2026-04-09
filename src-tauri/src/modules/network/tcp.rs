@@ -12,35 +12,19 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             tweak_type: TweakType::Toggle, enabled: false,
-
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$k = Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces' -EA 0
-$e = $true
-foreach ($i in $k) {
-  $v = Get-ItemProperty -Path $i.PSPath -Name 'TcpAckFrequency' -EA 0
-  if ($v.TcpAckFrequency -ne 1) { $e = $false; break }
-}
-$e
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::NetworkInterfacesCheck {
+                key: "TcpAckFrequency".to_string(),
+                expected_value: RegistryValue::DWord(1),
             }),
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces' | ForEach-Object {
-    Remove-ItemProperty -Path $_.PSPath -Name 'TcpAckFrequency' -ErrorAction SilentlyContinue
-}
-"#.to_string(),
+                TweakOperation::NetworkInterfacesDelete {
+                    key: "TcpAckFrequency".to_string(),
                 }
             ]),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces' | ForEach-Object {
-    Set-ItemProperty -Path $_.PSPath -Name 'TcpAckFrequency' -Value 1 -Type DWord -ErrorAction SilentlyContinue
-}
-"#.to_string(),
+                TweakOperation::NetworkInterfacesSet {
+                    key: "TcpAckFrequency".to_string(),
+                    value: RegistryValue::DWord(1),
                 }
             ]
         },
@@ -52,34 +36,19 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$k = Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces' -EA 0
-$e = $true
-foreach ($i in $k) {
-  $v = Get-ItemProperty -Path $i.PSPath -Name 'TCPNoDelay' -EA 0
-  if ($v.TCPNoDelay -ne 1) { $e = $false; break }
-}
-$e
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::NetworkInterfacesCheck {
+                key: "TCPNoDelay".to_string(),
+                expected_value: RegistryValue::DWord(1),
             }),
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces' | ForEach-Object {
-    Remove-ItemProperty -Path $_.PSPath -Name 'TCPNoDelay' -ErrorAction SilentlyContinue
-}
-"#.to_string(),
+                TweakOperation::NetworkInterfacesDelete {
+                    key: "TCPNoDelay".to_string(),
                 }
             ]),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces' | ForEach-Object {
-    Set-ItemProperty -Path $_.PSPath -Name 'TCPNoDelay' -Value 1 -Type DWord -ErrorAction SilentlyContinue
-}
-"#.to_string(),
+                TweakOperation::NetworkInterfacesSet {
+                    key: "TCPNoDelay".to_string(),
+                    value: RegistryValue::DWord(1),
                 }
             ]
         },
@@ -199,7 +168,6 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                 }
             ]
         },
-        // Auto-Tuning Check requires PowerShell or netsh check
         Tweak {
             id: "net_tcp_autotuning".to_string(),
             category: TweakCategory::Network,
@@ -210,12 +178,13 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
             revert_operations: Some(vec![
                 TweakOperation::Command {
                     cmd: "netsh".to_string(),
-                    args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "autotuninglevel=normal".into()], // Re-apply normal as revert (idempotent, but safe)
+                    args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "autotuninglevel=normal".into()],
                 }
             ]), tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: "(Get-NetTCPSetting -SettingName Internet).AutoTuningLevelLocal".to_string(),
-                expected_output: "Normal".to_string(),
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "netsh".to_string(),
+                args: vec!["int".to_string(), "tcp".to_string(), "show".to_string(), "global".to_string()],
+                contains: "Normal".to_string(),
             }),
             operations: vec![
                 TweakOperation::Command {
@@ -237,9 +206,10 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                     args: vec!["int".into(), "tcp".into(), "set".into(), "supplemental".into(), "template=internet".into(), "congestionprovider=cubic".into()],
                 }
             ]), tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: "(Get-NetTCPSetting -SettingName Internet).CongestionProvider".to_string(),
-                expected_output: "CUBIC".to_string(),
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "netsh".to_string(),
+                args: vec!["int".to_string(), "tcp".to_string(), "show".to_string(), "supplemental".to_string()],
+                contains: "CUBIC".to_string(),
             }),
             operations: vec![
                 TweakOperation::Command {
@@ -258,17 +228,18 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
             revert_operations: Some(vec![
                 TweakOperation::Command {
                     cmd: "netsh".to_string(),
-                    args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "ecncapability=disabled".into()],
+                    args: vec!["int".to_string(), "tcp".to_string(), "set".to_string(), "global".to_string(), "ecncapability=disabled".to_string()],
                 }
             ]), tweak_type: TweakType::Toggle, enabled: false,
-             check: Some(TweakCheck::Powershell {
-                script: "(Get-NetTCPSetting -SettingName Internet).EcnCapability".to_string(),
-                expected_output: "Enabled".to_string(),
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "netsh".to_string(),
+                args: vec!["int".to_string(), "tcp".to_string(), "show".to_string(), "global".to_string()],
+                contains: "Enabled".to_string(),
             }),
             operations: vec![
                 TweakOperation::Command {
                     cmd: "netsh".to_string(),
-                    args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "ecncapability=enabled".into()],
+                    args: vec!["int".into(), "tcp".to_string(), "set".into(), "global".to_string(), "ecncapability=enabled".to_string()],
                 }
             ]
         },
@@ -396,34 +367,19 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$k = Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces' -EA 0
-$e = $true
-foreach ($i in $k) {
-  $v = Get-ItemProperty -Path $i.PSPath -Name 'TcpDelAckTicks' -EA 0
-  if ($v.TcpDelAckTicks -ne 0) { $e = $false; break }
-}
-$e
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::NetworkInterfacesCheck {
+                key: "TcpDelAckTicks".to_string(),
+                expected_value: RegistryValue::DWord(0),
             }),
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces' | ForEach-Object {
-    Remove-ItemProperty -Path $_.PSPath -Name 'TcpDelAckTicks' -ErrorAction SilentlyContinue
-}
-"#.to_string(),
+                TweakOperation::NetworkInterfacesDelete {
+                    key: "TcpDelAckTicks".to_string(),
                 }
             ]),
-             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces' | ForEach-Object {
-    Set-ItemProperty -Path $_.PSPath -Name 'TcpDelAckTicks' -Value 0 -Type DWord -ErrorAction SilentlyContinue
-}
-"#.to_string(),
+            operations: vec![
+                TweakOperation::NetworkInterfacesSet {
+                    key: "TcpDelAckTicks".to_string(),
+                    value: RegistryValue::DWord(0),
                 }
             ]
         },
@@ -440,9 +396,10 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                     args: vec!["int".into(), "tcp".into(), "set".into(), "supplemental".into(), "template=internet".into(), "congestionprovider=cubic".into()],
                 }
             ]), tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: "(Get-NetTCPSetting -SettingName Internet).CongestionProvider".to_string(),
-                expected_output: "BBR".to_string(),
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "netsh".to_string(),
+                args: vec!["int".to_string(), "tcp".to_string(), "show".to_string(), "supplemental".to_string()],
+                contains: "BBR".to_string(),
             }),
             operations: vec![
                 TweakOperation::Command {
@@ -451,7 +408,7 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                 }
             ]
         },
-         Tweak {
+        Tweak {
             id: "net_network_throttling".to_string(),
             category: TweakCategory::Network,
             name: "Disable Network Throttling Index".to_string(),
@@ -509,38 +466,29 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfac
                 }
             ]
         },
-
-        // ============================================
-        // C.16: TCP Initial RTO
-        // ============================================
         Tweak {
             id: "net_tcp_initial_rto".to_string(),
             category: TweakCategory::Network,
             name: "Reduce TCP Initial Retransmission Timeout".to_string(),
-            description: "Reduces TCP Initial RTO to 2 seconds (minimum) for faster connection retries.
-
-Default is 3 seconds. Reducing to 2 seconds means faster recovery from initial connection failures.
-
-Useful for gaming and real-time applications.".to_string(),
+            description: "Reduces TCP Initial RTO to 2 seconds (minimum) for faster connection retries. Default is 3 seconds.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-if ((Get-NetTCPSetting -SettingName Internet).InitialRtoMs -eq 2000) { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "netsh".to_string(),
+                args: vec!["int".to_string(), "tcp".to_string(), "show".to_string(), "global".to_string()],
+                contains: "2000".to_string(),
             }),
             revert_operations: Some(vec![
                 TweakOperation::Command {
                     cmd: "netsh".to_string(),
-                    args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "initialRto=3000".into()],
+                    args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "initialRto=3000".to_string()],
                 }
             ]),
             operations: vec![
                 TweakOperation::Command {
                     cmd: "netsh".to_string(),
-                    args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "initialRto=2000".into()],
+                    args: vec!["int".into(), "tcp".into(), "set".into(), "global".to_string(), "initialRto=2000".to_string()],
                 }
             ]
         },

@@ -49,7 +49,7 @@ pub fn toggle_item(id: String, enable: bool) -> Result<(), String> {
     } else if id.starts_with("BOOT:") || id.starts_with("IFEO:") || id.starts_with("APPINIT:") {
         return boot::toggle_boot_item(&id, enable);
     } else if id.starts_with("EXP:") || id.starts_with("EXPLORER:") {
-        return Err("Toggling Explorer items not supported yet".to_string());
+        return explorer::toggle_explorer_item(&id, enable);
     }
 
     Err("Unknown item type".to_string())

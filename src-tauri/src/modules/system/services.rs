@@ -12,30 +12,12 @@ pub fn get_service_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    Set-Service -Name "WSearch" -StartupType Automatic -EA 0
-                    Start-Service -Name "WSearch" -EA 0
-                    Write-Host "Windows Search enabled" -ForegroundColor Green
-                "#.to_string(),
-                }
+                TweakOperation::ServiceSetMode { name: "WSearch".to_string(), mode: "auto".to_string() },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$s = Get-Service WSearch -ErrorAction SilentlyContinue
-if ($s -and $s.StartType -eq 'Disabled') { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
-            }),
+            check: Some(TweakCheck::ServiceDisabled { name: "WSearch".to_string() }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    Stop-Service -Name "WSearch" -Force -EA 0
-                    Set-Service -Name "WSearch" -StartupType Disabled -EA 0
-                    Write-Host "Windows Search disabled" -ForegroundColor Green
-                "#.to_string(),
-                }
+                TweakOperation::ServiceDisable { name: "WSearch".to_string() },
             ]
         },
         Tweak {
@@ -46,28 +28,12 @@ if ($s -and $s.StartType -eq 'Disabled') { "True" } else { "False" }
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    Set-Service -Name "BITS" -StartupType Automatic -EA 0
-                    Write-Host "BITS set to Automatic" -ForegroundColor Green
-                "#.to_string(),
-                }
+                TweakOperation::ServiceSetMode { name: "BITS".to_string(), mode: "auto".to_string() },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$s = Get-Service BITS -ErrorAction SilentlyContinue
-if ($s -and $s.StartType -eq 'Manual') { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
-            }),
+            check: Some(TweakCheck::ServiceDisabled { name: "BITS".to_string() }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    Set-Service -Name "BITS" -StartupType Manual -EA 0
-                    Write-Host "BITS set to Manual" -ForegroundColor Green
-                "#.to_string(),
-                }
+                TweakOperation::ServiceSetMode { name: "BITS".to_string(), mode: "demand".to_string() },
             ]
         },
         Tweak {
@@ -91,30 +57,12 @@ The old 2013 advice to 'always disable on SSDs' is outdated.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    Set-Service -Name "SysMain" -StartupType Automatic -EA 0
-                    Start-Service -Name "SysMain" -EA 0
-                    Write-Host "SysMain (Superfetch) enabled" -ForegroundColor Green
-                "#.to_string(),
-                }
+                TweakOperation::ServiceSetMode { name: "SysMain".to_string(), mode: "auto".to_string() },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$s = Get-Service SysMain -ErrorAction SilentlyContinue
-if ($s -and $s.StartType -eq 'Disabled') { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
-            }),
+            check: Some(TweakCheck::ServiceDisabled { name: "SysMain".to_string() }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    Stop-Service -Name "SysMain" -Force -EA 0
-                    Set-Service -Name "SysMain" -StartupType Disabled -EA 0
-                    Write-Host "SysMain (Superfetch) disabled" -ForegroundColor Green
-                "#.to_string(),
-                }
+                TweakOperation::ServiceDisable { name: "SysMain".to_string() },
             ]
         },
     ]

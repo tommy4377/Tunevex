@@ -12,33 +12,22 @@ pub fn get_service_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    $services = @("RemoteRegistry", "RemoteAccess", "WinRM", "TermService", "SessionEnv")
-                    foreach ($svc in $services) { Set-Service -Name $svc -StartupType Manual -EA 0 }
-                    Write-Host "Remote services enabled (Manual)" -ForegroundColor Green
-                "#.to_string(),
-                }
+                TweakOperation::ServiceSetMode { name: "RemoteRegistry".to_string(), mode: "demand".to_string() },
+                TweakOperation::ServiceSetMode { name: "RemoteAccess".to_string(), mode: "demand".to_string() },
+                TweakOperation::ServiceSetMode { name: "WinRM".to_string(), mode: "demand".to_string() },
+                TweakOperation::ServiceSetMode { name: "TermService".to_string(), mode: "demand".to_string() },
+                TweakOperation::ServiceSetMode { name: "SessionEnv".to_string(), mode: "demand".to_string() },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$svc = Get-Service -Name "RemoteRegistry" -EA 0
-if ($svc.StartType -eq 'Disabled') { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::MultiServiceDisabled {
+                names: vec!["RemoteRegistry".to_string(), "RemoteAccess".to_string(), "WinRM".to_string(), "TermService".to_string(), "SessionEnv".to_string()],
             }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    $services = @("RemoteRegistry", "RemoteAccess", "WinRM", "TermService", "SessionEnv")
-                    foreach ($svc in $services) {
-                        Stop-Service -Name $svc -Force -EA 0
-                        Set-Service -Name $svc -StartupType Disabled -EA 0
-                    }
-                    Write-Host "Remote services disabled" -ForegroundColor Green
-                "#.to_string(),
-                }
+                TweakOperation::ServiceDisable { name: "RemoteRegistry".to_string() },
+                TweakOperation::ServiceDisable { name: "RemoteAccess".to_string() },
+                TweakOperation::ServiceDisable { name: "WinRM".to_string() },
+                TweakOperation::ServiceDisable { name: "TermService".to_string() },
+                TweakOperation::ServiceDisable { name: "SessionEnv".to_string() },
             ]
         }
     ]

@@ -1,6 +1,6 @@
 [package]
 name = "tunevex"
-version = "0.2.0"
+version = "0.3.0"
 description = "Windows system tuning and optimization utility"
 authors = ["tommy4377"]
 edition = "2021"
@@ -20,9 +20,9 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
-tauri-plugin-opener = "2"
-tauri-plugin-dialog = "2"
+tauri = { version = "2.9.1", features = [] }
+tauri-plugin-opener = "2.5.3"
+tauri-plugin-dialog = "2.6.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
@@ -43,6 +43,8 @@ sysinfo = "0.37"
 # Windows Dependencies (Now Mandatory)
 winreg = "0.52"
 window-vibrancy = "0.5"
+vite = "0.1.0"
+# wmi removed: unused dep that conflicts with windows = "0.61" (windows_core version mismatch)
 
 [dependencies.windows]
 version = "0.61.3"
@@ -57,6 +59,9 @@ features = [
     "Win32_System_Console",
     "Win32_Security",
     "Win32_NetworkManagement_IpHelper",
+    "Win32_Devices_Display",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
 ]
 
 [profile.release]

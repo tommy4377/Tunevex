@@ -100,27 +100,58 @@ Ensures games get priority access to GPU and CPU resources.".to_string(),
                 key: "GPU Priority".to_string(),
                 expected_value: RegistryValue::DWord(8),
             }),
-            revert_operations: Some(vec![TweakOperation::Powershell {
-                script: r#"
-$path = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
-Set-ItemProperty -Path $path -Name "GPU Priority" -Value 2 -Type DWord -EA 0
-Set-ItemProperty -Path $path -Name "Priority" -Value 2 -Type DWord -EA 0
-Set-ItemProperty -Path $path -Name "Scheduling Category" -Value "Medium" -Type String -EA 0
-Set-ItemProperty -Path $path -Name "SFIO Priority" -Value "Normal" -Type String -EA 0
-Write-Host "Game priority settings restored to defaults" -ForegroundColor Green
-"#.to_string(),
-            }]),
-            operations: vec![TweakOperation::Powershell {
-                script: r#"
-$path = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
-if (!(Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
-Set-ItemProperty -Path $path -Name "GPU Priority" -Value 8 -Type DWord -Force
-Set-ItemProperty -Path $path -Name "Priority" -Value 6 -Type DWord -Force
-Set-ItemProperty -Path $path -Name "Scheduling Category" -Value "High" -Type String -Force
-Set-ItemProperty -Path $path -Name "SFIO Priority" -Value "High" -Type String -Force
-Write-Host "Game priority settings optimized" -ForegroundColor Green
-"#.to_string(),
-            }],
+            revert_operations: Some(vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games".to_string(),
+                    key: "GPU Priority".to_string(),
+                    value: RegistryValue::DWord(2),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games".to_string(),
+                    key: "Priority".to_string(),
+                    value: RegistryValue::DWord(2),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games".to_string(),
+                    key: "Scheduling Category".to_string(),
+                    value: RegistryValue::String("Medium".to_string()),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games".to_string(),
+                    key: "SFIO Priority".to_string(),
+                    value: RegistryValue::String("Normal".to_string()),
+                },
+            ]),
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games".to_string(),
+                    key: "GPU Priority".to_string(),
+                    value: RegistryValue::DWord(8),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games".to_string(),
+                    key: "Priority".to_string(),
+                    value: RegistryValue::DWord(6),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games".to_string(),
+                    key: "Scheduling Category".to_string(),
+                    value: RegistryValue::String("High".to_string()),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games".to_string(),
+                    key: "SFIO Priority".to_string(),
+                    value: RegistryValue::String("High".to_string()),
+                },
+            ],
         },
         // ============================================
         // System Responsiveness

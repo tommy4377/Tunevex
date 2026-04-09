@@ -11,46 +11,78 @@ pub fn get_task_tweaks() -> Vec<Tweak> {
             .to_string(),
         warning_level: WarningLevel::Safe,
         requires_restart: false,
-        revert_operations: Some(vec![TweakOperation::Powershell {
-            script: r#"
-                    $tasks = @(
-                        '\Microsoft\Windows\Maps\MapsToastTask',
-                        '\Microsoft\Windows\Maps\MapsUpdateTask',
-                        '\Microsoft\Windows\Speech\SpeechModelDownloadTask',
-                        '\Microsoft\Windows\LanguageComponentsInstaller\Installation',
-                        '\Microsoft\Windows\LanguageComponentsInstaller\ReconcileLanguageResources',
-                        '\Microsoft\Windows\RetailDemo\CleanupOfflineContent',
-                        '\Microsoft\Windows\SettingSync\NetworkStateChangeTask',
-                        '\Microsoft\Windows\RemoteAssistance\RemoteAssistanceTask'
-                    )
-                    foreach ($task in $tasks) { schtasks /Change /TN $task /Enable 2>$null }
-                    Write-Host "Miscellaneous tasks enabled" -ForegroundColor Green
-                "#
-            .to_string(),
-        }]),
-        tweak_type: TweakType::Toggle, enabled: false,
-        check: Some(TweakCheck::Powershell {
-            script: r#"
-if ((Get-ScheduledTask -TaskName "MapsToastTask" -ErrorAction SilentlyContinue).State -match 'Disabled') { "True" } else { "False" }
-"#.to_string(),
-            expected_output: "True".to_string(),
+        revert_operations: Some(vec![
+            TweakOperation::ScheduledTaskEnable {
+                path: "\\Microsoft\\Windows\\Maps".to_string(),
+                name: "MapsToastTask".to_string(),
+            },
+            TweakOperation::ScheduledTaskEnable {
+                path: "\\Microsoft\\Windows\\Maps".to_string(),
+                name: "MapsUpdateTask".to_string(),
+            },
+            TweakOperation::ScheduledTaskEnable {
+                path: "\\Microsoft\\Windows\\Speech".to_string(),
+                name: "SpeechModelDownloadTask".to_string(),
+            },
+            TweakOperation::ScheduledTaskEnable {
+                path: "\\Microsoft\\Windows\\LanguageComponentsInstaller".to_string(),
+                name: "Installation".to_string(),
+            },
+            TweakOperation::ScheduledTaskEnable {
+                path: "\\Microsoft\\Windows\\LanguageComponentsInstaller".to_string(),
+                name: "ReconcileLanguageResources".to_string(),
+            },
+            TweakOperation::ScheduledTaskEnable {
+                path: "\\Microsoft\\Windows\\RetailDemo".to_string(),
+                name: "CleanupOfflineContent".to_string(),
+            },
+            TweakOperation::ScheduledTaskEnable {
+                path: "\\Microsoft\\Windows\\SettingSync".to_string(),
+                name: "NetworkStateChangeTask".to_string(),
+            },
+            TweakOperation::ScheduledTaskEnable {
+                path: "\\Microsoft\\Windows\\RemoteAssistance".to_string(),
+                name: "RemoteAssistanceTask".to_string(),
+            },
+        ]),
+        tweak_type: TweakType::Toggle,
+        enabled: false,
+        check: Some(TweakCheck::ScheduledTaskDisabled {
+            name: "\\Microsoft\\Windows\\Maps\\MapsToastTask".to_string(),
         }),
-        operations: vec![TweakOperation::Powershell {
-            script: r#"
-                    $tasks = @(
-                        '\Microsoft\Windows\Maps\MapsToastTask',
-                        '\Microsoft\Windows\Maps\MapsUpdateTask',
-                        '\Microsoft\Windows\Speech\SpeechModelDownloadTask',
-                        '\Microsoft\Windows\LanguageComponentsInstaller\Installation',
-                        '\Microsoft\Windows\LanguageComponentsInstaller\ReconcileLanguageResources',
-                        '\Microsoft\Windows\RetailDemo\CleanupOfflineContent',
-                        '\Microsoft\Windows\SettingSync\NetworkStateChangeTask',
-                        '\Microsoft\Windows\RemoteAssistance\RemoteAssistanceTask'
-                    )
-                    foreach ($task in $tasks) { schtasks /Change /TN $task /Disable 2>$null }
-                    Write-Host "Miscellaneous tasks disabled" -ForegroundColor Green
-                "#
-            .to_string(),
-        }],
+        operations: vec![
+            TweakOperation::ScheduledTaskDisable {
+                path: "\\Microsoft\\Windows\\Maps".to_string(),
+                name: "MapsToastTask".to_string(),
+            },
+            TweakOperation::ScheduledTaskDisable {
+                path: "\\Microsoft\\Windows\\Maps".to_string(),
+                name: "MapsUpdateTask".to_string(),
+            },
+            TweakOperation::ScheduledTaskDisable {
+                path: "\\Microsoft\\Windows\\Speech".to_string(),
+                name: "SpeechModelDownloadTask".to_string(),
+            },
+            TweakOperation::ScheduledTaskDisable {
+                path: "\\Microsoft\\Windows\\LanguageComponentsInstaller".to_string(),
+                name: "Installation".to_string(),
+            },
+            TweakOperation::ScheduledTaskDisable {
+                path: "\\Microsoft\\Windows\\LanguageComponentsInstaller".to_string(),
+                name: "ReconcileLanguageResources".to_string(),
+            },
+            TweakOperation::ScheduledTaskDisable {
+                path: "\\Microsoft\\Windows\\RetailDemo".to_string(),
+                name: "CleanupOfflineContent".to_string(),
+            },
+            TweakOperation::ScheduledTaskDisable {
+                path: "\\Microsoft\\Windows\\SettingSync".to_string(),
+                name: "NetworkStateChangeTask".to_string(),
+            },
+            TweakOperation::ScheduledTaskDisable {
+                path: "\\Microsoft\\Windows\\RemoteAssistance".to_string(),
+                name: "RemoteAssistanceTask".to_string(),
+            },
+        ],
     }]
 }

@@ -1,15 +1,15 @@
-# Tunevex v0.2.0
+# Tunevex v0.3.0
 
-Shared UI and Windows 11 shell
+Native Windows backend
 
 Tunevex is a Windows system tuning and optimization utility built with Rust, Tauri and Svelte.
 
 ## Highlights
 
-- Reusable dashboard and control components
-- Windows 11 style shell and Mica treatment
-- Cleaner system monitoring and quick actions
-- Removal of abandoned shell experiments
+- More native registry, service and Windows API operations
+- Stronger state detection and rollback semantics
+- Safer device and system monitoring
+- Large duplicate and bug cleanup
 
 ## Safety
 

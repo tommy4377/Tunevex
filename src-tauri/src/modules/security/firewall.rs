@@ -74,26 +74,21 @@ pub fn get_firewall_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Dangerous,
             requires_restart: false,
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$profiles = Get-NetFirewallProfile | Where-Object { $_.Enabled -eq $true }
-if ($profiles.Count -eq 0) { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "netsh".to_string(),
+                args: vec!["advfirewall".to_string(), "show".to_string(), "allprofiles".to_string(), "state".to_string()],
+                contains: "OFF".to_string(),
             }),
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
-"#.to_string(),
+                TweakOperation::Command {
+                    cmd: "netsh".to_string(),
+                    args: vec!["advfirewall".to_string(), "set".to_string(), "allprofiles".to_string(), "state".to_string(), "on".to_string()],
                 }
             ]),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
-Write-Host "Windows Firewall disabled for all profiles" -ForegroundColor Yellow
-"#.to_string(),
+                TweakOperation::Command {
+                    cmd: "netsh".to_string(),
+                    args: vec!["advfirewall".to_string(), "set".to_string(), "allprofiles".to_string(), "state".to_string(), "off".to_string()],
                 }
             ],
         },
@@ -107,26 +102,21 @@ Write-Host "Windows Firewall disabled for all profiles" -ForegroundColor Yellow
             warning_level: WarningLevel::Careful,
             requires_restart: false,
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$profile = Get-NetFirewallProfile -Profile Private
-if ($profile.DefaultOutboundAction -eq "Block") { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "netsh".to_string(),
+                args: vec!["advfirewall".to_string(), "show".to_string(), "allprofiles".to_string(), "firewallpolicy".to_string()],
+                contains: "BlockOutbound".to_string(),
             }),
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultOutboundAction Allow
-"#.to_string(),
+                TweakOperation::Command {
+                    cmd: "netsh".to_string(),
+                    args: vec!["advfirewall".to_string(), "set".to_string(), "allprofiles".to_string(), "firewallpolicy".to_string(), "BlockInbound,AllowOutbound".to_string()],
                 }
             ]),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultOutboundAction Block
-Write-Host "Firewall set to block outbound by default" -ForegroundColor Cyan
-"#.to_string(),
+                TweakOperation::Command {
+                    cmd: "netsh".to_string(),
+                    args: vec!["advfirewall".to_string(), "set".to_string(), "allprofiles".to_string(), "firewallpolicy".to_string(), "BlockInbound,BlockOutbound".to_string()],
                 }
             ],
         },
@@ -140,26 +130,21 @@ Write-Host "Firewall set to block outbound by default" -ForegroundColor Cyan
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$rules = Get-NetFirewallRule -DisplayGroup "Remote Desktop" -Enabled True -ErrorAction SilentlyContinue
-if (-not $rules) { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "netsh".to_string(),
+                args: vec!["advfirewall".to_string(), "firewall".to_string(), "show".to_string(), "rule".to_string(), "group=Remote Desktop".to_string()],
+                contains: "Enabled:                            No".to_string(),
             }),
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Enable-NetFirewallRule -DisplayGroup "Remote Desktop" -ErrorAction SilentlyContinue
-"#.to_string(),
+                TweakOperation::Command {
+                    cmd: "netsh".to_string(),
+                    args: vec!["advfirewall".to_string(), "firewall".to_string(), "set".to_string(), "rule".to_string(), "group=Remote Desktop".to_string(), "new".to_string(), "enable=Yes".to_string()],
                 }
             ]),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Disable-NetFirewallRule -DisplayGroup "Remote Desktop" -ErrorAction SilentlyContinue
-Write-Host "Remote Desktop firewall rules disabled" -ForegroundColor Green
-"#.to_string(),
+                TweakOperation::Command {
+                    cmd: "netsh".to_string(),
+                    args: vec!["advfirewall".to_string(), "firewall".to_string(), "set".to_string(), "rule".to_string(), "group=Remote Desktop".to_string(), "new".to_string(), "enable=No".to_string()],
                 }
             ],
         },

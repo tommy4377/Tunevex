@@ -34,19 +34,11 @@ pub fn get_mouse_tweaks() -> Vec<Tweak> {
                 },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$speed = Get-ItemProperty -Path "HKCU:\Control Panel\Mouse" -Name "MouseSpeed" -ErrorAction SilentlyContinue
-$thresh1 = Get-ItemProperty -Path "HKCU:\Control Panel\Mouse" -Name "MouseThreshold1" -ErrorAction SilentlyContinue
-$thresh2 = Get-ItemProperty -Path "HKCU:\Control Panel\Mouse" -Name "MouseThreshold2" -ErrorAction SilentlyContinue
-
-if (($speed.MouseSpeed -eq 0) -and ($thresh1.MouseThreshold1 -eq 0) -and ($thresh2.MouseThreshold2 -eq 0)) {
-    "True"
-} else {
-    "False"
-}
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "Control Panel\\Mouse".to_string(),
+                key: "MouseSpeed".to_string(),
+                expected_value: RegistryValue::String("0".to_string()),
             }),
             operations: vec![
                 TweakOperation::RegistrySet {
@@ -138,11 +130,10 @@ if (($speed.MouseSpeed -eq 0) -and ($thresh1.MouseThreshold1 -eq 0) -and ($thres
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::RegistrySet {
+                TweakOperation::RegistryDelete {
                     root_key: "HKCU".to_string(),
                     path: "Control Panel\\Mouse".to_string(),
                     key: "MouseTrails".to_string(),
-                    value: RegistryValue::String("0".to_string()), // 0 is actually disabled/default too
                 },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,

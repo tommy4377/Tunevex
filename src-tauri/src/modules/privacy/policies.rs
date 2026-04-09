@@ -14,10 +14,11 @@ pub fn get_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::RegistryDelete {
+                TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
                     path: "SOFTWARE\\Policies\\Microsoft\\Windows\\OOBE".to_string(),
                     key: "DisablePrivacyExperience".to_string(),
+                    value: RegistryValue::DWord(0),
                 },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
@@ -46,10 +47,11 @@ pub fn get_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Careful,
             requires_restart: true,
             revert_operations: Some(vec![
-                TweakOperation::RegistryDelete {
+                TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
                     path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System".to_string(),
                     key: "NoConnectedUser".to_string(),
+                    value: RegistryValue::DWord(0),
                 },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
@@ -78,10 +80,11 @@ pub fn get_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::RegistryDelete {
+                TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
                     path: "SOFTWARE\\Policies\\Microsoft\\Windows\\System".to_string(),
                     key: "RSoPLogging".to_string(),
+                    value: RegistryValue::DWord(0),
                 },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
@@ -110,10 +113,11 @@ pub fn get_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::RegistryDelete {
+                TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
                     path: "SOFTWARE\\Microsoft\\PolicyManager\\default\\System\\AllowExperimentation".to_string(),
                     key: "Value".to_string(),
+                    value: RegistryValue::DWord(1),
                 },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,

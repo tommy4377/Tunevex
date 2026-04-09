@@ -1,5 +1,5 @@
 use crate::modules::types::{
-    Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
 };
 
 pub fn get_update_tweaks() -> Vec<Tweak> {
@@ -12,56 +12,46 @@ pub fn get_update_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Dangerous,
             requires_restart: true,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    Write-Host "Enabling Windows Update..."
-                    $services = @("wuauserv", "UsoSvc", "WaaSMedicSvc", "BITS", "DoSvc", "uhssvc", "InstallService")
-                    foreach ($svc in $services) { Set-Service -Name $svc -StartupType Manual -EA 0; Start-Service -Name $svc -EA 0 }
-                    $tasks = @(
-                        '\Microsoft\Windows\InstallService\ScanForUpdates',
-                        '\Microsoft\Windows\InstallService\ScanForUpdatesAsUser',
-                        '\Microsoft\Windows\InstallService\SmartRetry',
-                        '\Microsoft\Windows\UpdateOrchestrator\Schedule Scan',
-                        '\Microsoft\Windows\WindowsUpdate\Scheduled Start'
-                    )
-                    foreach ($task in $tasks) { schtasks /Change /TN $task /Enable 2>$null }
-                    $wuPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate"
-                    Remove-ItemProperty -Path $wuPath -Name "DisableWindowsUpdateAccess" -ErrorAction SilentlyContinue
-                    Write-Host "Windows Update enabled!" -ForegroundColor Green
-                "#.to_string(),
-                }
+                TweakOperation::ServiceSetMode { name: "wuauserv".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "UsoSvc".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "WaaSMedicSvc".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "BITS".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "DoSvc".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "uhssvc".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "InstallService".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ScheduledTaskEnable { path: "\\Microsoft\\Windows\\InstallService".to_string(), name: "ScanForUpdates".to_string() },
+                TweakOperation::ScheduledTaskEnable { path: "\\Microsoft\\Windows\\InstallService".to_string(), name: "ScanForUpdatesAsUser".to_string() },
+                TweakOperation::ScheduledTaskEnable { path: "\\Microsoft\\Windows\\InstallService".to_string(), name: "SmartRetry".to_string() },
+                TweakOperation::ScheduledTaskEnable { path: "\\Microsoft\\Windows\\UpdateOrchestrator".to_string(), name: "Schedule Scan".to_string() },
+                TweakOperation::ScheduledTaskEnable { path: "\\Microsoft\\Windows\\WindowsUpdate".to_string(), name: "Scheduled Start".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate".to_string(), key: "DisableWindowsUpdateAccess".to_string() },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$svc = Get-Service -Name "wuauserv" -EA 0
-if ($svc.StartType -eq 'Disabled') { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::MultiServiceDisabled {
+                names: vec![
+                    "wuauserv".to_string(),
+                    "UsoSvc".to_string(),
+                    "WaaSMedicSvc".to_string(),
+                    "BITS".to_string(),
+                    "DoSvc".to_string(),
+                    "uhssvc".to_string(),
+                    "InstallService".to_string(),
+                ]
             }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    Write-Host "Disabling Windows Update..."
-                    $services = @("wuauserv", "UsoSvc", "WaaSMedicSvc", "BITS", "DoSvc", "uhssvc", "InstallService")
-                    foreach ($svc in $services) {
-                        Stop-Service -Name $svc -Force -EA 0
-                        Set-Service -Name $svc -StartupType Disabled -EA 0
-                    }
-                    $tasks = @(
-                        '\Microsoft\Windows\InstallService\ScanForUpdates',
-                        '\Microsoft\Windows\InstallService\ScanForUpdatesAsUser',
-                        '\Microsoft\Windows\InstallService\SmartRetry',
-                        '\Microsoft\Windows\UpdateOrchestrator\Schedule Scan',
-                        '\Microsoft\Windows\WindowsUpdate\Scheduled Start'
-                    )
-                    foreach ($task in $tasks) { schtasks /Change /TN $task /Disable 2>$null }
-                    $wuPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate"
-                    if (!(Test-Path $wuPath)) { New-Item -Path $wuPath -Force | Out-Null }
-                    Set-ItemProperty -Path $wuPath -Name "DisableWindowsUpdateAccess" -Value 1 -Type DWord -Force
-                    Write-Host "Windows Update disabled!" -ForegroundColor Green
-                "#.to_string(),
-                }
+                TweakOperation::ServiceDisable { name: "wuauserv".to_string() },
+                TweakOperation::ServiceDisable { name: "UsoSvc".to_string() },
+                TweakOperation::ServiceDisable { name: "WaaSMedicSvc".to_string() },
+                TweakOperation::ServiceDisable { name: "BITS".to_string() },
+                TweakOperation::ServiceDisable { name: "DoSvc".to_string() },
+                TweakOperation::ServiceDisable { name: "uhssvc".to_string() },
+                TweakOperation::ServiceDisable { name: "InstallService".to_string() },
+                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\InstallService".to_string(), name: "ScanForUpdates".to_string() },
+                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\InstallService".to_string(), name: "ScanForUpdatesAsUser".to_string() },
+                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\InstallService".to_string(), name: "SmartRetry".to_string() },
+                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\UpdateOrchestrator".to_string(), name: "Schedule Scan".to_string() },
+                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\WindowsUpdate".to_string(), name: "Scheduled Start".to_string() },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate".to_string(), key: "DisableWindowsUpdateAccess".to_string(), value: RegistryValue::DWord(1) },
             ]
         }
     ]

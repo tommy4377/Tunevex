@@ -24,12 +24,10 @@ pub fn get_ntfs_tweaks() -> Vec<Tweak> {
                     "2".to_string(),
                 ], // 2 = System Managed (Default)
             }]),
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$res = fsutil behavior query disablelastaccess
-if ($res -match "1") { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "fsutil".to_string(),
+                args: vec!["behavior".to_string(), "query".to_string(), "disablelastaccess".to_string()],
+                contains: "DisableLastAccess = 1".to_string(),
             }),
             operations: vec![TweakOperation::Command {
                 cmd: "fsutil".to_string(),
@@ -54,12 +52,10 @@ if ($res -match "1") { "True" } else { "False" }
                 cmd: "fsutil".to_string(),
                 args: vec!["8dot3name".to_string(), "set".to_string(), "2".to_string()], // 2 = Volume Default
             }]),
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$res = fsutil behavior query 8dot3name
-if ($res -match "1") { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "fsutil".to_string(),
+                args: vec!["8dot3name".to_string(), "query".to_string()],
+                contains: "8dot3 name creation is disabled on all volumes".to_string(),
             }),
             operations: vec![TweakOperation::Command {
                 cmd: "fsutil".to_string(),
@@ -118,28 +114,21 @@ Recommended only for systems with UPS or laptops with good battery.".to_string()
             warning_level: WarningLevel::Careful,
             requires_restart: false,
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$disks = Get-PhysicalDisk
-if (($disks | Where-Object { $_.WriteCacheEnabled -ne $true }).Count -eq 0) { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "powershell".to_string(),
+                args: vec!["-NoProfile".to_string(), "-Command".to_string(), "(Get-PhysicalDisk | Where-Object { -not $_.WriteCacheEnabled }).Count".to_string()],
+                contains: "0".to_string(),
             }),
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Get-PhysicalDisk | Set-PhysicalDisk -WriteCacheEnabled $false
-Write-Host "Write caching disabled on all physical disks" -ForegroundColor Green
-"#.to_string(),
+                TweakOperation::Command {
+                    cmd: "powershell".to_string(),
+                    args: vec!["-NoProfile".to_string(), "-Command".to_string(), "Get-PhysicalDisk | Set-PhysicalDisk -WriteCacheEnabled $false".to_string()]
                 }
             ]),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Get-PhysicalDisk | Set-PhysicalDisk -WriteCacheEnabled $true
-Write-Host "Write caching enabled on all physical disks" -ForegroundColor Green
-Write-Host "Ensure you have a UPS to prevent data loss on power failure" -ForegroundColor Yellow
-"#.to_string(),
+                TweakOperation::Command {
+                    cmd: "powershell".to_string(),
+                    args: vec!["-NoProfile".to_string(), "-Command".to_string(), "Get-PhysicalDisk | Set-PhysicalDisk -WriteCacheEnabled $true".to_string()]
                 }
             ],
         },
@@ -158,27 +147,12 @@ Windows should auto-detect SSDs, but this ensures it's disabled.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-if ((Get-ScheduledTask -TaskName "ScheduledDefrag" -TaskPath "\Microsoft\Windows\Defrag\" -ErrorAction SilentlyContinue).State -match 'Disabled') { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
-            }),
+            check: Some(TweakCheck::ScheduledTaskDisabled { name: "\\Microsoft\\Windows\\Defrag\\ScheduledDefrag".to_string() }),
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Enable-ScheduledTask -TaskPath "\Microsoft\Windows\Defrag\" -TaskName "ScheduledDefrag" -EA 0
-Write-Host "Scheduled defragmentation re-enabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::ScheduledTaskEnable { path: "\\Microsoft\\Windows\\Defrag".to_string(), name: "ScheduledDefrag".to_string() }
             ]),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Disable-ScheduledTask -TaskPath "\Microsoft\Windows\Defrag\" -TaskName "ScheduledDefrag" -EA 0
-Write-Host "Scheduled defragmentation disabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\Defrag".to_string(), name: "ScheduledDefrag".to_string() }
             ],
         },
         // ============================================

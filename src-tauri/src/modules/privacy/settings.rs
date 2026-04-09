@@ -438,19 +438,11 @@ pub fn get_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$path = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search"
-Set-ItemProperty -Path $path -Name "BingSearchEnabled" -Value 1 -Type DWord -Force -EA 0
-Set-ItemProperty -Path $path -Name "CortanaConsent" -Value 1 -Type DWord -Force -EA 0
-$path2 = "HKCU:\SOFTWARE\Policies\Microsoft\Windows\Explorer"
-Remove-ItemProperty -Path $path2 -Name "DisableSearchBoxSuggestions" -EA 0
-$path3 = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search"
-Remove-ItemProperty -Path $path3 -Name "DisableWebSearch" -EA 0
-Remove-ItemProperty -Path $path3 -Name "ConnectedSearchUseWeb" -EA 0
-Write-Host "Bing search enabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Search".to_string(), key: "BingSearchEnabled".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Search".to_string(), key: "CortanaConsent".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistryDelete { root_key: "HKCU".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer".to_string(), key: "DisableSearchBoxSuggestions".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search".to_string(), key: "DisableWebSearch".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search".to_string(), key: "ConnectedSearchUseWeb".to_string() }
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
@@ -460,21 +452,11 @@ Write-Host "Bing search enabled" -ForegroundColor Green
                 expected_value: RegistryValue::DWord(0),
             }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$path = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search"
-Set-ItemProperty -Path $path -Name "BingSearchEnabled" -Value 0 -Type DWord -Force -EA 0
-Set-ItemProperty -Path $path -Name "CortanaConsent" -Value 0 -Type DWord -Force -EA 0
-$path2 = "HKCU:\SOFTWARE\Policies\Microsoft\Windows\Explorer"
-if (!(Test-Path $path2)) { New-Item -Path $path2 -Force | Out-Null }
-Set-ItemProperty -Path $path2 -Name "DisableSearchBoxSuggestions" -Value 1 -Type DWord -Force
-$path3 = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search"
-if (!(Test-Path $path3)) { New-Item -Path $path3 -Force | Out-Null }
-Set-ItemProperty -Path $path3 -Name "DisableWebSearch" -Value 1 -Type DWord -Force
-Set-ItemProperty -Path $path3 -Name "ConnectedSearchUseWeb" -Value 0 -Type DWord -Force
-Write-Host "Bing search disabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Search".to_string(), key: "BingSearchEnabled".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Search".to_string(), key: "CortanaConsent".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer".to_string(), key: "DisableSearchBoxSuggestions".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search".to_string(), key: "DisableWebSearch".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search".to_string(), key: "ConnectedSearchUseWeb".to_string(), value: RegistryValue::DWord(0) }
             ]
         },
         
@@ -489,19 +471,13 @@ Write-Host "Bing search disabled" -ForegroundColor Green
             revert_operations: None, tweak_type: TweakType::Action, enabled: false,
             check: None,
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Write-Host "Clearing MRU and recent files..." -ForegroundColor Cyan
-Remove-Item "$env:APPDATA\Microsoft\Windows\Recent\AutomaticDestinations\*" -Force -EA 0
-Remove-Item "$env:APPDATA\Microsoft\Windows\Recent\CustomDestinations\*" -Force -EA 0
-Remove-Item "$env:APPDATA\Microsoft\Windows\Recent\*" -Force -EA 0
-reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Applets\Regedit" /va /f 2>$null
-reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\ComDlg32\LastVisitedPidlMRU" /va /f 2>$null
-reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\ComDlg32\OpenSaveMRU" /va /f 2>$null
-reg delete "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\RecentDocs" /va /f 2>$null
-Write-Host "MRU and recent files cleared" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::Command { cmd: "cmd".to_string(), args: vec!["/c".to_string(), "del".to_string(), "/q".to_string(), "/f".to_string(), "/s".to_string(), "%APPDATA%\\Microsoft\\Windows\\Recent\\AutomaticDestinations\\*".to_string()] },
+                TweakOperation::Command { cmd: "cmd".to_string(), args: vec!["/c".to_string(), "del".to_string(), "/q".to_string(), "/f".to_string(), "/s".to_string(), "%APPDATA%\\Microsoft\\Windows\\Recent\\CustomDestinations\\*".to_string()] },
+                TweakOperation::Command { cmd: "cmd".to_string(), args: vec!["/c".to_string(), "del".to_string(), "/q".to_string(), "/f".to_string(), "/s".to_string(), "%APPDATA%\\Microsoft\\Windows\\Recent\\*".to_string()] },
+                TweakOperation::RegistryDelete { root_key: "HKCU".to_string(), path: "Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\Regedit".to_string(), key: "".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKCU".to_string(), path: "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\ComDlg32\\LastVisitedPidlMRU".to_string(), key: "".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKCU".to_string(), path: "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\ComDlg32\\OpenSaveMRU".to_string(), key: "".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RecentDocs".to_string(), key: "".to_string() }
             ]
         },
     ]
