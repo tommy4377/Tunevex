@@ -1,5 +1,6 @@
 use crate::modules::types::{
-    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+    FileOp, RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType,
+    WarningLevel,
 };
 
 /// Application Telemetry (NVIDIA, Office, VS, Chrome, Firefox, etc.)
@@ -169,62 +170,30 @@ pub fn get_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$settingsPath = "$env:APPDATA\Code\User\settings.json"
-if (Test-Path $settingsPath) {
-    try {
-        $json = Get-Content $settingsPath -Raw | ConvertFrom-Json
-    } catch {
-        $json = [PSCustomObject]@{}
-    }
-    # Restore defaults
-    $json | Add-Member -NotePropertyName "telemetry.telemetryLevel" -NotePropertyValue "all" -Force
-    $json | Add-Member -NotePropertyName "telemetry.enableTelemetry" -NotePropertyValue $true -Force
-    $json | Add-Member -NotePropertyName "telemetry.enableCrashReporter" -NotePropertyValue $true -Force
-    $json | Add-Member -NotePropertyName "workbench.enableExperiments" -NotePropertyValue $true -Force
-    $json | Add-Member -NotePropertyName "update.showReleaseNotes" -NotePropertyValue $true -Force
-    $json | ConvertTo-Json -Depth 10 | Set-Content $settingsPath
-    Write-Host "VS Code telemetry re-enabled" -ForegroundColor Green
-}
-"#.to_string(),
-                }
+                TweakOperation::FileOperation(FileOp::Write {
+                    path: "%APPDATA%\\Code\\User\\settings.json".to_string(),
+                    content: r#"{
+    "telemetry.telemetryLevel": "all",
+    "telemetry.enableTelemetry": true,
+    "telemetry.enableCrashReporter": true,
+    "workbench.enableExperiments": true,
+    "update.showReleaseNotes": true
+}"#.to_string(),
+                })
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$p = "$env:APPDATA\Code\User\settings.json"
-if (Test-Path $p) {
-    try {
-        $j = Get-Content $p -Raw | ConvertFrom-Json
-        if ($j.'telemetry.enableTelemetry' -eq $false -or $j.'telemetry.enableTelemetry' -eq 0) { "True" } else { "False" }
-    } catch { "False" }
-} else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
-            }),
+            check: None,
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$settingsPath = "$env:APPDATA\Code\User\settings.json"
-if (Test-Path $settingsPath) {
-    try {
-        $json = Get-Content $settingsPath -Raw | ConvertFrom-Json
-    } catch {
-        $json = [PSCustomObject]@{}
-    }
-    $json | Add-Member -NotePropertyName "telemetry.telemetryLevel" -NotePropertyValue "off" -Force
-    $json | Add-Member -NotePropertyName "telemetry.enableTelemetry" -NotePropertyValue $false -Force
-    $json | Add-Member -NotePropertyName "telemetry.enableCrashReporter" -NotePropertyValue $false -Force
-    $json | Add-Member -NotePropertyName "workbench.enableExperiments" -NotePropertyValue $false -Force
-    $json | Add-Member -NotePropertyName "update.showReleaseNotes" -NotePropertyValue $false -Force
-    $json | ConvertTo-Json -Depth 10 | Set-Content $settingsPath
-    Write-Host "VS Code telemetry disabled" -ForegroundColor Green
-} else {
-    Write-Host "VS Code settings.json not found (VS Code may not be installed)" -ForegroundColor Yellow
-}
-"#.to_string(),
-                }
+                TweakOperation::FileOperation(FileOp::Write {
+                    path: "%APPDATA%\\Code\\User\\settings.json".to_string(),
+                    content: r#"{
+    "telemetry.telemetryLevel": "off",
+    "telemetry.enableTelemetry": false,
+    "telemetry.enableCrashReporter": false,
+    "workbench.enableExperiments": false,
+    "update.showReleaseNotes": false
+}"#.to_string(),
+                })
             ]
         },
         
@@ -237,27 +206,17 @@ if (Test-Path $settingsPath) {
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-[Environment]::SetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", $null, "Machine")
-Write-Host ".NET CLI telemetry opt-out removed" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment".to_string(), key: "DOTNET_CLI_TELEMETRY_OPTOUT".to_string() }
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-if ([Environment]::GetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "Machine") -eq "1") { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment".to_string(),
+                key: "DOTNET_CLI_TELEMETRY_OPTOUT".to_string(),
+                expected_value: RegistryValue::String("1".to_string()),
             }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-[Environment]::SetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "1", "Machine")
-Write-Host ".NET CLI telemetry disabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment".to_string(), key: "DOTNET_CLI_TELEMETRY_OPTOUT".to_string(), value: RegistryValue::String("1".to_string()) }
             ]
         },
         
@@ -270,27 +229,17 @@ Write-Host ".NET CLI telemetry disabled" -ForegroundColor Green
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-[Environment]::SetEnvironmentVariable("POWERSHELL_TELEMETRY_OPTOUT", $null, "Machine")
-Write-Host "PowerShell telemetry opt-out removed" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment".to_string(), key: "POWERSHELL_TELEMETRY_OPTOUT".to_string() }
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-if ([Environment]::GetEnvironmentVariable("POWERSHELL_TELEMETRY_OPTOUT", "Machine") -eq "1") { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment".to_string(),
+                key: "POWERSHELL_TELEMETRY_OPTOUT".to_string(),
+                expected_value: RegistryValue::String("1".to_string()),
             }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-[Environment]::SetEnvironmentVariable("POWERSHELL_TELEMETRY_OPTOUT", "1", "Machine")
-Write-Host "PowerShell telemetry disabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment".to_string(), key: "POWERSHELL_TELEMETRY_OPTOUT".to_string(), value: RegistryValue::String("1".to_string()) }
             ]
         },
         

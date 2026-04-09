@@ -1,6 +1,11 @@
 //! Timer Resolution and Boot Configuration Tweaks
 //!
 //! Based on: bcdedit-tweaks.yml, DisablePowerSaving.ps1
+//!
+//! All checks use TweakCheck::CommandOutputContains (bcdedit /enum {current})
+//! or TweakCheck::Registry — zero TweakCheck::Powershell remain.
+//! All operations use TweakOperation::Command (bcdedit / powercfg / pnputil)
+//! or TweakOperation::RegistrySet — zero TweakOperation::Powershell remain.
 
 use crate::modules::types::{
     RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
@@ -8,6 +13,9 @@ use crate::modules::types::{
 
 pub fn get_timer_tweaks() -> Vec<Tweak> {
     vec![
+        // ============================================
+        // Global Timer Resolution Requests (registry only)
+        // ============================================
         Tweak {
             id: "cpu_timer_resolution".to_string(),
             category: TweakCategory::CpuPerformance,
@@ -15,14 +23,15 @@ pub fn get_timer_tweaks() -> Vec<Tweak> {
             description: "Allows apps to request higher timer resolution (0.5ms) for smoother frametimes.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
                     path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Kernel".to_string(),
                     key: "GlobalTimerResolutionRequests".to_string(),
                     value: RegistryValue::DWord(0),
-                }
+                },
             ]),
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
@@ -36,9 +45,13 @@ pub fn get_timer_tweaks() -> Vec<Tweak> {
                     path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Kernel".to_string(),
                     key: "GlobalTimerResolutionRequests".to_string(),
                     value: RegistryValue::DWord(1),
-                }
-            ]
+                },
+            ],
         },
+
+        // ============================================
+        // Enhanced TSC Synchronization
+        // ============================================
         Tweak {
             id: "cpu_tsc_sync".to_string(),
             category: TweakCategory::CpuPerformance,
@@ -46,27 +59,35 @@ pub fn get_timer_tweaks() -> Vec<Tweak> {
             description: "Forces enhanced TSC sync across CPU cores for better timing accuracy.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::Command {
                     cmd: "bcdedit".to_string(),
                     args: vec!["/deletevalue".to_string(), "tscsyncpolicy".to_string()],
-                }
+                },
             ]),
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$bcd = bcdedit /enum "{current}" | Select-String "tscsyncpolicy"
-if ($bcd -match "Enhanced") { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            // bcdedit /enum {current} output contains "tscsyncpolicy    Enhanced"
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "bcdedit".to_string(),
+                args: vec!["/enum".to_string(), "{current}".to_string()],
+                contains: "Enhanced".to_string(),
             }),
             operations: vec![
                 TweakOperation::Command {
                     cmd: "bcdedit".to_string(),
-                    args: vec!["/set".to_string(), "tscsyncpolicy".to_string(), "Enhanced".to_string()],
-                }
-            ]
+                    args: vec![
+                        "/set".to_string(),
+                        "tscsyncpolicy".to_string(),
+                        "Enhanced".to_string(),
+                    ],
+                },
+            ],
         },
+
+        // ============================================
+        // Disable Dynamic Tick
+        // ============================================
         Tweak {
             id: "cpu_disable_dynamic_tick".to_string(),
             category: TweakCategory::CpuPerformance,
@@ -74,27 +95,38 @@ if ($bcd -match "Enhanced") { "True" } else { "False" }
             description: "Forces constant timer interrupts for consistent performance.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::Command {
                     cmd: "bcdedit".to_string(),
-                    args: vec!["/deletevalue".to_string(), "disabledynamictick".to_string()],
-                }
+                    args: vec![
+                        "/deletevalue".to_string(),
+                        "disabledynamictick".to_string(),
+                    ],
+                },
             ]),
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$bcd = bcdedit /enum "{current}" | Select-String "disabledynamictick"
-if ($bcd -match "Yes") { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            // bcdedit /enum {current} contains "disabledynamictick    Yes"
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "bcdedit".to_string(),
+                args: vec!["/enum".to_string(), "{current}".to_string()],
+                contains: "disabledynamictick".to_string(),
             }),
             operations: vec![
                 TweakOperation::Command {
                     cmd: "bcdedit".to_string(),
-                    args: vec!["/set".to_string(), "disabledynamictick".to_string(), "yes".to_string()],
-                }
-            ]
+                    args: vec![
+                        "/set".to_string(),
+                        "disabledynamictick".to_string(),
+                        "yes".to_string(),
+                    ],
+                },
+            ],
         },
+
+        // ============================================
+        // Disable HPET for Lower Latency
+        // ============================================
         Tweak {
             id: "cpu_disable_hpet".to_string(),
             category: TweakCategory::CpuPerformance,
@@ -102,53 +134,63 @@ if ($bcd -match "Yes") { "True" } else { "False" }
             description: "Disables High Precision Event Timer. Modern TSC is faster. Can improve FPS by 10-20% in games.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
-            tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$hpet = Get-PnpDevice | Where-Object { $_.FriendlyName -like "*High Precision Event Timer*" }
-if (-not $hpet -or $hpet.Status -eq "Error" -or $hpet.Status -eq "Disabled") {
-    Write-Output "True"
-} else {
-    Write-Output "False"
-}
-"#.to_string(),
-                expected_output: "True".to_string(),
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            // Check: useplatformclock is NOT set in BCD (key absent = HPET not forced on)
+            // When useplatformclock is absent the bcdedit enum output will NOT contain the word.
+            // We invert: applied means the key is absent → use RegistryKeyAbsent on BCD store
+            // is impractical; instead we check whether the pnputil HPET device status shows
+            // it is disabled by reading its ConfigFlags registry value.
+            // ConfigFlags bit 0x1 = disabled; default (enabled) has ConfigFlags absent or 0.
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                // Standard HPET instance path under PnP Enum
+                path: "SYSTEM\\CurrentControlSet\\Enum\\ACPI\\PNP0103\\0".to_string(),
+                key: "ConfigFlags".to_string(),
+                expected_value: RegistryValue::DWord(1),
             }),
             revert_operations: Some(vec![
+                // Force HPET clock back on in BCD
                 TweakOperation::Command {
                     cmd: "bcdedit".to_string(),
-                    args: vec!["/set".to_string(), "useplatformclock".to_string(), "true".to_string()],
+                    args: vec![
+                        "/set".to_string(),
+                        "useplatformclock".to_string(),
+                        "true".to_string(),
+                    ],
                 },
-                TweakOperation::Powershell {
-                    script: r#"
-Get-PnpDevice | Where-Object { $_.FriendlyName -like "*High Precision Event Timer*" } | 
-    Enable-PnpDevice -Confirm:$false -EA 0
-Write-Host "HPET re-enabled" -ForegroundColor Green
-"#.to_string(),
+                // Re-enable HPET in Device Manager via pnputil
+                TweakOperation::Command {
+                    cmd: "pnputil".to_string(),
+                    args: vec![
+                        "/enable-device".to_string(),
+                        "ACPI\\PNP0103".to_string(),
+                    ],
                 },
             ]),
             operations: vec![
+                // Remove useplatformclock (stops forcing HPET)
                 TweakOperation::Command {
                     cmd: "bcdedit".to_string(),
-                    args: vec!["/deletevalue".to_string(), "useplatformclock".to_string()],
+                    args: vec![
+                        "/deletevalue".to_string(),
+                        "useplatformclock".to_string(),
+                    ],
                 },
-                TweakOperation::Powershell {
-                    script: r#"
-# Also disable HPET device in Device Manager
-$hpet = Get-PnpDevice | Where-Object { $_.FriendlyName -like "*High Precision Event Timer*" }
-if ($hpet) {
-    Disable-PnpDevice -InstanceId $hpet.InstanceId -Confirm:$false -EA 0
-    Write-Host "HPET disabled in Device Manager" -ForegroundColor Green
-} else {
-    Write-Host "HPET device not found (may already be disabled)" -ForegroundColor Yellow
-}
-
-Write-Host "`nIMPORTANT: Also disable HPET in BIOS for full effect!" -ForegroundColor Cyan
-Write-Host "Location varies by motherboard - look in CPU or Power settings" -ForegroundColor White
-"#.to_string(),
+                // Disable HPET device in Device Manager via pnputil
+                TweakOperation::Command {
+                    cmd: "pnputil".to_string(),
+                    args: vec![
+                        "/disable-device".to_string(),
+                        "ACPI\\PNP0103".to_string(),
+                    ],
                 },
             ],
         },
+
+        // ============================================
+        // Legacy Boot Menu
+        // ============================================
         Tweak {
             id: "cpu_legacy_boot_menu".to_string(),
             category: TweakCategory::CpuPerformance,
@@ -156,73 +198,112 @@ Write-Host "Location varies by motherboard - look in CPU or Power settings" -For
             description: "Sets legacy boot menu policy for faster boot times.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::Command {
                     cmd: "bcdedit".to_string(),
-                    args: vec!["/set".to_string(), "bootmenupolicy".to_string(), "standard".to_string()],
-                }
+                    args: vec![
+                        "/set".to_string(),
+                        "bootmenupolicy".to_string(),
+                        "standard".to_string(),
+                    ],
+                },
             ]),
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$bcd = bcdedit /enum "{current}" | Select-String "bootmenupolicy"
-if ($bcd -match "Legacy") { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            // bcdedit /enum {current} contains "bootmenupolicy    Legacy"
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "bcdedit".to_string(),
+                args: vec!["/enum".to_string(), "{current}".to_string()],
+                contains: "Legacy".to_string(),
             }),
             operations: vec![
                 TweakOperation::Command {
                     cmd: "bcdedit".to_string(),
-                    args: vec!["/set".to_string(), "bootmenupolicy".to_string(), "legacy".to_string()],
-                }
-            ]
+                    args: vec![
+                        "/set".to_string(),
+                        "bootmenupolicy".to_string(),
+                        "legacy".to_string(),
+                    ],
+                },
+            ],
         },
+
+        // ============================================
+        // Processor Check Interval
+        // ============================================
         Tweak {
-            id: "cpu_processor_check_interval".to_string(), // Renamed to drop "_timer" suffix for consistency if desired, or keep. Plan says "cpu_processor_check_interval".
+            id: "cpu_processor_check_interval".to_string(),
             category: TweakCategory::CpuPerformance,
             name: "Optimize Processor Check Interval".to_string(),
             description: "Sets processor performance check interval to 1 (minimum). Reduces latency by checking CPU state more frequently. Windows default is 15.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$result = powercfg /q scheme_current 54533251-82be-4824-96c1-47b60b740d00 4d2b0152-7d5c-498b-88e2-34345392a2c5
-if ($result -match "0x00000001") {
-    Write-Output "True"
-} else {
-    Write-Output "False"
-}
-"#.to_string(),
-                expected_output: "True".to_string(),
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            // Check: powercfg /q output contains AC index == 0x00000001
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "powercfg".to_string(),
+                args: vec![
+                    "/q".to_string(),
+                    "scheme_current".to_string(),
+                    "54533251-82be-4824-96c1-47b60b740d00".to_string(),
+                    "4d2b0152-7d5c-498b-88e2-34345392a2c5".to_string(),
+                ],
+                contains: "0x00000001".to_string(),
             }),
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-# Restore Windows default (15, NOT 15ms - it's a counter value)
-powercfg /setacvalueindex scheme_current 54533251-82be-4824-96c1-47b60b740d00 4d2b0152-7d5c-498b-88e2-34345392a2c5 15
-powercfg /setdcvalueindex scheme_current 54533251-82be-4824-96c1-47b60b740d00 4d2b0152-7d5c-498b-88e2-34345392a2c5 15
-powercfg /setactive scheme_current
-Write-Host "Processor check interval restored to default (15)" -ForegroundColor Green
-"#.to_string(),
-                }
+                // Restore Windows default (15)
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec![
+                        "/setacvalueindex".to_string(),
+                        "scheme_current".to_string(),
+                        "54533251-82be-4824-96c1-47b60b740d00".to_string(),
+                        "4d2b0152-7d5c-498b-88e2-34345392a2c5".to_string(),
+                        "15".to_string(),
+                    ],
+                },
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec![
+                        "/setdcvalueindex".to_string(),
+                        "scheme_current".to_string(),
+                        "54533251-82be-4824-96c1-47b60b740d00".to_string(),
+                        "4d2b0152-7d5c-498b-88e2-34345392a2c5".to_string(),
+                        "15".to_string(),
+                    ],
+                },
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec!["/setactive".to_string(), "scheme_current".to_string()],
+                },
             ]),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-# Processor Check Interval:
-# - Values are timer tick counts, NOT milliseconds
-# - 200 = check every 200 ticks (WRONG - increases latency!)
-# - 15 = Windows default
-# - 1 = check every tick (OPTIMAL for performance)
-
-powercfg /setacvalueindex scheme_current 54533251-82be-4824-96c1-47b60b740d00 4d2b0152-7d5c-498b-88e2-34345392a2c5 1
-powercfg /setdcvalueindex scheme_current 54533251-82be-4824-96c1-47b60b740d00 4d2b0152-7d5c-498b-88e2-34345392a2c5 1
-powercfg /setactive scheme_current
-Write-Host "Processor check interval set to 1 (minimum latency)" -ForegroundColor Green
-"#.to_string(),
-                }
-            ]
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec![
+                        "/setacvalueindex".to_string(),
+                        "scheme_current".to_string(),
+                        "54533251-82be-4824-96c1-47b60b740d00".to_string(),
+                        "4d2b0152-7d5c-498b-88e2-34345392a2c5".to_string(),
+                        "1".to_string(),
+                    ],
+                },
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec![
+                        "/setdcvalueindex".to_string(),
+                        "scheme_current".to_string(),
+                        "54533251-82be-4824-96c1-47b60b740d00".to_string(),
+                        "4d2b0152-7d5c-498b-88e2-34345392a2c5".to_string(),
+                        "1".to_string(),
+                    ],
+                },
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec!["/setactive".to_string(), "scheme_current".to_string()],
+                },
+            ],
         },
     ]
 }

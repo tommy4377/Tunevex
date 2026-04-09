@@ -37,8 +37,6 @@
 <div
     class="select-container"
     class:disabled
-    use:clickOutside
-    on:click_outside={close}
 >
     <button
         class="select-trigger"

@@ -1,9 +1,8 @@
 <script lang="ts">
-    import type { SvelteComponent } from "svelte";
     import { createEventDispatcher } from "svelte";
 
     // Props
-    export let icon: typeof SvelteComponent | null = null;
+    export let icon: any = null;
     export let title: string;
     export let description: string = "";
     export let status: string = "";

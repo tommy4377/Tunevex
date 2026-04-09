@@ -32,7 +32,7 @@ pub enum TweakCategory {
     Home,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum RegistryValue {
     String(String),
     DWord(u32),
@@ -46,6 +46,7 @@ pub enum FileOp {
     Delete { path: String },
     Copy { src: String, dest: String },
     Move { src: String, dest: String },
+    Write { path: String, content: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -130,6 +131,35 @@ pub enum TweakOperation {
         /// false = disable splitting (set value 1); true = restore splitting (delete value)
         enable_split: bool,
     },
+    /// Enable MSI mode on all devices of a given PCI class (Display, SCSIAdapter, Net, USB, HDC).
+    /// Writes MSISupported=1, MessageNumberLimit=1, Priority=priority to registry.
+    MsiSet {
+        class: String,
+        priority: u32,
+    },
+    /// Remove MSI settings from all devices of a given PCI class.
+    /// Deletes MSISupported, MessageNumberLimit, Priority registry values.
+    MsiRemove {
+        class: String,
+    },
+    /// Enable MSI mode on all network adapters (Net class) at specified priority.
+    /// Used by network/msi.rs - writes to PCI\Net subkeys.
+    MsiSetNet {
+        priority: u32,
+    },
+    /// Remove MSI settings from all network adapters.
+    MsiRemoveNet,
+    /// Set a registry value on all TCP/IP network interfaces.
+    /// Iterates HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces
+    /// and sets the specified key/value on each interface.
+    NetworkInterfacesSet {
+        key: String,
+        value: RegistryValue,
+    },
+    /// Delete a registry value from all TCP/IP network interfaces.
+    NetworkInterfacesDelete {
+        key: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -191,6 +221,16 @@ pub enum TweakCheck {
     ServiceDisabled { name: String },
     /// Returns true if all specified services are disabled
     MultiServiceDisabled { names: Vec<String> },
+    /// Check if MSI is enabled globally for all PCI device classes at the specified priority.
+    MsiEnabledGlobally { priority: u32 },
+    /// Check if MSI is enabled on all network adapters at the specified priority.
+    MsiEnabledOnNet { priority: u32 },
+    /// Check if a registry value exists on ALL network interfaces with the expected value.
+    /// Returns true only when ALL interfaces have the value.
+    NetworkInterfacesCheck {
+        key: String,
+        expected_value: RegistryValue,
+    },
 }
 
 /// A single registry check used inside TweakCheck::MultiRegistry.

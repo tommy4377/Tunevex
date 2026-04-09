@@ -405,6 +405,172 @@ fn apply_svc_host_split_all(enable_split: bool) -> Result<(), String> {
     Ok(())
 }
 
+/// Check if MSI is enabled globally for all PCI device classes at the specified priority.
+/// Returns true only if ALL devices in all classes have MSISupported=1, MessageNumberLimit=1, Priority=priority.
+fn check_msi_enabled_globally(priority: u32) -> bool {
+    use winreg::enums::*;
+    use winreg::RegKey;
+
+    const PCI_PATH: &str = "SYSTEM\\CurrentControlSet\\Enum\\PCI";
+    const CLASSES: &[&str] = &["Display", "SCSIAdapter", "Net", "USB", "HDC"];
+
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    let pci_key = match hklm.open_subkey_with_flags(PCI_PATH, KEY_READ) {
+        Ok(k) => k,
+        Err(_) => return false,
+    };
+
+    for class in CLASSES {
+        let class_key_path = format!("{}\\{}", PCI_PATH, class);
+        let class_key = match hklm.open_subkey_with_flags(&class_key_path, KEY_READ) {
+            Ok(k) => k,
+            Err(_) => continue,
+        };
+
+        for dev_name in class_key.enum_keys().flatten() {
+            let dev_path = format!("{}\\{}\\{}", PCI_PATH, class, dev_name);
+            let dev_key = match hklm.open_subkey_with_flags(&dev_path, KEY_READ) {
+                Ok(k) => k,
+                Err(_) => continue,
+            };
+
+            let msi_path = format!("{}\\Device Parameters\\Interrupt Management\\MessageSignaledInterruptProperties", dev_path);
+            let msi_key = match hklm.open_subkey_with_flags(&msi_path, KEY_READ) {
+                Ok(k) => k,
+                Err(_) => return false,
+            };
+
+            let msi_supported: u32 = match msi_key.get_value("MSISupported") {
+                Ok(v) => v,
+                Err(_) => return false,
+            };
+            let msg_limit: u32 = match msi_key.get_value("MessageNumberLimit") {
+                Ok(v) => v,
+                Err(_) => return false,
+            };
+            let prio: u32 = match msi_key.get_value("Priority") {
+                Ok(v) => v,
+                Err(_) => return false,
+            };
+
+            if msi_supported != 1 || msg_limit != 1 || prio != priority {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+/// Apply MSI settings to all devices of a given PCI class.
+fn apply_msi_set(class: &str, priority: u32) -> Result<(), String> {
+    use winreg::enums::*;
+    use winreg::RegKey;
+
+    const PCI_PATH: &str = "SYSTEM\\CurrentControlSet\\Enum\\PCI";
+    let class_key_path = format!("{}\\{}", PCI_PATH, class);
+
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    let class_key = hklm
+        .open_subkey_with_flags(&class_key_path, KEY_READ)
+        .map_err(|e| format!("Failed to open PCI class {}: {}", class, e))?;
+
+    for dev_name in class_key.enum_keys().flatten() {
+        let dev_path = format!("{}\\{}\\{}", PCI_PATH, class, dev_name);
+        let base_path = format!("{}\\Device Parameters\\Interrupt Management", dev_path);
+        let msi_path = format!("{}\\{}", base_path, "MessageSignaledInterruptProperties");
+
+        // Create keys if they don't exist
+        if let Err(_) = hklm.create_subkey(&base_path) {
+            continue;
+        }
+        if let Err(_) = hklm.create_subkey(&msi_path) {
+            continue;
+        }
+
+        let msi_key = match hklm.open_subkey_with_flags(&msi_path, KEY_SET_VALUE) {
+            Ok(k) => k,
+            Err(_) => continue,
+        };
+
+        let _ = msi_key.set_value("MSISupported", &1u32);
+        let _ = msi_key.set_value("MessageNumberLimit", &1u32);
+        let _ = msi_key.set_value("Priority", &priority);
+    }
+    Ok(())
+}
+
+/// Remove MSI settings from all devices of a given PCI class.
+fn apply_msi_remove(class: &str) -> Result<(), String> {
+    use winreg::enums::*;
+    use winreg::RegKey;
+
+    const PCI_PATH: &str = "SYSTEM\\CurrentControlSet\\Enum\\PCI";
+    let class_key_path = format!("{}\\{}", PCI_PATH, class);
+
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    let class_key = match hklm.open_subkey_with_flags(&class_key_path, KEY_READ) {
+        Ok(k) => k,
+        Err(_) => return Ok(()),
+    };
+
+    for dev_name in class_key.enum_keys().flatten() {
+        let dev_path = format!("{}\\{}\\{}", PCI_PATH, class, dev_name);
+        let msi_path = format!("{}\\Device Parameters\\Interrupt Management\\MessageSignaledInterruptProperties", dev_path);
+
+        let msi_key = match hklm.open_subkey_with_flags(&msi_path, KEY_SET_VALUE) {
+            Ok(k) => k,
+            Err(_) => continue,
+        };
+
+        let _ = msi_key.delete_value("MSISupported");
+        let _ = msi_key.delete_value("MessageNumberLimit");
+        let _ = msi_key.delete_value("Priority");
+    }
+    Ok(())
+}
+
+/// Check if MSI is enabled on all network adapters at the specified priority.
+fn check_msi_enabled_on_net(priority: u32) -> bool {
+    use winreg::enums::*;
+    use winreg::RegKey;
+
+    const PCI_PATH: &str = "SYSTEM\\CurrentControlSet\\Enum\\PCI\\Net";
+
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    let net_key = match hklm.open_subkey_with_flags(PCI_PATH, KEY_READ) {
+        Ok(k) => k,
+        Err(_) => return false,
+    };
+
+    for dev_name in net_key.enum_keys().flatten() {
+        let dev_path = format!("{}\\{}", PCI_PATH, dev_name);
+        let msi_path = format!("{}\\Device Parameters\\Interrupt Management\\MessageSignaledInterruptProperties", dev_path);
+
+        let msi_key = match hklm.open_subkey_with_flags(&msi_path, KEY_READ) {
+            Ok(k) => k,
+            Err(_) => return false,
+        };
+
+        let msi_supported: u32 = match msi_key.get_value("MSISupported") {
+            Ok(v) => v,
+            Err(_) => return false,
+        };
+        let msg_limit: u32 = match msi_key.get_value("MessageNumberLimit") {
+            Ok(v) => v,
+            Err(_) => return false,
+        };
+        let prio: u32 = match msi_key.get_value("Priority") {
+            Ok(v) => v,
+            Err(_) => return false,
+        };
+
+        if msi_supported != 1 || msg_limit != 1 || prio != priority {
+            return false;
+        }
+    }
+    true
+}
+
 /// Return true when at least one interface has a NameServer value that contains `ip`.
 fn check_dns_servers_contain(ip: &str) -> bool {
     use winreg::enums::*;
@@ -498,6 +664,16 @@ fn check_tweak_enabled(check: &TweakCheck) -> bool {
                 let out_str = String::from_utf8_lossy(&output.stdout).to_string();
                 out_str.contains("DISABLED") || out_str.contains("4  DISABLED")
             })
+        }
+        TweakCheck::MsiEnabledGlobally { priority } => {
+            check_msi_enabled_globally(*priority)
+        }
+        TweakCheck::MsiEnabledOnNet { priority } => {
+            check_msi_enabled_on_net(*priority)
+        }
+        TweakCheck::NetworkInterfacesCheck { key, expected_value } => {
+            crate::modules::registry::operations::check_network_interfaces(key, expected_value)
+                .unwrap_or(false)
         }
     }
 }
@@ -973,32 +1149,49 @@ pub async fn apply_tweak(
                     match file_op {
                         FileOp::Delete { path } => {
                             println!("  -> FileOp Delete: {}", path);
-                            let p = std::path::Path::new(path);
+                            let p = std::path::Path::new(&path);
                             if p.is_dir() {
-                                fs::remove_dir_all(path)
+                                fs::remove_dir_all(&path)
                                     .map_err(|e| format!("Failed to delete directory {}: {}", path, e))?;
                             } else {
-                                fs::remove_file(path)
+                                fs::remove_file(&path)
                                     .map_err(|e| format!("Failed to delete file {}: {}", path, e))?;
                             }
                         }
                         FileOp::Copy { src, dest } => {
                             println!("  -> FileOp Copy: {} -> {}", src, dest);
-                            if let Some(parent) = std::path::Path::new(dest).parent() {
+                            if let Some(parent) = std::path::Path::new(&dest).parent() {
                                 fs::create_dir_all(parent)
                                     .map_err(|e| format!("Failed to create dest dir: {}", e))?;
                             }
-                            fs::copy(src, dest)
+                            fs::copy(&src, &dest)
                                 .map_err(|e| format!("Failed to copy {} to {}: {}", src, dest, e))?;
                         }
                         FileOp::Move { src, dest } => {
                             println!("  -> FileOp Move: {} -> {}", src, dest);
-                            if let Some(parent) = std::path::Path::new(dest).parent() {
+                            if let Some(parent) = std::path::Path::new(&dest).parent() {
                                 fs::create_dir_all(parent)
                                     .map_err(|e| format!("Failed to create dest dir: {}", e))?;
                             }
-                            fs::rename(src, dest)
+                            fs::rename(&src, &dest)
                                 .map_err(|e| format!("Failed to move {} to {}: {}", src, dest, e))?;
+                        }
+                        FileOp::Write { path, content } => {
+                            println!("  -> FileOp Write: {}", path);
+                            // Expand environment variables in path
+                            let path = path
+                                .replace("%APPDATA%", &std::env::var("APPDATA").unwrap_or_default())
+                                .replace("%LOCALAPPDATA%", &std::env::var("LOCALAPPDATA").unwrap_or_default())
+                                .replace("%ProgramData%", &std::env::var("ProgramData").unwrap_or_default())
+                                .replace("%ProgramFiles%", &std::env::var("ProgramFiles").unwrap_or_default())
+                                .replace("%UserProfile%", &std::env::var("USERPROFILE").unwrap_or_default())
+                                .replace("%Home%", &std::env::var("USERPROFILE").unwrap_or_default());
+                            if let Some(parent) = std::path::Path::new(&path).parent() {
+                                fs::create_dir_all(parent)
+                                    .map_err(|e| format!("Failed to create parent dir: {}", e))?;
+                            }
+                            fs::write(&path, &content)
+                                .map_err(|e| format!("Failed to write file {}: {}", path, e))?;
                         }
                     }
                 }
@@ -1037,6 +1230,44 @@ pub async fn apply_tweak(
                     apply_svc_host_split_all(*enable_split)
                         .map_err(|e| format!("SvcHostSplitAll error: {}", e))?;
                     println!("  -> SvcHostSplitAll Success");
+                }
+                TweakOperation::MsiSet { class, priority } => {
+                    println!("  -> MsiSet: class={}, priority={}", class, priority);
+                    apply_msi_set(&class, *priority)
+                        .map_err(|e| format!("MsiSet error: {}", e))?;
+                    println!("  -> MsiSet Success");
+                }
+                TweakOperation::MsiRemove { class } => {
+                    println!("  -> MsiRemove: class={}", class);
+                    apply_msi_remove(&class)
+                        .map_err(|e| format!("MsiRemove error: {}", e))?;
+                    println!("  -> MsiRemove Success");
+                }
+                TweakOperation::MsiSetNet { priority } => {
+                    println!("  -> MsiSetNet: priority={}", priority);
+                    apply_msi_set("Net", *priority)
+                        .map_err(|e| format!("MsiSetNet error: {}", e))?;
+                    println!("  -> MsiSetNet Success");
+                }
+                TweakOperation::MsiRemoveNet => {
+                    println!("  -> MsiRemoveNet");
+                    apply_msi_remove("Net")
+                        .map_err(|e| format!("MsiRemoveNet error: {}", e))?;
+                    println!("  -> MsiRemoveNet Success");
+                }
+                TweakOperation::NetworkInterfacesSet { key, value } => {
+                    println!("  -> NetworkInterfacesSet: key={}", key);
+                    use crate::modules::registry::operations::apply_network_interface_tweak;
+                    apply_network_interface_tweak(op)
+                        .map_err(|e| format!("NetworkInterfacesSet error: {}", e))?;
+                    println!("  -> NetworkInterfacesSet Success");
+                }
+                TweakOperation::NetworkInterfacesDelete { key } => {
+                    println!("  -> NetworkInterfacesDelete: key={}", key);
+                    use crate::modules::registry::operations::apply_network_interface_tweak;
+                    apply_network_interface_tweak(op)
+                        .map_err(|e| format!("NetworkInterfacesDelete error: {}", e))?;
+                    println!("  -> NetworkInterfacesDelete Success");
                 }
             }
         }
@@ -1323,6 +1554,42 @@ pub async fn undo_tweak(
                         if let Err(e) = apply_svc_host_split_all(*enable_split) {
                             eprintln!("Warning: Revert SvcHostSplitAll failed: {}", e);
                         }
+                    }
+                    TweakOperation::MsiSet { class, priority } => {
+                        println!("  -> Revert MsiSet: class={}, priority={}", class, priority);
+                        if let Err(e) = apply_msi_remove(&class) {
+                            eprintln!("Warning: Revert MsiSet failed: {}", e);
+                        }
+                    }
+                    TweakOperation::MsiRemove { class } => {
+                        println!("  -> Revert MsiRemove: class={}", class);
+                        if let Err(e) = apply_msi_set(&class, 0) {
+                            eprintln!("Warning: Revert MsiRemove failed: {}", e);
+                        }
+                    }
+                    TweakOperation::MsiSetNet { priority } => {
+                        println!("  -> Revert MsiSetNet: priority={}", priority);
+                        if let Err(e) = apply_msi_remove("Net") {
+                            eprintln!("Warning: Revert MsiSetNet failed: {}", e);
+                        }
+                    }
+                    TweakOperation::MsiRemoveNet => {
+                        println!("  -> Revert MsiRemoveNet");
+                        if let Err(e) = apply_msi_set("Net", 0) {
+                            eprintln!("Warning: Revert MsiRemoveNet failed: {}", e);
+                        }
+                    }
+                    TweakOperation::NetworkInterfacesSet { key, value } => {
+                        println!("  -> Revert NetworkInterfacesSet: key={}", key);
+                        if let Ok(op) = serde_json::from_str::<TweakOperation>(&format!(r#"{{"NetworkInterfacesDelete":{{"key":"{}"}}}}"#, key)) {
+                            let _ = crate::modules::registry::operations::apply_network_interface_tweak(&op);
+                        }
+                    }
+                    TweakOperation::NetworkInterfacesDelete { key: _ } => {
+                        println!("  -> Revert NetworkInterfacesDelete: cannot restore, skipping");
+                    }
+                    TweakOperation::Powershell { script: _ } => {
+                        println!("  -> Skipping revert for Powershell operation (not reversible)");
                     }
                     _ => {
                         println!("  -> Skipped unknown revert op: {:?}", op);

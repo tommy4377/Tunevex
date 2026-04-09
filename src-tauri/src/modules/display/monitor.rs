@@ -18,13 +18,9 @@ fn tweak_max_refresh_rate() -> Tweak {
         description: "Automatically sets your monitor to its maximum supported refresh rate (120Hz/144Hz/165Hz/240Hz/360Hz).".to_string(),
         warning_level: WarningLevel::Safe,
         requires_restart: false,
-        revert_operations: Some(vec![TweakOperation::Powershell {
-            script: r#"
-Write-Host "This tweak cannot be reverted automatically - it only sets to maximum." -ForegroundColor Yellow
-Write-Host "Your monitor is now at its maximum supported refresh rate." -ForegroundColor Cyan
-Write-Host "To change: Settings > Display > Advanced display > Choose a refresh rate" -ForegroundColor Cyan
-"#.to_string(),
-        }]),
+        revert_operations: Some(vec![
+            TweakOperation::Command { cmd: "echo".to_string(), args: vec!["Monitor refresh rate can only be changed manually in Windows Settings".to_string()] }
+        ]),
         tweak_type: TweakType::Toggle, enabled: false,
         check: Some(TweakCheck::Powershell {
             script: r#"

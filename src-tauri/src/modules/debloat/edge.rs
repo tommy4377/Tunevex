@@ -1,6 +1,8 @@
 //! Microsoft Edge debloat tweaks
 
-use crate::modules::types::{TweakType, Tweak, TweakCategory, TweakOperation, WarningLevel, TweakCheck, RegistryValue};
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 pub fn get_tweaks() -> Vec<Tweak> {
     vec![
@@ -12,15 +14,9 @@ pub fn get_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$path = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
-Remove-ItemProperty -Path $path -Name "HubsSidebarEnabled" -EA 0
-Remove-ItemProperty -Path $path -Name "WebWidgetAllowed" -EA 0
-Remove-ItemProperty -Path $path -Name "EdgeShoppingAssistantEnabled" -EA 0
-Write-Host "Edge sidebar features enabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "HubsSidebarEnabled".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "WebWidgetAllowed".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "EdgeShoppingAssistantEnabled".to_string() },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
@@ -30,16 +26,9 @@ Write-Host "Edge sidebar features enabled" -ForegroundColor Green
                 expected_value: RegistryValue::DWord(0),
             }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$path = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
-if (!(Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
-Set-ItemProperty -Path $path -Name "HubsSidebarEnabled" -Value 0 -Type DWord -Force
-Set-ItemProperty -Path $path -Name "WebWidgetAllowed" -Value 0 -Type DWord -Force
-Set-ItemProperty -Path $path -Name "EdgeShoppingAssistantEnabled" -Value 0 -Type DWord -Force
-Write-Host "Edge sidebar features disabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "HubsSidebarEnabled".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "WebWidgetAllowed".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "EdgeShoppingAssistantEnabled".to_string(), value: RegistryValue::DWord(0) },
             ]
         },
         
@@ -51,14 +40,8 @@ Write-Host "Edge sidebar features disabled" -ForegroundColor Green
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$path = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
-Remove-ItemProperty -Path $path -Name "HideFirstRunExperience" -EA 0
-Remove-ItemProperty -Path $path -Name "RunStartUpSystemCheck" -EA 0
-Write-Host "Edge first run enabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "HideFirstRunExperience".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "RunStartUpSystemCheck".to_string() },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
@@ -68,15 +51,8 @@ Write-Host "Edge first run enabled" -ForegroundColor Green
                 expected_value: RegistryValue::DWord(1),
             }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$path = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
-if (!(Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
-Set-ItemProperty -Path $path -Name "HideFirstRunExperience" -Value 1 -Type DWord -Force
-Set-ItemProperty -Path $path -Name "RunStartUpSystemCheck" -Value 0 -Type DWord -Force
-Write-Host "Edge first run disabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "HideFirstRunExperience".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "RunStartUpSystemCheck".to_string(), value: RegistryValue::DWord(0) },
             ]
         },
         
@@ -88,14 +64,8 @@ Write-Host "Edge first run disabled" -ForegroundColor Green
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$path = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
-Remove-ItemProperty -Path $path -Name "SyncDisabled" -EA 0
-Remove-ItemProperty -Path $path -Name "EdgeCollectionsEnabled" -EA 0
-Write-Host "Edge sync enabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "SyncDisabled".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "EdgeCollectionsEnabled".to_string() },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
@@ -105,15 +75,8 @@ Write-Host "Edge sync enabled" -ForegroundColor Green
                 expected_value: RegistryValue::DWord(1),
             }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$path = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
-if (!(Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
-Set-ItemProperty -Path $path -Name "SyncDisabled" -Value 1 -Type DWord -Force
-Set-ItemProperty -Path $path -Name "EdgeCollectionsEnabled" -Value 0 -Type DWord -Force
-Write-Host "Edge sync disabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "SyncDisabled".to_string(), value: RegistryValue::DWord(1) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "EdgeCollectionsEnabled".to_string(), value: RegistryValue::DWord(0) },
             ]
         },
         
@@ -125,15 +88,9 @@ Write-Host "Edge sync disabled" -ForegroundColor Green
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$path = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
-Remove-ItemProperty -Path $path -Name "PersonalizationReportingEnabled" -EA 0
-Remove-ItemProperty -Path $path -Name "UserFeedbackAllowed" -EA 0
-Remove-ItemProperty -Path $path -Name "MetricsReportingEnabled" -EA 0
-Write-Host "Edge telemetry enabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "PersonalizationReportingEnabled".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "UserFeedbackAllowed".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "MetricsReportingEnabled".to_string() },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
@@ -143,16 +100,9 @@ Write-Host "Edge telemetry enabled" -ForegroundColor Green
                 expected_value: RegistryValue::DWord(0),
             }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$path = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
-if (!(Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
-Set-ItemProperty -Path $path -Name "PersonalizationReportingEnabled" -Value 0 -Type DWord -Force
-Set-ItemProperty -Path $path -Name "UserFeedbackAllowed" -Value 0 -Type DWord -Force
-Set-ItemProperty -Path $path -Name "MetricsReportingEnabled" -Value 0 -Type DWord -Force
-Write-Host "Edge telemetry disabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "PersonalizationReportingEnabled".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "UserFeedbackAllowed".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "MetricsReportingEnabled".to_string(), value: RegistryValue::DWord(0) },
             ]
         },
         
@@ -164,40 +114,13 @@ Write-Host "Edge telemetry disabled" -ForegroundColor Green
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$path = "HKLM:\SOFTWARE\Policies\Microsoft\MicrosoftEdge\Main"
-Remove-ItemProperty -Path $path -Name "PreventFirstRunPage" -EA 0
-reg delete "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" /v "MicrosoftEdgeAutoLaunch*" /f 2>$null
-Write-Host "Edge auto-start settings restored" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge\\Main".to_string(), key: "PreventFirstRunPage".to_string() },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-if (!(Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" -Name "*Edge*" -ErrorAction SilentlyContinue)) { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
-            }),
+            check: None,
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-# Disable Edge auto-start via startup approved
-$path = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"
-Get-ItemProperty -Path $path -EA 0 | Get-Member -MemberType NoteProperty | 
-    Where-Object { $_.Name -like "*Edge*" } | 
-    ForEach-Object { Remove-ItemProperty -Path $path -Name $_.Name -EA 0 }
-
-# Remove Edge from Run key
-$runPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
-Get-ItemProperty -Path $runPath -EA 0 | Get-Member -MemberType NoteProperty | 
-    Where-Object { $_.Name -like "*Edge*" } | 
-    ForEach-Object { Remove-ItemProperty -Path $runPath -Name $_.Name -EA 0 }
-
-Write-Host "Edge auto-start disabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge\\Main".to_string(), key: "PreventFirstRunPage".to_string(), value: RegistryValue::DWord(0) },
+                TweakOperation::Command { cmd: "reg".to_string(), args: vec!["delete".to_string(), "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run".to_string(), "/v".to_string(), "MicrosoftEdgeAutoLaunch*".to_string(), "/f".to_string()] },
             ]
         },
     ]

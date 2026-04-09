@@ -123,29 +123,17 @@ pub fn get_security_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Careful,
             requires_restart: false,
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$adapters = Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration | Where-Object { $_.TcpipNetbiosOptions -ne $null }
-$allDisabled = $true
-foreach ($a in $adapters) {
-    if ($a.TcpipNetbiosOptions -ne 2) { $allDisabled = $false; break }
-}
-$allDisabled
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::NetworkInterfacesCheck {
+                key: "NetbiosOptions".to_string(),
+                expected_value: RegistryValue::DWord(2),
             }),
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Get-CimInstance -ClassName 'Win32_NetworkAdapterConfiguration' | Where-Object { $_.TcpipNetbiosOptions -ne $null } | Invoke-CimMethod -MethodName 'SetTcpipNetbios' -Arguments @{ 'TcpipNetbiosOptions' = [UInt32]0 }
-"#.to_string(),
-                }
+                TweakOperation::NetworkInterfacesDelete { key: "NetbiosOptions".to_string() }
             ]),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Get-CimInstance -ClassName 'Win32_NetworkAdapterConfiguration' | Where-Object { $_.TcpipNetbiosOptions -ne $null } | Invoke-CimMethod -MethodName 'SetTcpipNetbios' -Arguments @{ 'TcpipNetbiosOptions' = [UInt32]2 }
-"#.to_string(),
+                TweakOperation::NetworkInterfacesSet { 
+                    key: "NetbiosOptions".to_string(), 
+                    value: RegistryValue::DWord(2) 
                 }
             ]
         },

@@ -288,25 +288,15 @@ pub fn get_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Careful,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-$tasks = @(
-    '\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser',
-    '\Microsoft\Windows\Application Experience\ProgramDataUpdater',
-    '\Microsoft\Windows\Autochk\Proxy',
-    '\Microsoft\Windows\Customer Experience Improvement Program\Consolidator',
-    '\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip',
-    '\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector',
-    '\Microsoft\Windows\Feedback\Siuf\DmClient',
-    '\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload',
-    '\Microsoft\Windows\PI\Sqm-Tasks'
-)
-foreach ($task in $tasks) {
-    schtasks /Change /TN $task /Enable 2>$null
-}
-Write-Host "Telemetry scheduled tasks enabled" -ForegroundColor Green
-"#.to_string(),
-                }
+                TweakOperation::Command { cmd: "schtasks".to_string(), args: vec!["/Change".to_string(), "/TN".to_string(), "\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser".to_string(), "/ENABLE".to_string()] },
+                TweakOperation::Command { cmd: "schtasks".to_string(), args: vec!["/Change".to_string(), "/TN".to_string(), "\\Microsoft\\Windows\\Application Experience\\ProgramDataUpdater".to_string(), "/ENABLE".to_string()] },
+                TweakOperation::Command { cmd: "schtasks".to_string(), args: vec!["/Change".to_string(), "/TN".to_string(), "\\Microsoft\\Windows\\Autochk\\Proxy".to_string(), "/ENABLE".to_string()] },
+                TweakOperation::Command { cmd: "schtasks".to_string(), args: vec!["/Change".to_string(), "/TN".to_string(), "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Consolidator".to_string(), "/ENABLE".to_string()] },
+                TweakOperation::Command { cmd: "schtasks".to_string(), args: vec!["/Change".to_string(), "/TN".to_string(), "\\Microsoft\\Windows\\Customer Experience Improvement Program\\UsbCeip".to_string(), "/ENABLE".to_string()] },
+                TweakOperation::Command { cmd: "schtasks".to_string(), args: vec!["/Change".to_string(), "/TN".to_string(), "\\Microsoft\\Windows\\DiskDiagnostic\\Microsoft-Windows-DiskDiagnosticDataCollector".to_string(), "/ENABLE".to_string()] },
+                TweakOperation::Command { cmd: "schtasks".to_string(), args: vec!["/Change".to_string(), "/TN".to_string(), "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClient".to_string(), "/ENABLE".to_string()] },
+                TweakOperation::Command { cmd: "schtasks".to_string(), args: vec!["/Change".to_string(), "/TN".to_string(), "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClientOnScenarioDownload".to_string(), "/ENABLE".to_string()] },
+                TweakOperation::Command { cmd: "schtasks".to_string(), args: vec!["/Change".to_string(), "/TN".to_string(), "\\Microsoft\\Windows\\PI\\Sqm-Tasks".to_string(), "/ENABLE".to_string()] },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::ScheduledTaskDisabled { name: "\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser".to_string() }),

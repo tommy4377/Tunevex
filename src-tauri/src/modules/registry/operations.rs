@@ -105,3 +105,81 @@ pub fn apply_registry_tweak(op: &TweakOperation) -> Result<()> {
         _ => Ok(()), // Not a registry operation
     }
 }
+
+pub fn apply_network_interface_tweak(op: &TweakOperation) -> Result<bool> {
+    match op {
+        TweakOperation::NetworkInterfacesSet { key, value } => {
+            let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+            let interfaces_path =
+                "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces";
+
+            let interfaces = hklm
+                .open_subkey_with_flags(interfaces_path, KEY_READ)
+                .context("Failed to open Tcpip\\Parameters\\Interfaces")?;
+
+            for name in interfaces
+                .enum_values()
+                .filter_map(|r| r.ok())
+                .map(|(n, _)| n)
+            {
+                if let Ok(subkey) = interfaces.open_subkey_with_flags(&name, KEY_SET_VALUE) {
+                    let _ = write_value(&subkey, key, value);
+                }
+            }
+            Ok(true)
+        }
+        TweakOperation::NetworkInterfacesDelete { key } => {
+            let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+            let interfaces_path =
+                "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces";
+
+            if let Ok(interfaces) = hklm.open_subkey_with_flags(interfaces_path, KEY_READ) {
+                for name in interfaces
+                    .enum_values()
+                    .filter_map(|r| r.ok())
+                    .map(|(n, _)| n)
+                {
+                    if let Ok(subkey) = interfaces.open_subkey_with_flags(&name, KEY_SET_VALUE) {
+                        let _ = subkey.delete_value(key);
+                    }
+                }
+            }
+            Ok(true)
+        }
+        _ => Ok(false),
+    }
+}
+
+pub fn check_network_interfaces(key_name: &str, expected: &RegistryValue) -> Result<bool> {
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    let interfaces_path = "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces";
+
+    let interfaces = hklm
+        .open_subkey_with_flags(interfaces_path, KEY_READ)
+        .context("Failed to open Tcpip\\Parameters\\Interfaces")?;
+
+    let interface_keys: Vec<String> = interfaces
+        .enum_values()
+        .filter_map(|r| r.ok())
+        .map(|(n, _)| n)
+        .collect();
+
+    if interface_keys.is_empty() {
+        return Ok(false);
+    }
+
+    for name in interface_keys {
+        if let Ok(subkey) = interfaces.open_subkey_with_flags(&name, KEY_READ) {
+            if let Ok(found) = read_value(&subkey, key_name) {
+                if found != *expected {
+                    return Ok(false);
+                }
+            } else {
+                return Ok(false);
+            }
+        } else {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}

@@ -5,8 +5,13 @@
 //! - config-mmcss.yml
 //! - disable-fth.yml
 //! - disable-service-host-split.yml
+//!
+//! All operations and checks are native Rust (registry + Command) —
+//! zero TweakOperation::Powershell or TweakCheck::Powershell remain.
 
-use crate::modules::types::{TweakType, RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, WarningLevel};
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
 
 /// Returns all CPU scheduling and priority tweaks
 pub fn get_scheduling_tweaks() -> Vec<Tweak> {
@@ -21,14 +26,15 @@ pub fn get_scheduling_tweaks() -> Vec<Tweak> {
             description: "Sets Win32PrioritySeparation to 0x26 (38 decimal) for short quantum, variable, high foreground boost. Essential for gaming.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
                     path: "SYSTEM\\CurrentControlSet\\Control\\PriorityControl".to_string(),
                     key: "Win32PrioritySeparation".to_string(),
-                    value: RegistryValue::DWord(2), // Default
-                }
+                    value: RegistryValue::DWord(2), // Windows default
+                },
             ]),
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
@@ -42,12 +48,10 @@ pub fn get_scheduling_tweaks() -> Vec<Tweak> {
                     path: "SYSTEM\\CurrentControlSet\\Control\\PriorityControl".to_string(),
                     key: "Win32PrioritySeparation".to_string(),
                     value: RegistryValue::DWord(38), // 0x26
-                }
-            ]
+                },
+            ],
         },
-        
 
-        
         // ============================================
         // From: disable-fth.yml
         // ============================================
@@ -58,14 +62,15 @@ pub fn get_scheduling_tweaks() -> Vec<Tweak> {
             description: "Disables FTH which applies mitigations to crashing apps but causes performance hits.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
                     path: "SOFTWARE\\Microsoft\\FTH".to_string(),
                     key: "Enabled".to_string(),
-                    value: RegistryValue::DWord(1), // Enable FTH
-                }
+                    value: RegistryValue::DWord(1),
+                },
             ]),
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
@@ -79,10 +84,10 @@ pub fn get_scheduling_tweaks() -> Vec<Tweak> {
                     path: "SOFTWARE\\Microsoft\\FTH".to_string(),
                     key: "Enabled".to_string(),
                     value: RegistryValue::DWord(0),
-                }
-            ]
+                },
+            ],
         },
-        
+
         // ============================================
         // Disable Power Throttling
         // ============================================
@@ -93,13 +98,14 @@ pub fn get_scheduling_tweaks() -> Vec<Tweak> {
             description: "Prevents Windows from throttling CPU performance to save power.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::RegistryDelete {
                     root_key: "HKLM".to_string(),
                     path: "SYSTEM\\CurrentControlSet\\Control\\Power\\PowerThrottling".to_string(),
                     key: "PowerThrottlingOff".to_string(),
-                }
+                },
             ]),
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
@@ -113,12 +119,15 @@ pub fn get_scheduling_tweaks() -> Vec<Tweak> {
                     path: "SYSTEM\\CurrentControlSet\\Control\\Power\\PowerThrottling".to_string(),
                     key: "PowerThrottlingOff".to_string(),
                     value: RegistryValue::DWord(1),
-                }
-            ]
+                },
+            ],
         },
-        
+
         // ============================================
         // From: disable-service-host-split.yml
+        // Sets SvcHostSplitDisable=1 on all non-Xbox services natively via
+        // TweakOperation::SvcHostSplitAll (implemented in commands.rs).
+        // Check reads a representative key (LanmanWorkstation) via Registry.
         // ============================================
         Tweak {
             id: "cpu_disable_svchost_split".to_string(),
@@ -127,42 +136,26 @@ pub fn get_scheduling_tweaks() -> Vec<Tweak> {
             description: "Combines services into fewer svchost processes for lower RAM usage. Excludes Xbox services.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            // Revert: remove the SvcHostSplitDisable value from all services
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services' |
-    Where-Object { $_.Name -notmatch 'Xbl|Xbox' } |
-    ForEach-Object {
-        Remove-ItemProperty -Path "Registry::$_" -Name 'SvcHostSplitDisable' -ErrorAction SilentlyContinue
-    }
-"#.to_string(),
-                }
+                TweakOperation::SvcHostSplitAll { enable_split: true },
             ]),
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$svc = Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation" -Name "SvcHostSplitDisable" -EA 0
-if ($svc.SvcHostSplitDisable -eq 1) { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            // Check: LanmanWorkstation has SvcHostSplitDisable == 1
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation".to_string(),
+                key: "SvcHostSplitDisable".to_string(),
+                expected_value: RegistryValue::DWord(1),
             }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services' |
-    Where-Object { $_.Name -notmatch 'Xbl|Xbox' } |
-    ForEach-Object {
-        if ($null -ne (Get-ItemProperty -Path "Registry::$_" -EA 0).Start) {
-            Set-ItemProperty -Path "Registry::$_" -Name 'SvcHostSplitDisable' -Type DWORD -Value 1 -Force -EA 0
-        }
-    }
-"#.to_string(),
-                }
-            ]
+                TweakOperation::SvcHostSplitAll { enable_split: false },
+            ],
         },
-        
+
         // ============================================
-        // NEW: From disable-paging.yml - Disable Page Combining
+        // From: disable-paging.yml - Disable Page Combining
         // ============================================
         Tweak {
             id: "cpu_disable_page_combining".to_string(),
@@ -171,13 +164,14 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services' |
             description: "Disables memory page combining for improved stability and reduced CPU overhead.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::RegistryDelete {
                     root_key: "HKLM".to_string(),
                     path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management".to_string(),
                     key: "DisablePageCombining".to_string(),
-                }
+                },
             ]),
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
@@ -191,12 +185,12 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services' |
                     path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management".to_string(),
                     key: "DisablePageCombining".to_string(),
                     value: RegistryValue::DWord(1),
-                }
-            ]
+                },
+            ],
         },
-        
+
         // ============================================
-        // NEW: Disable Sleep Study Diagnostics
+        // Disable Sleep Study Diagnostics
         // ============================================
         Tweak {
             id: "cpu_disable_sleep_study".to_string(),
@@ -205,13 +199,14 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services' |
             description: "Disables Windows sleep study and power diagnostics to reduce background overhead.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
             revert_operations: Some(vec![
                 TweakOperation::RegistryDelete {
                     root_key: "HKLM".to_string(),
                     path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power".to_string(),
                     key: "SleepStudyDisabled".to_string(),
-                }
+                },
             ]),
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
@@ -225,12 +220,12 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services' |
                     path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power".to_string(),
                     key: "SleepStudyDisabled".to_string(),
                     value: RegistryValue::DWord(1),
-                }
-            ]
+                },
+            ],
         },
-        
+
         // ============================================
-        // NEW: Disable VBS (Virtualization Based Security)
+        // Disable VBS (Virtualization Based Security)
         // ============================================
         Tweak {
             id: "cpu_disable_vbs".to_string(),
@@ -239,13 +234,14 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services' |
             description: "Disables VBS and Memory Integrity. Provides 5-15% FPS boost. Reduces security - only for gaming systems.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
-            tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$vbs = Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard" -Name "EnableVirtualizationBasedSecurity" -EA 0
-if ($vbs.EnableVirtualizationBasedSecurity -eq 0) { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            // Check: EnableVirtualizationBasedSecurity == 0 (pure registry, no PS)
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Control\\DeviceGuard".to_string(),
+                key: "EnableVirtualizationBasedSecurity".to_string(),
+                expected_value: RegistryValue::DWord(0),
             }),
             revert_operations: Some(vec![
                 TweakOperation::RegistryDelete {
@@ -260,7 +256,10 @@ if ($vbs.EnableVirtualizationBasedSecurity -eq 0) { "True" } else { "False" }
                 },
                 TweakOperation::Command {
                     cmd: "bcdedit".to_string(),
-                    args: vec!["/deletevalue".to_string(), "hypervisorlaunchtype".to_string()],
+                    args: vec![
+                        "/deletevalue".to_string(),
+                        "hypervisorlaunchtype".to_string(),
+                    ],
                 },
             ]),
             operations: vec![
@@ -278,7 +277,11 @@ if ($vbs.EnableVirtualizationBasedSecurity -eq 0) { "True" } else { "False" }
                 },
                 TweakOperation::Command {
                     cmd: "bcdedit".to_string(),
-                    args: vec!["/set".to_string(), "hypervisorlaunchtype".to_string(), "off".to_string()],
+                    args: vec![
+                        "/set".to_string(),
+                        "hypervisorlaunchtype".to_string(),
+                        "off".to_string(),
+                    ],
                 },
             ],
         },

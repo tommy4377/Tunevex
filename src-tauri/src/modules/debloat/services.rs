@@ -12,29 +12,23 @@ pub fn get_service_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    $services = @("WMPNetworkSvc", "MapsBroker", "Fax", "RetailDemo", "WalletService", "PhoneSvc", "TapiSrv")
-                    foreach ($svc in $services) { Set-Service -Name $svc -StartupType Manual -EA 0 }
-                    "#.to_string(),
-                }
+                TweakOperation::ServiceSetMode { name: "WMPNetworkSvc".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "MapsBroker".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "Fax".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "RetailDemo".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "WalletService".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "PhoneSvc".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "TapiSrv".to_string(), mode: "Manual".to_string() }
             ]),
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$fax = Get-Service Fax -ErrorAction SilentlyContinue
-$wmp = Get-Service WMPNetworkSvc -ErrorAction SilentlyContinue
-if (($fax.StartType -eq 'Disabled') -and ($wmp.StartType -eq 'Disabled')) { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
-            }),
+            check: Some(TweakCheck::MultiServiceDisabled { names: vec!["WMPNetworkSvc".to_string(), "MapsBroker".to_string(), "Fax".to_string(), "RetailDemo".to_string(), "WalletService".to_string(), "PhoneSvc".to_string(), "TapiSrv".to_string()] }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    $services = @("WMPNetworkSvc", "MapsBroker", "Fax", "RetailDemo", "WalletService", "PhoneSvc", "TapiSrv")
-                    foreach ($svc in $services) { Stop-Service -Name $svc -Force -EA 0; Set-Service -Name $svc -StartupType Disabled -EA 0 }
-                    Write-Host "Misc services disabled" -ForegroundColor Green
-                "#.to_string(),
-                }
+                TweakOperation::ServiceSetMode { name: "WMPNetworkSvc".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "MapsBroker".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "Fax".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "RetailDemo".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "WalletService".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "PhoneSvc".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "TapiSrv".to_string(), mode: "Manual".to_string() }
             ],
             tweak_type: TweakType::Toggle,
             enabled: false,
@@ -47,27 +41,14 @@ if (($fax.StartType -eq 'Disabled') -and ($wmp.StartType -eq 'Disabled')) { "Tru
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    Set-Service -Name "MicrosoftEdgeElevationService" -StartupType Manual -EA 0
-                    Set-Service -Name "edgeupdate" -StartupType Automatic -EA 0
-                    Set-Service -Name "edgeupdatem" -StartupType Manual -EA 0
-                    "#.to_string(),
-                }
-            ]), tweak_type: TweakType::Toggle, enabled: false, check: Some(TweakCheck::Powershell {
-                script: r#"
-if ((Get-Service edgeupdate -ErrorAction SilentlyContinue).StartType -match 'Disabled') { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
-            }),
+                TweakOperation::ServiceSetMode { name: "MicrosoftEdgeElevationService".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "edgeupdate".to_string(), mode: "Auto".to_string() },
+                TweakOperation::ServiceSetMode { name: "edgeupdatem".to_string(), mode: "Manual".to_string() }
+            ]), tweak_type: TweakType::Toggle, enabled: false, check: Some(TweakCheck::MultiServiceDisabled { names: vec!["MicrosoftEdgeElevationService".to_string(), "edgeupdate".to_string(), "edgeupdatem".to_string()] }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    $services = @("MicrosoftEdgeElevationService", "edgeupdate", "edgeupdatem")
-                    foreach ($svc in $services) { Stop-Service -Name $svc -Force -EA 0; Set-Service -Name $svc -StartupType Disabled -EA 0 }
-                    Write-Host "Edge services disabled" -ForegroundColor Green
-                "#.to_string(),
-                }
+                TweakOperation::ServiceDisable { name: "MicrosoftEdgeElevationService".to_string() },
+                TweakOperation::ServiceDisable { name: "edgeupdate".to_string() },
+                TweakOperation::ServiceDisable { name: "edgeupdatem".to_string() }
             ]
         },
         Tweak {
@@ -78,25 +59,12 @@ if ((Get-Service edgeupdate -ErrorAction SilentlyContinue).StartType -match 'Dis
             warning_level: WarningLevel::Careful,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    Set-Service -Name "Spooler" -StartupType Automatic -EA 0
-                    Start-Service -Name "Spooler" -EA 0
-                    "#.to_string(),
-                }
-            ]), tweak_type: TweakType::Toggle, enabled: false, check: Some(TweakCheck::Powershell {
-                script: r#"
-if ((Get-Service Spooler -ErrorAction SilentlyContinue).StartType -match 'Disabled') { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
-            }),
+                TweakOperation::ServiceSetMode { name: "Spooler".to_string(), mode: "Auto".to_string() },
+                TweakOperation::Command { cmd: "sc".to_string(), args: vec!["start".to_string(), "Spooler".to_string()] }
+            ]), tweak_type: TweakType::Toggle, enabled: false, check: Some(TweakCheck::ServiceDisabled { name: "Spooler".to_string() }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    Stop-Service -Name "Spooler" -Force -EA 0; Set-Service -Name "Spooler" -StartupType Disabled -EA 0
-                    Write-Host "Printer services disabled" -ForegroundColor Green
-                "#.to_string(),
-                }
+                TweakOperation::ServiceSetMode { name: "Spooler".to_string(), mode: "Auto".to_string() },
+                TweakOperation::Command { cmd: "sc".to_string(), args: vec!["start".to_string(), "Spooler".to_string()] }
             ]
         },
         Tweak {
@@ -107,26 +75,12 @@ if ((Get-Service Spooler -ErrorAction SilentlyContinue).StartType -match 'Disabl
             warning_level: WarningLevel::Careful,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    $services = @("BTAGService", "bthserv")
-                    foreach ($svc in $services) { Set-Service -Name $svc -StartupType Manual -EA 0 }
-                    "#.to_string(),
-                }
-            ]), tweak_type: TweakType::Toggle, enabled: false, check: Some(TweakCheck::Powershell {
-                script: r#"
-if ((Get-Service bthserv -ErrorAction SilentlyContinue).StartType -match 'Disabled') { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
-            }),
+                TweakOperation::ServiceSetMode { name: "BTAGService".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "bthserv".to_string(), mode: "Manual".to_string() }
+            ]), tweak_type: TweakType::Toggle, enabled: false, check: Some(TweakCheck::MultiServiceDisabled { names: vec!["BTAGService".to_string(), "bthserv".to_string()] }),
             operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-                    $services = @("BTAGService", "bthserv")
-                    foreach ($svc in $services) { Stop-Service -Name $svc -Force -EA 0; Set-Service -Name $svc -StartupType Disabled -EA 0 }
-                    Write-Host "Bluetooth services disabled" -ForegroundColor Green
-                "#.to_string(),
-                }
+                TweakOperation::ServiceSetMode { name: "BTAGService".to_string(), mode: "Manual".to_string() },
+                TweakOperation::ServiceSetMode { name: "bthserv".to_string(), mode: "Manual".to_string() }
             ]
         }
     ]

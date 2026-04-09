@@ -1,9 +1,8 @@
 <script lang="ts">
-    import type { SvelteComponent } from "svelte";
     import { Check } from "lucide-svelte";
     import Button from "./Button.svelte";
 
-    export let icon: typeof SvelteComponent | null = null;
+    export let icon: any = null;
     export let title: string;
     export let description: string = "";
     export let actionLabel: string = "";

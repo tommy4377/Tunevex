@@ -7,6 +7,8 @@ use std::time::Duration;
 use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
 use tauri::command;
 
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
 pub struct SystemMonitor {
     sys: System,
     disks: Disks,
@@ -24,7 +26,7 @@ impl SystemMonitor {
         let gpu_usage_clone = gpu_usage.clone();
         let gpu_cancel_clone = gpu_cancel.clone();
 
-        // Spawn background thread for GPU monitoring via PowerShell Get-Counter
+        // Spawn background thread for GPU monitoring via typeperf (native Windows)
         let gpu_thread = thread::spawn(move || {
             loop {
                 if gpu_cancel_clone.load(Ordering::SeqCst) {
@@ -32,27 +34,30 @@ impl SystemMonitor {
                 }
 
                 {
-                    let output = Command::new("powershell")
+                    // Use typeperf to get GPU engine utilization - native Windows tool
+                    let output = Command::new("typeperf")
                         .args([
-                            "-NoProfile",
-                            "-Command",
-                            r#"
-$counters = Get-Counter '\GPU Engine(*engtype_3D)\Utilization Percentage' -EA SilentlyContinue
-if ($counters) {
-    $total = ($counters.CounterSamples | Measure-Object -Property CookedValue -Sum).Sum
-    [math]::Min($total, 100)
-} else { 0 }
-"#,
+                            "-sc",
+                            "1",
+                            "\"\\GPU Engine(*engtype_3D)\\Utilization Percentage\"",
                         ])
-                        .creation_flags(0x08000000)
+                        .creation_flags(CREATE_NO_WINDOW)
                         .output();
 
                     if let Ok(out) = output {
                         let stdout = String::from_utf8_lossy(&out.stdout);
-                        if let Ok(usage) = stdout.trim().parse::<f32>() {
-                            let clamped = usage.clamp(0.0, 100.0);
-                            if let Ok(mut g) = gpu_usage_clone.lock() {
-                                *g = clamped;
+                        // Parse output - typeperf returns CSV with value in last column
+                        let lines: Vec<&str> = stdout.lines().collect();
+                        if let Some(last_line) = lines.last() {
+                            let parts: Vec<&str> = last_line.split(',').collect();
+                            if let Some(value) = parts.last() {
+                                let trimmed = value.trim().trim_matches('"');
+                                if let Ok(usage) = trimmed.parse::<f32>() {
+                                    let clamped = usage.clamp(0.0, 100.0);
+                                    if let Ok(mut g) = gpu_usage_clone.lock() {
+                                        *g = clamped;
+                                    }
+                                }
                             }
                         }
                     }
@@ -130,25 +135,40 @@ pub struct SystemStats {
     gpu: Option<GpuStats>,
 }
 
-/// Get GPU name using PowerShell CIM (more robust than wmic)
+use winreg::enums::*;
+use winreg::RegKey;
+
+/// Get GPU name from registry (native Windows)
 fn get_gpu_name() -> Option<String> {
-    let output = Command::new("powershell")
-        .args(&[
-            "-NoProfile",
-            "-Command",
-            "Get-CimInstance Win32_VideoController | Sort-Object -Property AdapterRAM -Descending | Select-Object -ExpandProperty Name | Select-Object -First 1",
-        ])
-        .creation_flags(0x08000000)
-        .output()
-        .ok()?;
-
-    let name = String::from_utf8_lossy(&output.stdout).trim().to_string();
-
-    if name.is_empty() {
-        return None;
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    let video_path = r"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}";
+    
+    let mut best_gpu: Option<(u32, String)> = None;
+    
+    if let Ok(class_key) = hklm.open_subkey(video_path) {
+        for subkey_name in class_key.enum_keys().filter_map(|k| k.ok()) {
+            if let Ok(subkey) = class_key.open_subkey(&subkey_name) {
+                // Get adapter RAM to find the primary GPU
+                let adapter_ram: u32 = subkey.get_value("HardwareInformation.qwMemorySize").unwrap_or(0);
+                if let Ok(driver_desc) = subkey.get_value::<String, _>("DriverDesc") {
+                    let current_best = best_gpu.take();
+                    match current_best {
+                        Some((ram, _)) if ram >= adapter_ram => {
+                            best_gpu = Some((ram, driver_desc));
+                        }
+                        None => {
+                            best_gpu = Some((adapter_ram, driver_desc));
+                        }
+                        _ => {
+                            best_gpu = current_best;
+                        }
+                    }
+                }
+            }
+        }
     }
-
-    Some(name)
+    
+    best_gpu.map(|(_, name)| name)
 }
 
 #[command]
