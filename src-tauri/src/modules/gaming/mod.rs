@@ -405,13 +405,7 @@ if (($panel.ShowStartupPanel -eq 0) -and ($capture.AppCaptureEnabled -eq 0)) { "
             warning_level: WarningLevel::Careful,
             requires_restart: true,
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$svc = Get-Service -Name "MMCSS" -EA 0
-if ($svc.StartType -eq 'Disabled') { 'True' } else { 'False' }
-"#.to_string(),
-                expected_output: "True".to_string(),
-            }),
+            check: Some(TweakCheck::ServiceDisabled { name: "MMCSS".to_string() }),
             revert_operations: Some(vec![
                 TweakOperation::ServiceSetMode { name: "MMCSS".to_string(), mode: "auto".to_string() }
             ]),

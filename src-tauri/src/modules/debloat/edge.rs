@@ -115,12 +115,18 @@ pub fn get_tweaks() -> Vec<Tweak> {
             requires_restart: false,
             revert_operations: Some(vec![
                 TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge\\Main".to_string(), key: "PreventFirstRunPage".to_string() },
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run".to_string(), key: "MicrosoftEdgeAutoLaunch".to_string(), value: RegistryValue::Binary(vec![0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]) },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: None,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Edge\\Main".to_string(),
+                key: "PreventFirstRunPage".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
             operations: vec![
                 TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge\\Main".to_string(), key: "PreventFirstRunPage".to_string(), value: RegistryValue::DWord(0) },
-                TweakOperation::Command { cmd: "reg".to_string(), args: vec!["delete".to_string(), "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run".to_string(), "/v".to_string(), "MicrosoftEdgeAutoLaunch*".to_string(), "/f".to_string()] },
+                TweakOperation::Command { cmd: "reg".to_string(), args: vec!["delete".to_string(), "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run".to_string(), "/v".to_string(), "MicrosoftEdgeAutoLaunch".to_string(), "/f".to_string()] },
             ]
         },
     ]

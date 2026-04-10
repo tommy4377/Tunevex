@@ -1,6 +1,6 @@
 <script lang="ts">
     import { fade } from "svelte/transition";
-    import { Target, Plug, HardDrive, Timer } from "lucide-svelte";
+    import { Target, Plug, HardDrive, Timer, Cpu } from "lucide-svelte";
     import { invoke } from "@tauri-apps/api/core";
     import { Card, CardGrid, BackButton, SectionHeader } from "../ui";
     import TweakList from "../TweakList.svelte";
@@ -8,7 +8,7 @@
 
     export let allTweaks: Tweak[] = [];
 
-    let currentView: "dashboard" | "scheduling" | "power" | "memory" | "timer" =
+    let currentView: "dashboard" | "scheduling" | "power" | "memory" | "timer" | "vendor" =
         "dashboard";
 
     // Filters
@@ -53,7 +53,15 @@
                 t.id.includes("tick") ||
                 t.id.includes("clock") ||
                 t.id.includes("boot") ||
-                t.id.includes("processor_check_interval")),
+                t.id.includes("processor_check_interval") ||
+                t.id.includes("vbs") ||
+                t.id.includes("hpet")),
+    );
+
+    $: vendorTweaks = allTweaks.filter(
+        (t) =>
+            t.category === "CpuPerformance" &&
+            (t.id.includes("intel") || t.id.includes("amd")),
     );
 
     async function applySafeTweaks(tweaks: Tweak[]) {
@@ -98,6 +106,13 @@
             title: "Timer & Boot",
             desc: "System timers, HPET, and boot configuration.",
             tweaks: () => timerTweaks,
+        },
+        {
+            id: "vendor",
+            icon: Cpu,
+            title: "CPU Vendor",
+            desc: "Intel and AMD specific optimizations.",
+            tweaks: () => vendorTweaks,
         },
     ] as const;
 

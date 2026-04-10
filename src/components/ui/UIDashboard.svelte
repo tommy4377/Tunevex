@@ -1,7 +1,7 @@
 <script lang="ts">
     import { invoke } from "@tauri-apps/api/core";
     import { fade } from "svelte/transition";
-    import { Moon, Folder, Menu } from "lucide-svelte";
+    import { Moon, Folder, Menu, Layout } from "lucide-svelte";
     import { Card, CardGrid, BackButton } from "../ui";
     import TweakCard from "../TweakCard.svelte";
     import type { Tweak } from "$lib/types";
@@ -30,6 +30,8 @@
         (t) => t.id.includes("dark_mode") || t.id.includes("theme"),
     );
 
+    $: taskbarTweaks = uiTweaks.filter((t) => t.id.includes("taskbar"));
+
     const sectionsMeta = [
         {
             id: "context",
@@ -51,6 +53,13 @@
             title: "Appearance",
             desc: "Dark mode and visual themes.",
             tweaks: () => appearanceTweaks,
+        },
+        {
+            id: "taskbar",
+            icon: Layout,
+            title: "Taskbar",
+            desc: "Taskbar and system tray settings.",
+            tweaks: () => taskbarTweaks,
         },
     ] as const;
 

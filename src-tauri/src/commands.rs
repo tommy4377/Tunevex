@@ -415,7 +415,7 @@ fn check_msi_enabled_globally(priority: u32) -> bool {
     const CLASSES: &[&str] = &["Display", "SCSIAdapter", "Net", "USB", "HDC"];
 
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let pci_key = match hklm.open_subkey_with_flags(PCI_PATH, KEY_READ) {
+    let _pci_key = match hklm.open_subkey_with_flags(PCI_PATH, KEY_READ) {
         Ok(k) => k,
         Err(_) => return false,
     };
@@ -429,7 +429,7 @@ fn check_msi_enabled_globally(priority: u32) -> bool {
 
         for dev_name in class_key.enum_keys().flatten() {
             let dev_path = format!("{}\\{}\\{}", PCI_PATH, class, dev_name);
-            let dev_key = match hklm.open_subkey_with_flags(&dev_path, KEY_READ) {
+            let _dev_key = match hklm.open_subkey_with_flags(&dev_path, KEY_READ) {
                 Ok(k) => k,
                 Err(_) => continue,
             };
@@ -1255,7 +1255,7 @@ pub async fn apply_tweak(
                         .map_err(|e| format!("MsiRemoveNet error: {}", e))?;
                     println!("  -> MsiRemoveNet Success");
                 }
-                TweakOperation::NetworkInterfacesSet { key, value } => {
+                    TweakOperation::NetworkInterfacesSet { key, value: _ } => {
                     println!("  -> NetworkInterfacesSet: key={}", key);
                     use crate::modules::registry::operations::apply_network_interface_tweak;
                     apply_network_interface_tweak(op)
@@ -1579,7 +1579,7 @@ pub async fn undo_tweak(
                             eprintln!("Warning: Revert MsiRemoveNet failed: {}", e);
                         }
                     }
-                    TweakOperation::NetworkInterfacesSet { key, value } => {
+                TweakOperation::NetworkInterfacesSet { key, value: _ } => {
                         println!("  -> Revert NetworkInterfacesSet: key={}", key);
                         if let Ok(op) = serde_json::from_str::<TweakOperation>(&format!(r#"{{"NetworkInterfacesDelete":{{"key":"{}"}}}}"#, key)) {
                             let _ = crate::modules::registry::operations::apply_network_interface_tweak(&op);
@@ -1587,9 +1587,6 @@ pub async fn undo_tweak(
                     }
                     TweakOperation::NetworkInterfacesDelete { key: _ } => {
                         println!("  -> Revert NetworkInterfacesDelete: cannot restore, skipping");
-                    }
-                    TweakOperation::Powershell { script: _ } => {
-                        println!("  -> Skipping revert for Powershell operation (not reversible)");
                     }
                     _ => {
                         println!("  -> Skipped unknown revert op: {:?}", op);

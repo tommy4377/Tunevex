@@ -355,62 +355,6 @@ pub fn get_power_tweaks() -> Vec<Tweak> {
         },
 
         // ============================================
-        // Atlas Power Scheme (comprehensive)
-        // ============================================
-        Tweak {
-            id: "cpu_atlas_power_scheme".to_string(),
-            category: TweakCategory::CpuPerformance,
-            name: "Create Ultimate Power Scheme".to_string(),
-            description: "Creates custom Ultimate Power Scheme based on ultimate performance with all power-saving disabled.".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: false,
-            tweak_type: TweakType::Toggle,
-            enabled: false,
-            revert_operations: Some(vec![
-                TweakOperation::Command {
-                    cmd: "powercfg".to_string(),
-                    args: vec![
-                        "-setactive".to_string(),
-                        "381b4222-f694-41f0-9685-ff5bb260df2e".to_string(),
-                    ],
-                },
-            ]),
-            // Check: custom GUID 11111111-… is active
-            check: Some(TweakCheck::CommandOutputContains {
-                cmd: "powercfg".to_string(),
-                args: vec!["/getactivescheme".to_string()],
-                contains: "11111111-1111-1111-1111-111111111111".to_string(),
-            }),
-            operations: vec![
-                // Duplicate Ultimate Performance into our fixed GUID, then activate
-                TweakOperation::Command {
-                    cmd: "powercfg".to_string(),
-                    args: vec![
-                        "/duplicatescheme".to_string(),
-                        "e9a42b02-d5df-448d-aa00-03f14749eb61".to_string(),
-                        "11111111-1111-1111-1111-111111111111".to_string(),
-                    ],
-                },
-                TweakOperation::Command {
-                    cmd: "powercfg".to_string(),
-                    args: vec![
-                        "/setactive".to_string(),
-                        "11111111-1111-1111-1111-111111111111".to_string(),
-                    ],
-                },
-                TweakOperation::Command {
-                    cmd: "powercfg".to_string(),
-                    args: vec![
-                        "/changename".to_string(),
-                        "scheme_current".to_string(),
-                        "Ultimate Power Scheme".to_string(),
-                        "Optimized for latency and performance".to_string(),
-                    ],
-                },
-            ],
-        },
-
-        // ============================================
         // USB 3 Link Power Management
         // ============================================
         Tweak {
