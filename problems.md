@@ -409,41 +409,41 @@ remove the entire subkey tree.
 | ID     | Tweak ID                                | Category      | Status   | Severity |
 |--------|-----------------------------------------|---------------|----------|----------|
 | C1     | `gpudisablenvidiatelemetry`             | GPU           | ✅ Fixed  | Critical |
-| C2     | `interfaceclassiccontextmenu` (check)   | Interface     | ❌ Open   | Critical |
-| C3     | `interfaceclassiccontextmenu` (revert)  | Interface     | ❌ Open   | Critical |
-| H1     | `debloatdisablemisctasks`               | Debloat       | ❌ Open   | High     |
+| C2     | `interfaceclassiccontextmenu` (check)   | Interface     | ✅ Fixed  | Critical |
+| C3     | `interfaceclassiccontextmenu` (revert)  | Interface     | ✅ Fixed  | Critical |
+| H1     | `debloatdisablemisctasks`               | Debloat       | ✅ Fixed  | High     |
 | H2     | `gamingdisablexboxtasks`                | Gaming        | ✅ Fixed  | High     |
-| H3     | `privacydisabletelemetrytasks` (check)  | Privacy       | ❌ Open   | High     |
-| H4     | Duplicate telemetry task tweaks         | Privacy       | ❌ Open   | High     |
-| H5     | `privdisabletelemetrytasks` (dot+dupe)  | Privacy       | ❌ Open   | High     |
-| H6     | `gamingdisablefso` (missing revert key) | Gaming        | ❌ Open   | High     |
-| H7     | `gamingmmcsspriority` (SFIO missing)    | Gaming        | ❌ Open   | High     |
-| H8     | `interfacecompactmode` (no restart)     | Interface     | ❌ Open   | High     |
+| H3     | `privacydisabletelemetrytasks` (check)  | Privacy       | ✅ Fixed  | High     |
+| H4     | Duplicate telemetry task tweaks         | Privacy       | ✅ Fixed  | High     |
+| H5     | `privdisabletelemetrytasks` (dot+dupe)  | Privacy       | ✅ Fixed  | High     |
+| H6     | `gamingdisablefso` (missing revert key) | Gaming        | ✅ Fixed  | High     |
+| H7     | `gamingmmcsspriority` (SFIO missing)    | Gaming        | ✅ Fixed  | High     |
+| H8     | `interfacecompactmode` (no restart)     | Interface     | ✅ Fixed  | High     |
 | H9     | `gamingdisablegamebar` (Xbox revert)    | Gaming        | ✅ Fixed  | High     |
 | H10    | `gamingdisablexboxservices` (check)     | Gaming        | ✅ Fixed  | High     |
-| M1     | Triple NVIDIA telemetry conflict        | GPU/Privacy   | ❌ Open   | Medium   |
-| M2     | `sysresponsiveness` duplicate           | System/Net    | ❌ Open   | Medium   |
-| M3     | `nettcpautotuning` (ops=revert)         | Network       | ❌ Open   | Medium   |
-| M4     | `inputdisablesnapto` (no-op toggle)     | Input         | ❌ Open   | Medium   |
-| M5     | `inputmousesensitivitydefault` (Toggle) | Input         | ❌ Open   | Medium   |
-| M6     | `secdisablenotifications` (triple dupe) | Security      | ❌ Open   | Medium   |
-| M7     | `secdisableallmitigations` (bcdedit)    | Security      | ❌ Open   | Medium   |
-| M8     | `secdisablecpumitigations` (PS module)  | Security      | ❌ Open   | Medium   |
-| M9     | `privdisableceip` (Set+Delete)          | Privacy       | ❌ Open   | Medium   |
-| M10    | `privvscodetelemetry` (check: None)     | Privacy       | ❌ Open   | Medium   |
-| M11    | Duplicate Defender tweaks               | Debloat/Sec   | ❌ Open   | Medium   |
-| M12    | `gamingdisablegamebar` (PS check)       | Gaming        | ❌ Open   | Medium   |
+| M1     | Triple NVIDIA telemetry conflict        | GPU/Privacy   | ✅ Fixed  | Medium   |
+| M2     | `sysresponsiveness` duplicate           | System/Net    | ✅ Fixed  | Medium   |
+| M3     | `nettcpautotuning` (ops=revert)         | Network       | ✅ Fixed  | Medium   |
+| M4     | `inputdisablesnapto` (no-op toggle)     | Input         | ✅ Fixed  | Medium   |
+| M5     | `inputmousesensitivitydefault` (Toggle) | Input         | ✅ Fixed  | Medium   |
+| M6     | `secdisablenotifications` (triple dupe) | Security      | ✅ Fixed  | Medium   |
+| M7     | `secdisableallmitigations` (bcdedit)    | Security      | ✅ Fixed  | Medium   |
+| M8     | `secdisablecpumitigations` (PS module)  | Security      | ✅ Fixed  | Medium   |
+| M9     | `privdisableceip` (Set+Delete)          | Privacy       | ✅ Fixed  | Medium   |
+| M10    | `privvscodetelemetry` (check: None)     | Privacy       | ✅ Fixed  | Medium   |
+| M11    | Duplicate Defender tweaks               | Debloat/Sec   | ✅ Fixed  | Medium   |
+| M12    | `gamingdisablegamebar` (PS check)       | Gaming        | ✅ Fixed  | Medium   |
 | M13    | `secdisableremoteassistance`            | Security      | ✅ Fixed  | Medium   |
-| M14    | `secdisablewer` (trailing space)        | Security      | ❌ Open   | Medium   |
+| M14    | `secdisablewer` (trailing space)        | Security      | ✅ Fixed  | Medium   |
 | M15    | `gamingdisablenetworkthrottling` dupe   | Gaming/Net    | ✅ Fixed  | Medium   |
 | M16    | `secrsopplogging` (revert value)        | Security      | ✅ Fixed  | Medium   |
 | M17    | `inputnumlockstartup` (ops=revert)      | Input         | ✅ Fixed  | Medium   |
 | M18    | `netoptimizespeed` (ops=revert)         | Network       | ✅ Fixed  | Medium   |
-| L1     | Duplicate revert entry (telemetry)      | Privacy       | ❌ Open   | Low      |
-| L2     | `privallinone` (incomplete check)       | Privacy       | ❌ Open   | Low      |
-| L3     | `inputkeyboardspeed` (partial check)    | Input         | ❌ Open   | Low      |
-| L4     | `interfaceclassiccontextmenu` (restart) | Interface     | ⚠️ Partial| Low      |
-| L5     | `gpunvidiacleancache` (too broad rmdir) | GPU           | ❌ Open   | Low      |
-| L6     | `interfacetakeownership` (revert scope) | Interface     | ❌ Open   | Low      |
+| L1     | Duplicate revert entry (telemetry)      | Privacy       | ✅ Fixed  | Low      |
+| L2     | `privallinone` (incomplete check)       | Privacy       | ✅ Fixed  | Low      |
+| L3     | `inputkeyboardspeed` (partial check)    | Input         | ✅ Fixed  | Low      |
+| L4     | `interfaceclassiccontextmenu` (restart) | Interface     | ✅ Fixed  | Low      |
+| L5     | `gpunvidiacleancache` (too broad rmdir) | GPU           | ✅ Fixed  | Low      |
+| L6     | `interfacetakeownership` (revert scope) | Interface     | ✅ Fixed  | Low      |
 
-**Total: 36 bugs found — 10 fixed, 25 open, 1 partially fixed**
+**Total: 36 bugs found — 36 fixed, 0 open**
