@@ -223,6 +223,12 @@ if (($panel.ShowStartupPanel -eq 0) -and ($capture.AppCaptureEnabled -eq 0)) { "
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
                     path: "System\\GameConfigStore".to_string(),
+                    key: "GameDVR_HonorUserFSEBehaviorMode".to_string(),
+                    value: RegistryValue::DWord(0), // Remove on revert
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: "System\\GameConfigStore".to_string(),
                     key: "GameDVR_DXGIHonorFSEWindowsCompatible".to_string(),
                     value: RegistryValue::DWord(0),
                 },
@@ -284,6 +290,11 @@ if (($panel.ShowStartupPanel -eq 0) -and ($capture.AppCaptureEnabled -eq 0)) { "
                     path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games".to_string(),
                     key: "Scheduling Category".to_string(),
                     value: RegistryValue::String("Medium".to_string()),
+                },
+                TweakOperation::RegistryDelete {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games".to_string(),
+                    key: "SFIO Priority".to_string(), // Remove the key on revert (absent by default)
                 },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,

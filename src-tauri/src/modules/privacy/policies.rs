@@ -84,7 +84,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     root_key: "HKLM".to_string(),
                     path: "SOFTWARE\\Policies\\Microsoft\\Windows\\System".to_string(),
                     key: "RSoPLogging".to_string(),
-                    value: RegistryValue::DWord(0),
+                    value: RegistryValue::DWord(1), // Re-enable logging on revert
                 },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,

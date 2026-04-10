@@ -501,7 +501,7 @@ pub fn get_adapter_tweaks() -> Vec<Tweak> {
                 .to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            tweak_type: TweakType::Toggle,
+            tweak_type: TweakType::Action,
             enabled: false,
             check: Some(TweakCheck::NetAdapterProperty {
                 property: "*SpeedDuplex".to_string(),
@@ -511,10 +511,7 @@ pub fn get_adapter_tweaks() -> Vec<Tweak> {
                 property: "*SpeedDuplex".to_string(),
                 value: "0".to_string(), // Auto Negotiation
             }],
-            revert_operations: Some(vec![TweakOperation::NetAdapterProperty {
-                property: "*SpeedDuplex".to_string(),
-                value: "0".to_string(), // Already auto — no change needed
-            }]),
+            revert_operations: None,
         },
         // ── 13. Energy Efficient Ethernet (EEE) ───────────────────────────
         // *EEE:  0 = Disabled, 1 = Enabled

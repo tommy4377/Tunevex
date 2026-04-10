@@ -24,7 +24,7 @@ pub fn get_context_menu_tweaks() -> Vec<Tweak> {
             }),
             revert_operations: Some(vec![
                 TweakOperation::RegistryDelete { root_key: "HKCU".to_string(), path: r"Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}".to_string(), key: "".to_string() },
-                TweakOperation::Command { cmd: "taskkill".to_string(), args: vec!["/F".to_string(), "/IM".to_string(), "explorer.exe".to_string()] }
+                TweakOperation::Command { cmd: "cmd".to_string(), args: vec!["/c".to_string(), "start".to_string(), "explorer.exe".to_string()] }
             ]),
             operations: vec![
                 TweakOperation::RegistrySet {
@@ -33,7 +33,7 @@ pub fn get_context_menu_tweaks() -> Vec<Tweak> {
                     key: "".to_string(),
                     value: RegistryValue::String("".to_string()),
                 },
-                TweakOperation::Command { cmd: "taskkill".to_string(), args: vec!["/F".to_string(), "/IM".to_string(), "explorer.exe".to_string()] }
+                TweakOperation::Command { cmd: "cmd".to_string(), args: vec!["/c".to_string(), "start".to_string(), "explorer.exe".to_string()] },
             ],
         },
 
