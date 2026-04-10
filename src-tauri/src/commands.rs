@@ -8,6 +8,59 @@ use std::process::Command;
 use std::sync::Mutex;
 use tauri::{Emitter, State};
 
+// ─── Allowed Commands Whitelist (Security) ───────────────────────────────
+const ALLOWED_COMMANDS: &[&str] = &[
+    "sc", "schtasks", "bcdedit", "powercfg",
+    "fsutil", "powershell", "taskkill", "netsh",
+    "reg", "cmd", "pnputil", "del", "rmdir",
+];
+
+fn validate_command(cmd: &str) -> Result<(), String> {
+    let cmd_path = std::path::Path::new(cmd);
+    let exe_name = cmd_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(cmd)
+        .to_lowercase();
+    if ALLOWED_COMMANDS.contains(&exe_name.as_str()) {
+        Ok(())
+    } else {
+        Err(format!("Command '{}' is not in the allowed list", cmd))
+    }
+}
+
+// ─── Allowed Write Roots (Security - Path Traversal Prevention) ───────────────
+const ALLOWED_WRITE_ROOTS: &[&str] = &[
+    r"C:\Users",
+    r"C:\ProgramData",
+    r"C:\Program Files",
+    r"C:\Program Files (x86)",
+];
+
+fn safe_path(raw: &str) -> Result<std::path::PathBuf, String> {
+    // Expand environment variables first
+    let expanded = raw
+        .replace("%APPDATA%", &std::env::var("APPDATA").unwrap_or_default())
+        .replace("%LOCALAPPDATA%", &std::env::var("LOCALAPPDATA").unwrap_or_default())
+        .replace("%ProgramData%", &std::env::var("ProgramData").unwrap_or_default())
+        .replace("%ProgramFiles%", &std::env::var("ProgramFiles").unwrap_or_default())
+        .replace("%UserProfile%", &std::env::var("USERPROFILE").unwrap_or_default())
+        .replace("%Home%", &std::env::var("USERPROFILE").unwrap_or_default());
+
+    let p = std::path::PathBuf::from(&expanded);
+    // canonicalize resolves ".." and symlinks
+    let canonical = p.canonicalize()
+        .map_err(|e| format!("Invalid or non-existent path '{}': {}", raw, e))?;
+    let canonical_str = canonical.to_string_lossy().to_lowercase();
+    if !ALLOWED_WRITE_ROOTS.iter().any(|r| canonical_str.starts_with(&r.to_lowercase())) {
+        return Err(format!(
+            "Path '{}' is outside allowed directories. Allowed: {:?}",
+            raw, ALLOWED_WRITE_ROOTS
+        ));
+    }
+    Ok(canonical)
+}
+
 // ─── Tcpip interface registry path ─────────────────────────────────────────
 const TCPIP_INTERFACES_PATH: &str =
     "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces";
@@ -800,27 +853,36 @@ pub async fn apply_dns_server(primary: String, secondary: String) -> Result<(), 
 }
 
 #[tauri::command]
-pub fn get_tweaks(ctx: State<Mutex<TweakContext>>, state: State<Mutex<AppState>>) -> Result<Vec<Tweak>, String> {
-    let context = ctx.lock().map_err(|e| e.to_string())?;
-    let app_state = state.lock().map_err(|e| e.to_string())?;
+pub async fn get_tweaks(ctx: State<'_, Mutex<TweakContext>>, state: State<'_, Mutex<AppState>>) -> Result<Vec<Tweak>, String> {
+    // Extract data and immediately drop the locks
+    let tweaks = {
+        let context = ctx.lock().map_err(|e| e.to_string())?;
+        context.tweaks.clone()
+    };
+    let applied = {
+        let app_state = state.lock().map_err(|e| e.to_string())?;
+        app_state.applied_tweaks.clone()
+    };
 
-    Ok(context
-        .tweaks
-        .iter()
-        .map(|t| {
-            let mut tweak = t.clone();
-            
-            // First, check actual system state via TweakCheck if available
-            if let Some(ref check) = tweak.check {
-                tweak.enabled = check_tweak_enabled(check);
-            } else {
-                // Fallback to app state for tweaks without explicit checks
-                tweak.enabled = app_state.applied_tweaks.contains(&tweak.id);
-            }
-            
-            tweak
-        })
-        .collect())
+    // Move heavy I/O (registry, sc, schtasks) to blocking thread pool
+    tokio::task::spawn_blocking(move ||
+        tweaks
+            .iter()
+            .map(|t| {
+                let mut tweak = t.clone();
+                // First, check actual system state via TweakCheck if available
+                if let Some(ref check) = tweak.check {
+                    tweak.enabled = check_tweak_enabled(check);
+                } else {
+                    // Fallback to app state for tweaks without explicit checks
+                    tweak.enabled = applied.contains(&tweak.id);
+                }
+                tweak
+            })
+            .collect::<Vec<_>>()
+    )
+    .await
+    .map_err(|e| format!("Task join error: {}", e))
 }
 
 /// Fast version - returns tweaks immediately without running any checks
@@ -866,16 +928,26 @@ pub async fn check_category(
     let app_clone = app.clone();
     let category_clone = category.clone();
     
-    // Run checks in background thread
+    // Run checks in background thread - PARALLEL with rayon
     tokio::task::spawn_blocking(move || {
-        for tweak in tweaks {
-            if let Some(ref check) = tweak.check {
-                let enabled = check_tweak_enabled(check);
-                let _ = app_clone.emit("tweak-check-result", serde_json::json!({
-                    "id": tweak.id,
-                    "enabled": enabled
-                }));
-            }
+        use rayon::prelude::*;
+        
+        // Parallel execution across CPU cores
+        let results: Vec<(String, bool)> = tweaks
+            .par_iter()
+            .filter_map(|tweak| {
+                tweak.check.as_ref().map(|check| {
+                    (tweak.id.clone(), check_tweak_enabled(check))
+                })
+            })
+            .collect();
+        
+        // Emit results sequentially (order doesn't matter for UI)
+        for (id, enabled) in results {
+            let _ = app_clone.emit("tweak-check-result", serde_json::json!({
+                "id": id,
+                "enabled": enabled
+            }));
         }
         // Emit completion for this category
         let _ = app_clone.emit("category-check-complete", serde_json::json!({
@@ -923,7 +995,7 @@ pub async fn apply_tweak(
 
         // Create a single backup manager for all registry operations
         let backup_path = crate::modules::utils::dirs::get_backup_dir()
-            .unwrap_or_else(|_| std::path::PathBuf::from("backups"));
+            .map_err(|e| format!("Cannot determine backup directory: {}", e))?;
         let mut backup_mgr = RegistryBackup::new(backup_path.clone());
 
         println!("[TWEAK APPLY] Applying ID: {}", tweak_clone.id);
@@ -965,6 +1037,7 @@ pub async fn apply_tweak(
                 }
                 TweakOperation::Command { cmd, args } => {
                     println!("  -> Command: {} {:?}", cmd, args);
+                    validate_command(&cmd)?;
                     let output = Command::new(cmd)
                         .args(args)
                         .creation_flags(0x08000000)
@@ -997,26 +1070,32 @@ pub async fn apply_tweak(
 
                     log("Executing Script...".to_string());
 
-                    use std::io::{BufRead, BufReader};
+                    use std::io::{BufRead, BufReader, Write};
                     use std::process::Stdio;
 
                     let app_handle = app.clone();
                     let id_clone = id.clone();
 
+                    // SECURITY FIX: Use RemoteSigned + pass script via stdin
                     let mut child = Command::new("powershell")
                         .args([
                             "-NoProfile",
-                            "-ExecutionPolicy",
-                            "Bypass",
-                            "-Command",
-                            // Add output flush to ensure streaming works better
-                            &format!("$OutputEncoding = [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; {} ; [Console]::Out.Flush()", script),
+                            "-NonInteractive",
+                            "-ExecutionPolicy", "RemoteSigned", // not Bypass
+                            "-Command", "-",                    // read from stdin
                         ])
-                        .creation_flags(0x08000000) // CREATE_NO_WINDOW
+                        .stdin(Stdio::piped())
                         .stdout(Stdio::piped())
                         .stderr(Stdio::piped())
+                        .creation_flags(0x08000000) // CREATE_NO_WINDOW
                         .spawn()
                         .map_err(|e| format!("PowerShell spawn failed: {}", e))?;
+
+                    // Write script to stdin (not CLI arg)
+                    if let Some(mut stdin) = child.stdin.take() {
+                        writeln!(stdin, "{}", script)
+                            .map_err(|e| format!("Failed to write script to stdin: {}", e))?;
+                    }
 
                     // Register PID
                     let pid = child.id();
@@ -1165,48 +1244,45 @@ pub async fn apply_tweak(
                     match file_op {
                         FileOp::Delete { path } => {
                             println!("  -> FileOp Delete: {}", path);
-                            let p = std::path::Path::new(&path);
-                            if p.is_dir() {
-                                fs::remove_dir_all(&path)
+                            let safe = safe_path(&path)?;
+                            if safe.is_dir() {
+                                fs::remove_dir_all(&safe)
                                     .map_err(|e| format!("Failed to delete directory {}: {}", path, e))?;
                             } else {
-                                fs::remove_file(&path)
+                                fs::remove_file(&safe)
                                     .map_err(|e| format!("Failed to delete file {}: {}", path, e))?;
                             }
                         }
                         FileOp::Copy { src, dest } => {
                             println!("  -> FileOp Copy: {} -> {}", src, dest);
-                            if let Some(parent) = std::path::Path::new(&dest).parent() {
+                            let safe_src = safe_path(&src)?;
+                            let safe_dest = safe_path(&dest)?;
+                            if let Some(parent) = safe_dest.parent() {
                                 fs::create_dir_all(parent)
                                     .map_err(|e| format!("Failed to create dest dir: {}", e))?;
                             }
-                            fs::copy(&src, &dest)
+                            fs::copy(&safe_src, &safe_dest)
                                 .map_err(|e| format!("Failed to copy {} to {}: {}", src, dest, e))?;
                         }
                         FileOp::Move { src, dest } => {
                             println!("  -> FileOp Move: {} -> {}", src, dest);
-                            if let Some(parent) = std::path::Path::new(&dest).parent() {
+                            let safe_src = safe_path(&src)?;
+                            let safe_dest = safe_path(&dest)?;
+                            if let Some(parent) = safe_dest.parent() {
                                 fs::create_dir_all(parent)
                                     .map_err(|e| format!("Failed to create dest dir: {}", e))?;
                             }
-                            fs::rename(&src, &dest)
+                            fs::rename(&safe_src, &safe_dest)
                                 .map_err(|e| format!("Failed to move {} to {}: {}", src, dest, e))?;
                         }
                         FileOp::Write { path, content } => {
                             println!("  -> FileOp Write: {}", path);
-                            // Expand environment variables in path
-                            let path = path
-                                .replace("%APPDATA%", &std::env::var("APPDATA").unwrap_or_default())
-                                .replace("%LOCALAPPDATA%", &std::env::var("LOCALAPPDATA").unwrap_or_default())
-                                .replace("%ProgramData%", &std::env::var("ProgramData").unwrap_or_default())
-                                .replace("%ProgramFiles%", &std::env::var("ProgramFiles").unwrap_or_default())
-                                .replace("%UserProfile%", &std::env::var("USERPROFILE").unwrap_or_default())
-                                .replace("%Home%", &std::env::var("USERPROFILE").unwrap_or_default());
-                            if let Some(parent) = std::path::Path::new(&path).parent() {
+                            let safe = safe_path(&path)?;
+                            if let Some(parent) = safe.parent() {
                                 fs::create_dir_all(parent)
                                     .map_err(|e| format!("Failed to create parent dir: {}", e))?;
                             }
-                            fs::write(&path, &content)
+                            fs::write(&safe, &content)
                                 .map_err(|e| format!("Failed to write file {}: {}", path, e))?;
                         }
                     }
@@ -1368,7 +1444,7 @@ pub async fn undo_tweak(
     };
 
     let backup_path = crate::modules::utils::dirs::get_backup_dir()
-        .unwrap_or_else(|_| std::path::PathBuf::from("backups"));
+        .map_err(|e| format!("Cannot determine backup directory: {}", e))?;
 
     let id_clone = id.clone();
     let app_clone = app.clone();
@@ -1444,18 +1520,30 @@ pub async fn undo_tweak(
                     TweakOperation::Powershell { script } => {
                         println!("  -> Revert PowerShell: {}", script);
                         use std::process::Stdio;
-                        let output = Command::new("powershell")
+                        use std::io::Write;
+                        
+                        // SECURITY FIX: Use RemoteSigned + pass script via stdin
+                        let mut child = Command::new("powershell")
                             .args([
                                 "-NoProfile",
-                                "-ExecutionPolicy",
-                                "Bypass",
-                                "-Command",
-                                script,
+                                "-NonInteractive",
+                                "-ExecutionPolicy", "RemoteSigned",
+                                "-Command", "-",
                             ])
-                            .creation_flags(0x08000000)
+                            .stdin(Stdio::piped())
                             .stdout(Stdio::piped())
                             .stderr(Stdio::piped())
-                            .output()
+                            .creation_flags(0x08000000)
+                            .spawn()
+                            .map_err(|e| format!("Revert PowerShell spawn failed: {}", e))?;
+
+                        // Write script to stdin (not CLI arg)
+                        if let Some(mut stdin) = child.stdin.take() {
+                            writeln!(stdin, "{}", script)
+                                .map_err(|e| format!("Failed to write script to stdin: {}", e))?;
+                        }
+
+                        let output = child.wait_with_output()
                             .map_err(|e| format!("Revert PowerShell failed: {}", e))?;
 
                         if !output.stdout.is_empty() {
@@ -1523,6 +1611,7 @@ pub async fn undo_tweak(
                     }
                     TweakOperation::Command { cmd, args } => {
                         println!("  -> Revert Command: {} {:?}", cmd, args);
+                        validate_command(&cmd)?;
                         let output = Command::new(cmd)
                             .args(args)
                             .creation_flags(0x08000000)

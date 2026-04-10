@@ -1,9 +1,5 @@
 use crate::modules::startup::types::{AutostartSource, StartupItem};
 use crate::modules::startup::{assess_safety, utils};
-use serde_json::Value;
-#[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
-use std::process::Command;
 
 pub fn scan() -> Vec<StartupItem> {
     // Critical services that should NEVER be disabled
@@ -24,73 +20,91 @@ pub fn scan() -> Vec<StartupItem> {
         "Themes",
     ];
 
-    let output = Command::new("powershell")
-        .args(&[
-            "-NoProfile",
-            "-Command",
-            r#"Get-WmiObject Win32_Service | Where-Object { $_.StartMode -in @('Auto','Boot','System') } | Select-Object Name, DisplayName, PathName, Description, StartMode, State | ConvertTo-Json -Compress"#
-        ])
-        .creation_flags(0x08000000)
-        .output()
-        .unwrap_or_else(|_| std::process::Output {
-            status: std::process::ExitStatus::default(),
-            stdout: Vec::new(),
-            stderr: Vec::new(),
-        });
+    // PERFORMANCE FIX: Use winreg directly instead of WMI via PowerShell
+    // Registry read is ~1-5ms vs WMI's 500ms-2s
+    #[cfg(target_os = "windows")]
+    {
+        use winreg::enums::*;
+        use winreg::RegKey;
 
-    let json = String::from_utf8_lossy(&output.stdout);
+        let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+        let services_key = match hklm.open_subkey(r"SYSTEM\CurrentControlSet\Services") {
+            Ok(k) => k,
+            Err(_) => return vec![],
+        };
 
-    // Handle array vs single vs empty
-    let services: Vec<Value> = if let Ok(arr) = serde_json::from_str::<Vec<Value>>(&json) {
-        arr
-    } else if let Ok(obj) = serde_json::from_str::<Value>(&json) {
-        vec![obj]
-    } else {
-        Vec::new()
-    };
+        // Start values: 0=Boot, 1=System, 2=Auto, 3=Demand, 4=Disabled
+        let results: Vec<StartupItem> = services_key
+            .enum_keys()
+            .flatten()
+            .filter_map(|name| {
+                let sub = services_key.open_subkey(&name).ok()?;
+                let start: u32 = sub.get_value("Start").ok()?;
+                if start == 4 {
+                    return None;
+                } // skip already-disabled
 
-    services
-        .into_iter()
-        .filter_map(|s| {
-            let name = s["Name"].as_str()?.to_string();
-            let display_name = s["DisplayName"].as_str().unwrap_or(&name).to_string();
-            let path = s["PathName"].as_str().unwrap_or("").to_string();
-            let desc = s["Description"].as_str().map(|s| s.to_string());
-            let start_mode = s["StartMode"].as_str()?;
+                let type_val: u32 = sub.get_value("Type").unwrap_or(0);
+                if type_val == 0 {
+                    return None;
+                } // skip non-service entries
 
-            // Verify existence using sanitized path logic
-            let clean_path = utils::sanitize_path(&path);
-            let exists = std::path::Path::new(&clean_path).exists();
+                let display_name: String = sub
+                    .get_value("DisplayName")
+                    .unwrap_or_else(|_| name.clone());
+                let image_path: String = sub.get_value("ImagePath").unwrap_or_default();
+                let description: Option<String> = sub.get_value("Description").ok();
 
-            // Get publisher if possible
-            let (publisher, extra_desc) = utils::get_file_info(&path);
-            let final_desc = desc.or(extra_desc);
+                let start_mode = match start {
+                    0 => "Boot",
+                    1 => "System",
+                    2 => "Auto",
+                    3 => "Demand",
+                    _ => "Unknown",
+                };
 
-            // Determine safety rating
-            let mut rating = assess_safety(&path, publisher.as_deref());
+                // Verify existence
+                let clean_path = utils::sanitize_path(&image_path);
+                let exists = std::path::Path::new(&clean_path).exists();
 
-            // Override rating for critical services whitelist
-            if CRITICAL_SERVICES.contains(&name.as_str()) {
-                use crate::modules::startup::types::SafetyRating;
-                rating = SafetyRating::Critical;
-            }
+                // Get publisher if possible
+                let (publisher, extra_desc) = utils::get_file_info(&image_path);
+                let final_desc = description.or(extra_desc);
 
-            Some(StartupItem {
-                id: format!("SVC:{}", name),
-                name: display_name,
-                category: "Service".to_string(),
-                subcategory: format!("{} ({})", start_mode, name),
-                location: "HKLM\\SYSTEM\\CurrentControlSet\\Services".to_string(),
-                command: path.clone(),
-                enabled: start_mode != "Disabled",
-                publisher,
-                description: final_desc,
-                source: AutostartSource::Service,
-                safety_rating: rating,
-                file_exists: exists,
+                // Determine safety rating
+                let mut rating = assess_safety(&image_path, publisher.as_deref());
+
+                // Override rating for critical services
+                if CRITICAL_SERVICES.contains(&name.as_str()) {
+                    use crate::modules::startup::types::SafetyRating;
+                    rating = SafetyRating::Critical;
+                }
+
+                Some(StartupItem {
+                    id: format!("SVC:{}", name),
+                    name: display_name,
+                    category: "Service".to_string(),
+                    subcategory: format!("{} ({})", start_mode, name),
+                    location: "HKLM\\SYSTEM\\CurrentControlSet\\Services".to_string(),
+                    command: image_path.clone(),
+                    enabled: true,
+                    publisher,
+                    description: final_desc,
+                    source: AutostartSource::Service,
+                    safety_rating: rating,
+                    file_exists: exists,
+                })
             })
-        })
-        .collect()
+            .collect();
+
+        return results;
+    }
+
+    // Fallback for non-Windows (shouldn't happen for this desktop app)
+    #[cfg(not(target_os = "windows"))]
+    {
+        Vec::new()
+    }
 }
 
 pub fn toggle_service(id: &str, enable: bool) -> Result<(), String> {
@@ -99,28 +113,34 @@ pub fn toggle_service(id: &str, enable: bool) -> Result<(), String> {
         .unwrap_or_else(|| id.strip_prefix("SERVICE:").unwrap_or(id));
     let start_mode = if enable { "Automatic" } else { "Disabled" };
 
-    let stop_cmd = if !enable {
-        format!(
-            "Stop-Service -Name '{}' -Force -ErrorAction SilentlyContinue; ",
-            service_name
-        )
-    } else {
-        String::new()
-    };
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
 
-    let script = format!(
-        "{}Set-Service -Name '{}' -StartupType {}",
-        stop_cmd, service_name, start_mode
-    );
+        let stop_cmd = if !enable {
+            format!(
+                "Stop-Service -Name '{}' -Force -ErrorAction SilentlyContinue; ",
+                service_name
+            )
+        } else {
+            String::new()
+        };
 
-    let output = Command::new("powershell")
-        .args(&["-NoProfile", "-Command", &script])
-        .creation_flags(0x08000000)
-        .output()
-        .map_err(|e| e.to_string())?;
+        let script = format!(
+            "{}Set-Service -Name '{}' -StartupType {}",
+            stop_cmd, service_name, start_mode
+        );
 
-    if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        let output = std::process::Command::new("powershell")
+            .args(&["-NoProfile", "-Command", &script])
+            .creation_flags(0x08000000)
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        if !output.status.success() {
+            return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        }
     }
+
     Ok(())
 }

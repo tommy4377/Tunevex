@@ -1,11 +1,13 @@
-use std::os::windows::process::CommandExt;
-use std::process::Command;
+use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
 use tauri::command;
+use windows::Win32::Foundation::*;
+use windows::Win32::Performance::DataHelper::*;
+use windows::Win32::Performance::Pdh::*;
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
@@ -16,6 +18,8 @@ pub struct SystemMonitor {
     gpu_name: String,
     _gpu_thread_handle: Option<thread::JoinHandle<()>>,
     _gpu_cancel: Arc<AtomicBool>,
+    pdh_query: Option<PDH_HQUERY>,
+    pdh_counter: Option<PDH_HCOUNTER>,
 }
 
 impl SystemMonitor {
@@ -26,49 +30,61 @@ impl SystemMonitor {
         let gpu_usage_clone = gpu_usage.clone();
         let gpu_cancel_clone = gpu_cancel.clone();
 
-        // Spawn background thread for GPU monitoring via typeperf (native Windows)
+        // Initialize PDH query for GPU monitoring
+        let pdh_query_result = initialize_pdh_query();
+        let pdh_query = pdh_query_result.ok();
+        let pdh_counter = if let Ok(query) = pdh_query_result {
+            create_gpu_counter(query).ok()
+        } else {
+            None
+        };
+
+        // Spawn background thread for GPU monitoring via PDH
         let gpu_thread = thread::spawn(move || {
-            loop {
-                if gpu_cancel_clone.load(Ordering::SeqCst) {
-                    break;
-                }
+            if let (Some(query), Some(counter)) = (pdh_query, pdh_counter) {
+                loop {
+                    if gpu_cancel_clone.load(Ordering::SeqCst) {
+                        break;
+                    }
 
-                {
-                    // Use typeperf to get GPU engine utilization - native Windows tool
-                    let output = Command::new("typeperf")
-                        .args([
-                            "-sc",
-                            "1",
-                            "\"\\GPU Engine(*engtype_3D)\\Utilization Percentage\"",
-                        ])
-                        .creation_flags(CREATE_NO_WINDOW)
-                        .output();
+                    // Collect query data
+                    unsafe {
+                        PdhCollectQueryData(query);
+                    }
 
-                    if let Ok(out) = output {
-                        let stdout = String::from_utf8_lossy(&out.stdout);
-                        // Parse output - typeperf returns CSV with value in last column
-                        let lines: Vec<&str> = stdout.lines().collect();
-                        if let Some(last_line) = lines.last() {
-                            let parts: Vec<&str> = last_line.split(',').collect();
-                            if let Some(value) = parts.last() {
-                                let trimmed = value.trim().trim_matches('"');
-                                if let Ok(usage) = trimmed.parse::<f32>() {
-                                    let clamped = usage.clamp(0.0, 100.0);
-                                    if let Ok(mut g) = gpu_usage_clone.lock() {
-                                        *g = clamped;
-                                    }
-                                }
-                            }
+                    // Get formatted counter value
+                    let mut value: PDH_FMT_COUNTERVALUE = std::mem::zeroed();
+                    let status = unsafe {
+                        PdhGetFormattedCounterValue(
+                            counter,
+                            PDH_FMT_DOUBLE,
+                            std::ptr::null_mut(),
+                            &mut value,
+                        )
+                    };
+
+                    if status == ERROR_SUCCESS {
+                        let usage = value.doubleValue;
+                        let clamped = usage.clamp(0.0, 100.0);
+                        if let Ok(mut g) = gpu_usage_clone.lock() {
+                            *g = clamped;
                         }
                     }
-                }
 
-                // Sleep in small increments to allow cancellation
-                for _ in 0..20 {
-                    if gpu_cancel_clone.load(Ordering::SeqCst) {
-                        return;
+                    // Sleep for 2 seconds (matching original interval)
+                    for _ in 0..20 {
+                        if gpu_cancel_clone.load(Ordering::SeqCst) {
+                            return;
+                        }
+                        thread::sleep(Duration::from_millis(100));
                     }
-                    thread::sleep(Duration::from_millis(100));
+                }
+                
+                // Cleanup PDH resources
+                if let Some(query) = pdh_query {
+                    unsafe {
+                        PdhCloseQuery(query);
+                    }
                 }
             }
         });
@@ -88,15 +104,17 @@ impl SystemMonitor {
             gpu_name,
             _gpu_thread_handle: Some(gpu_thread),
             _gpu_cancel: gpu_cancel,
+            pdh_query,
+            pdh_counter,
         }
-    }
-
-    pub fn refresh(&mut self) {
-        self.sys.refresh_cpu_all();
-        self.sys.refresh_memory();
-        self.disks.refresh(true);
-    }
-}
+     }
+ 
+      pub fn refresh(&mut self) {
+          self.sys.refresh_cpu_all();
+          self.sys.refresh_memory();
+          self.disks.refresh(true);
+      }
+ }
 
 impl Drop for SystemMonitor {
     fn drop(&mut self) {
@@ -104,8 +122,16 @@ impl Drop for SystemMonitor {
         if let Some(handle) = self._gpu_thread_handle.take() {
             let _ = handle.join();
         }
+        
+        // Cleanup PDH resources if they exist
+        if let Some(query) = self.pdh_query.take() {
+            unsafe {
+                PdhCloseQuery(query);
+            }
+        }
     }
 }
+
 
 use tauri::Manager;
 
@@ -233,3 +259,5 @@ pub async fn get_system_stats(app: tauri::AppHandle) -> Result<SystemStats, Stri
     stats.disks = get_disk_stats(app).await?;
     Ok(stats)
 }
+
+
