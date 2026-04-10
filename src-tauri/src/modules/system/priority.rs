@@ -7,45 +7,12 @@ use crate::modules::types::{
 };
 
 pub fn get_priority_tweaks() -> Vec<Tweak> {
+    // Note: Win32PrioritySeparation tweak consolidated to cpu/scheduling.rs (cpu_win32_priority)
+    // Keeping sys_priority_separation would create duplicate conflict on same registry key
+    // ============================================
+    // IRQ8 Priority (Real Time Clock)
+    // ============================================
     vec![
-        // ============================================
-        // Win32PrioritySeparation
-        // ============================================
-        Tweak {
-            id: "sys_priority_separation".to_string(),
-            category: TweakCategory::System,
-            name: "Optimize Process Scheduling".to_string(),
-            description: "Sets Win32PrioritySeparation to 26 (short quantum, foreground priority boost).
-
-This gives foreground applications (games) more responsive scheduling.
-Value 26 = Short quantum, variable, high foreground boost.
-Default Windows value is typically 2 (long quantum, no boost).".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: false,
-            tweak_type: TweakType::Toggle,
-            enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\PriorityControl".to_string(),
-                key: "Win32PrioritySeparation".to_string(),
-                expected_value: RegistryValue::DWord(26),
-            }),
-            revert_operations: Some(vec![TweakOperation::RegistrySet {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\PriorityControl".to_string(),
-                key: "Win32PrioritySeparation".to_string(),
-                value: RegistryValue::DWord(2), // Windows default
-            }]),
-            operations: vec![TweakOperation::RegistrySet {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\PriorityControl".to_string(),
-                key: "Win32PrioritySeparation".to_string(),
-                value: RegistryValue::DWord(26),
-            }],
-        },
-        // ============================================
-        // IRQ8 Priority (Real Time Clock)
-        // ============================================
         Tweak {
             id: "sys_irq8_priority".to_string(),
             category: TweakCategory::System,

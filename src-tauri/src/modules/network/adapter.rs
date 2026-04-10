@@ -183,10 +183,16 @@ pub fn get_adapter_tweaks() -> Vec<Tweak> {
                     value: "1".to_string(), // ClosestProcessor
                 },
             ],
-            revert_operations: Some(vec![TweakOperation::NetAdapterProperty {
-                property: "*RSSProfile".to_string(),
-                value: "4".to_string(), // NUMAStatic (previous default in this codebase)
-            }]),
+            revert_operations: Some(vec![
+                TweakOperation::NetAdapterProperty {
+                    property: "*RSS".to_string(),
+                    value: "0".to_string(), // Disable RSS on revert
+                },
+                TweakOperation::NetAdapterProperty {
+                    property: "*RSSProfile".to_string(),
+                    value: "4".to_string(), // NUMAStatic (previous default in this codebase)
+                },
+            ]),
         },
         // ── 5. Receive Segment Coalescing (RSC) ───────────────────────────
         // *RscIPv4 / *RscIPv6:  0 = Disabled, 1 = Enabled
@@ -233,7 +239,7 @@ pub fn get_adapter_tweaks() -> Vec<Tweak> {
             description: "Ensures Jumbo Packet is disabled (1514 bytes).".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            tweak_type: TweakType::Toggle,
+            tweak_type: TweakType::Action,
             enabled: false,
             check: Some(TweakCheck::NetAdapterProperty {
                 property: "*JumboPacket".to_string(),
@@ -243,10 +249,7 @@ pub fn get_adapter_tweaks() -> Vec<Tweak> {
                 property: "*JumboPacket".to_string(),
                 value: "1514".to_string(),
             }],
-            revert_operations: Some(vec![TweakOperation::NetAdapterProperty {
-                property: "*JumboPacket".to_string(),
-                value: "1514".to_string(), // 1514 is already the standard default
-            }]),
+            revert_operations: None,
         },
         // ── 7. TCP Chimney Offload ────────────────────────────────────────
         // Uses `netsh int tcp set global chimney=disabled`.
