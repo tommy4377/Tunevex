@@ -228,6 +228,8 @@ pub enum TweakCheck {
     MsiEnabledGlobally { priority: u32 },
     /// Check if MSI is enabled on all network adapters at the specified priority.
     MsiEnabledOnNet { priority: u32 },
+    /// Returns true if all specified scheduled tasks are disabled
+    MultiScheduledTaskDisabled { names: Vec<String> },
     /// Check if a registry value exists on ALL network interfaces with the expected value.
     /// Returns true only when ALL interfaces have the value.
     NetworkInterfacesCheck {

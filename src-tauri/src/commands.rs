@@ -37,28 +37,65 @@ const ALLOWED_WRITE_ROOTS: &[&str] = &[
     r"C:\Program Files (x86)",
 ];
 
-fn safe_path(raw: &str) -> Result<std::path::PathBuf, String> {
-    // Expand environment variables first
-    let expanded = raw
-        .replace("%APPDATA%", &std::env::var("APPDATA").unwrap_or_default())
+fn expand_env_vars(raw: &str) -> String {
+    raw.replace("%APPDATA%", &std::env::var("APPDATA").unwrap_or_default())
         .replace("%LOCALAPPDATA%", &std::env::var("LOCALAPPDATA").unwrap_or_default())
         .replace("%ProgramData%", &std::env::var("ProgramData").unwrap_or_default())
         .replace("%ProgramFiles%", &std::env::var("ProgramFiles").unwrap_or_default())
         .replace("%UserProfile%", &std::env::var("USERPROFILE").unwrap_or_default())
-        .replace("%Home%", &std::env::var("USERPROFILE").unwrap_or_default());
+        .replace("%Home%", &std::env::var("USERPROFILE").unwrap_or_default())
+}
 
-    let p = std::path::PathBuf::from(&expanded);
-    // canonicalize resolves ".." and symlinks
-    let canonical = p.canonicalize()
-        .map_err(|e| format!("Invalid or non-existent path '{}': {}", raw, e))?;
-    let canonical_str = canonical.to_string_lossy().to_lowercase();
-    if !ALLOWED_WRITE_ROOTS.iter().any(|r| canonical_str.starts_with(&r.to_lowercase())) {
-        return Err(format!(
-            "Path '{}' is outside allowed directories. Allowed: {:?}",
-            raw, ALLOWED_WRITE_ROOTS
-        ));
+fn is_under_allowed_root(p: &std::path::Path) -> bool {
+    let s = p.to_string_lossy().to_lowercase();
+    ALLOWED_WRITE_ROOTS.iter().any(|r| s.starts_with(&r.to_lowercase()))
+}
+
+// For SOURCE paths that MUST already exist (Delete, Copy/Move src)
+fn safe_path_existing(raw: &str) -> Result<std::path::PathBuf, String> {
+    let expanded = expand_env_vars(raw);
+    let canonical = std::path::Path::new(&expanded)
+        .canonicalize()
+        .map_err(|e| format!("Path not found '{}': {}", raw, e))?;
+    if !is_under_allowed_root(&canonical) {
+        return Err(format!("Path '{}' is outside allowed directories.", raw));
     }
     Ok(canonical)
+}
+
+// For DESTINATION paths that may NOT exist yet (Write, Copy/Move dest)
+fn safe_path_new(raw: &str) -> Result<std::path::PathBuf, String> {
+    let expanded = expand_env_vars(raw);
+    let p = std::path::PathBuf::from(&expanded);
+    // Walk up until we find an existing ancestor, canonicalize only that
+    let mut existing = p.clone();
+    let mut suffix = std::path::PathBuf::new();
+    loop {
+        if existing.exists() {
+            break;
+        }
+        match existing.parent() {
+            Some(parent) => {
+                if let Some(component) = existing.file_name() {
+                    suffix = std::path::PathBuf::from(component).join(&suffix);
+                }
+                existing = parent.to_path_buf();
+            }
+            None => break,
+        }
+    }
+    let base = if existing.exists() {
+        existing
+            .canonicalize()
+            .map_err(|e| format!("Cannot resolve base path for '{}': {}", raw, e))?
+    } else {
+        existing
+    };
+    let full = base.join(suffix);
+    if !is_under_allowed_root(&full) {
+        return Err(format!("Destination '{}' is outside allowed directories.", raw));
+    }
+    Ok(full)
 }
 
 // ─── Tcpip interface registry path ─────────────────────────────────────────
@@ -376,9 +413,14 @@ fn control_defender_services(services: &[String], action: &str) -> Result<(), St
 /// contains the given substring.  Used for bcdedit /enum and powercfg /q checks
 /// without spawning PowerShell.
 fn check_command_output_contains(cmd: &str, args: &[String], contains: &str) -> bool {
+    // BUG-H2 fix: apply the same whitelist used in apply_tweak/undo_tweak
+    if validate_command(cmd).is_err() {
+        eprintln!("[check] Blocked non-whitelisted command: '{}'", cmd);
+        return false; // fail-safe: treat as "not applied"
+    }
     let output = Command::new(cmd)
         .args(args)
-        .creation_flags(0x08000000) // CREATE_NO_WINDOW
+        .creation_flags(0x08000000)
         .output();
     match output {
         Ok(out) => {
@@ -656,6 +698,21 @@ fn check_tweak_enabled(check: &TweakCheck) -> bool {
             key,
             expected_value,
         } => check_registry_value(root_key, path, key, expected_value),
+        TweakCheck::MultiScheduledTaskDisabled { names } => {
+    names.iter().all(|name| {
+        let output = Command::new("schtasks")
+            .args(["/Query", "/TN", name, "/V", "/FO", "LIST"])
+            .creation_flags(0x08000000)
+            .output()
+            .unwrap_or_else(|_| std::process::Output {
+                status: std::os::windows::process::ExitStatusExt::from_raw(1),
+                stdout: vec![],
+                stderr: vec![],
+            });
+        let s = String::from_utf8_lossy(&output.stdout).to_string();
+        s.contains("Disabled") || s.contains("Disabilitato")
+    })
+},
         TweakCheck::Powershell {
             script,
             expected_output,
@@ -795,16 +852,34 @@ fn check_registry_value(
 
 /// Check if PowerShell script output matches expected value
 fn check_powershell_output(script: &str, expected_output: &str) -> bool {
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script])
-        .creation_flags(0x08000000) // CREATE_NO_WINDOW
-        .output();
-
-    match output {
+    use std::io::Write;
+    use std::process::Stdio;
+    // BUG-H3 fix: RemoteSigned + script via stdin (same as apply/undo paths)
+    let mut child = match Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "RemoteSigned",
+            "-Command",
+            "-",
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .creation_flags(0x08000000)
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+    if let Some(mut stdin) = child.stdin.take() {
+        let _ = writeln!(stdin, "{}", script);
+    }
+    match child.wait_with_output() {
         Ok(out) => {
             let stdout = String::from_utf8_lossy(&out.stdout).trim().to_lowercase();
-            let expected = expected_output.trim().to_lowercase();
-            stdout == expected
+            stdout == expected_output.trim().to_lowercase()
         }
         Err(_) => false,
     }
@@ -888,19 +963,26 @@ pub async fn get_tweaks(ctx: State<'_, Mutex<TweakContext>>, state: State<'_, Mu
 /// Fast version - returns tweaks immediately without running any checks
 /// Used for instant UI loading
 #[tauri::command]
-pub async fn get_tweaks_fast(ctx: State<'_, Mutex<TweakContext>>, state: State<'_, Mutex<AppState>>) -> Result<Vec<Tweak>, String> {
-    let context = ctx.lock().map_err(|e| e.to_string())?;
-    let app_state = state.lock().map_err(|e| e.to_string())?;
-    
-    // Return tweaks with state from app_state (no live checks)
-    Ok(context
-        .tweaks
-        .iter()
-        .map(|t| {
-            let mut tweak = t.clone();
-            // Use cached state only, don't run any checks
-            tweak.enabled = app_state.applied_tweaks.contains(&tweak.id);
-            tweak
+pub async fn get_tweaks_fast(
+    ctx: State<'_, Mutex<TweakContext>>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<Vec<Tweak>, String> {
+    // BUG-M1 fix: acquire, clone, drop each lock before acquiring the next
+    let tweaks = {
+        let context = ctx.lock().map_err(|e| e.to_string())?;
+        context.tweaks.clone()
+    }; // ctx guard dropped here
+
+    let applied = {
+        let app_state = state.lock().map_err(|e| e.to_string())?;
+        app_state.applied_tweaks.clone()
+    }; // state guard dropped here
+
+    Ok(tweaks
+        .into_iter()
+        .map(|mut t| {
+            t.enabled = applied.contains(&t.id);
+            t
         })
         .collect())
 }
@@ -1244,7 +1326,7 @@ pub async fn apply_tweak(
                     match file_op {
                         FileOp::Delete { path } => {
                             println!("  -> FileOp Delete: {}", path);
-                            let safe = safe_path(&path)?;
+                            let safe = safe_path_existing(&path)?;
                             if safe.is_dir() {
                                 fs::remove_dir_all(&safe)
                                     .map_err(|e| format!("Failed to delete directory {}: {}", path, e))?;
@@ -1255,8 +1337,8 @@ pub async fn apply_tweak(
                         }
                         FileOp::Copy { src, dest } => {
                             println!("  -> FileOp Copy: {} -> {}", src, dest);
-                            let safe_src = safe_path(&src)?;
-                            let safe_dest = safe_path(&dest)?;
+                            let safe_src = safe_path_existing(&src)?;
+                            let safe_dest = safe_path_new(&dest)?;
                             if let Some(parent) = safe_dest.parent() {
                                 fs::create_dir_all(parent)
                                     .map_err(|e| format!("Failed to create dest dir: {}", e))?;
@@ -1266,8 +1348,8 @@ pub async fn apply_tweak(
                         }
                         FileOp::Move { src, dest } => {
                             println!("  -> FileOp Move: {} -> {}", src, dest);
-                            let safe_src = safe_path(&src)?;
-                            let safe_dest = safe_path(&dest)?;
+                            let safe_src = safe_path_existing(&src)?;
+                            let safe_dest = safe_path_new(&dest)?;
                             if let Some(parent) = safe_dest.parent() {
                                 fs::create_dir_all(parent)
                                     .map_err(|e| format!("Failed to create dest dir: {}", e))?;
@@ -1277,7 +1359,7 @@ pub async fn apply_tweak(
                         }
                         FileOp::Write { path, content } => {
                             println!("  -> FileOp Write: {}", path);
-                            let safe = safe_path(&path)?;
+                            let safe = safe_path_new(&path)?;
                             if let Some(parent) = safe.parent() {
                                 fs::create_dir_all(parent)
                                     .map_err(|e| format!("Failed to create parent dir: {}", e))?;
@@ -1400,23 +1482,25 @@ pub fn kill_tweak_process(
     id: String,
     proc_mgr: State<Mutex<crate::modules::utils::process_manager::ProcessManager>>,
 ) -> Result<(), String> {
-    
-    // We need to look up the PID
     let pid = {
         let mgr = proc_mgr.lock().map_err(|e| e.to_string())?;
         mgr.get_pid(&id)
     };
-
     if let Some(pid) = pid {
-        println!("[PROCESS KILL] Killing process PID {} for tweak {}", pid, id);
-        let _ = Command::new("taskkill")
-            .args(&["/F", "/PID", &pid.to_string(), "/T"])
+        println!("[PROCESS KILL] Killing PID {} for tweak: {}", pid, id);
+        // BUG-M2 fix: propagate taskkill errors instead of silently ignoring
+        let output = Command::new("taskkill")
+            .args(["/F", "/PID", &pid.to_string(), "/T"])
             .creation_flags(0x08000000)
-            .output();
+            .output()
+            .map_err(|e| format!("taskkill spawn failed: {}", e))?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!("taskkill failed (PID {}): {}", pid, stderr.trim()));
+        }
     } else {
-        println!("[PROCESS KILL] No active PID found for tweak {}", id);
+        println!("[PROCESS KILL] No active PID found for tweak: {}", id);
     }
-    
     Ok(())
 }
 
@@ -1684,12 +1768,14 @@ pub async fn undo_tweak(
                             eprintln!("Warning: Revert MsiRemoveNet failed: {}", e);
                         }
                     }
-                TweakOperation::NetworkInterfacesSet { key, value: _ } => {
-                        println!("  -> Revert NetworkInterfacesSet: key={}", key);
-                        if let Ok(op) = serde_json::from_str::<TweakOperation>(&format!(r#"{{"NetworkInterfacesDelete":{{"key":"{}"}}}}"#, key)) {
-                            let _ = crate::modules::registry::operations::apply_network_interface_tweak(&op);
-                        }
-                    }
+                    TweakOperation::NetworkInterfacesSet { key, value: _ } => {
+                         println!("  -> Revert NetworkInterfacesSet: key={}", key);
+                         // BUG-H4 fix: construct enum variant directly — no JSON string injection
+                         let revert_op = TweakOperation::NetworkInterfacesDelete { key: key.clone() };
+                         if let Err(e) = crate::modules::registry::operations::apply_network_interface_tweak(&revert_op) {
+                             eprintln!("Warning: Revert NetworkInterfacesSet failed: {}", e);
+                         }
+                     }
                     TweakOperation::NetworkInterfacesDelete { key: _ } => {
                         println!("  -> Revert NetworkInterfacesDelete: cannot restore, skipping");
                     }
