@@ -182,5 +182,64 @@ May slightly increase CPU usage but improves audio/video smoothness.".to_string(
                 value: RegistryValue::DWord(1),
             }],
         },
+
+        // ============================================
+        // GPU MMCSS Priority Boost
+        // ============================================
+        Tweak {
+            id: "sys_gpu_mmcss_priority".to_string(),
+            category: TweakCategory::System,
+            name: "Boost GPU in MMCSS".to_string(),
+            description: "Registers GPU scheduling task in MMCSS to ensure the scheduler gives it the same priority boost as audio/game threads.
+
+Adds GPU Priority 8 to DisplayPostProcessing task for better GPU scheduling."
+                .to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle, enabled: false,
+            revert_operations: Some(vec![
+                TweakOperation::RegistryDelete {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\DisplayPostProcessing".to_string(),
+                    key: "GPU Priority".to_string(),
+                },
+                TweakOperation::RegistryDelete {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\DisplayPostProcessing".to_string(),
+                    key: "Priority".to_string(),
+                },
+                TweakOperation::RegistryDelete {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\DisplayPostProcessing".to_string(),
+                    key: "Scheduling Category".to_string(),
+                },
+            ]),
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\DisplayPostProcessing".to_string(),
+                key: "GPU Priority".to_string(),
+                expected_value: RegistryValue::DWord(8),
+            }),
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\DisplayPostProcessing".to_string(),
+                    key: "GPU Priority".to_string(),
+                    value: RegistryValue::DWord(8),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\DisplayPostProcessing".to_string(),
+                    key: "Priority".to_string(),
+                    value: RegistryValue::DWord(8),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\DisplayPostProcessing".to_string(),
+                    key: "Scheduling Category".to_string(),
+                    value: RegistryValue::String("High".to_string()),
+                },
+            ],
+        },
     ]
 }
