@@ -322,53 +322,6 @@ if (($panel.ShowStartupPanel -eq 0) -and ($capture.AppCaptureEnabled -eq 0)) { "
         },
 
         // ============================================
-        // NEW: Network Throttling Disable
-        // ============================================
-        Tweak {
-            id: "gaming_disable_network_throttling".to_string(),
-            category: TweakCategory::GameOptimizations,
-            name: "Disable Network Throttling".to_string(),
-            description: "Disables network throttling and maximizes foreground priority. Reduces online gaming latency.".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: false,
-            tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                key: "NetworkThrottlingIndex".to_string(),
-                expected_value: RegistryValue::DWord(0xFFFFFFFF),
-            }),
-            revert_operations: Some(vec![
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                    key: "NetworkThrottlingIndex".to_string(),
-                    value: RegistryValue::DWord(10),
-                },
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                    key: "SystemResponsiveness".to_string(),
-                    value: RegistryValue::DWord(20),
-                },
-            ]),
-            operations: vec![
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                    key: "NetworkThrottlingIndex".to_string(),
-                    value: RegistryValue::DWord(0xFFFFFFFF), // Disable throttling completely
-                },
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                    key: "SystemResponsiveness".to_string(),
-                    value: RegistryValue::DWord(0), // 100% to foreground apps
-                },
-            ],
-        },
-
-        // ============================================
         // Visual Effects Disable (B.20)
         // ============================================
         Tweak {

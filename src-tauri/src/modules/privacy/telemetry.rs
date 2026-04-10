@@ -274,31 +274,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
             ]
         },
 
-        // Disable NVIDIA Telemetry
-        Tweak {
-            id: "priv_disable_nvidia_telemetry".to_string(),
-            category: TweakCategory::Privacy,
-            name: "Disable NVIDIA Telemetry".to_string(),
-            description: "Disables NVIDIA Telemetry Container service and scheduled tasks (NvTmMon, NvTmRep).".to_string(),
-            warning_level: WarningLevel::Careful,
-            requires_restart: false,
-            revert_operations: Some(vec![
-                TweakOperation::ServiceSetMode { name: "NvTelemetryContainer".to_string(), mode: "Auto".to_string() },
-                TweakOperation::Command { cmd: "sc".to_string(), args: vec!["start".to_string(), "NvTelemetryContainer".to_string()] },
-                TweakOperation::ScheduledTaskEnable { path: "\\".to_string(), name: "NvTmMon".to_string() },
-                TweakOperation::ScheduledTaskEnable { path: "\\".to_string(), name: "NvTmRep".to_string() }
-            ]),
-            tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::ServiceDisabled { name: "NvTelemetryContainer".to_string() }),
-            operations: vec![
-                TweakOperation::ServiceDisable { name: "NvTelemetryContainer".to_string() },
-                TweakOperation::ScheduledTaskDisable { path: "\\".to_string(), name: "NvTmMon".to_string() },
-                TweakOperation::ScheduledTaskDisable { path: "\\".to_string(), name: "NvTmRep".to_string() },
-                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\NVIDIA Corporation\\NvControlPanel2\\Client".to_string(), key: "OptInOrOutPreference".to_string(), value: RegistryValue::DWord(0) },
-                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\NVIDIA Corporation\\Global\\FTS".to_string(), key: "EnableRID44231".to_string(), value: RegistryValue::DWord(0) },
-                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\NVIDIA Corporation\\Global\\FTS".to_string(), key: "EnableRID64640".to_string(), value: RegistryValue::DWord(0) },
-                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\NVIDIA Corporation\\Global\\FTS".to_string(), key: "EnableRID66610".to_string(), value: RegistryValue::DWord(0) }
-            ]
-        },
+        // Note: NVIDIA Telemetry is consolidated in priv_nvidia_telemetry (privacy/apps.rs)
+        // Keeping only that one to avoid duplicate conflicts
     ]
 }

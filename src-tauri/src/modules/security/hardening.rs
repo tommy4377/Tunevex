@@ -57,18 +57,32 @@ pub fn get_hardening_tweaks() -> Vec<Tweak> {
                 key: "fAllowToGetHelp".to_string(),
                 expected_value: RegistryValue::DWord(0),
             }),
-            revert_operations: Some(vec![TweakOperation::Command {
-                cmd: "netsh".to_string(),
-                args: vec![
-                    "advfirewall".to_string(),
-                    "firewall".to_string(),
-                    "set".to_string(),
-                    "rule".to_string(),
-                    "group=Remote Assistance".to_string(),
-                    "new".to_string(),
-                    "enable=yes".to_string(),
-                ],
-            }]),
+            revert_operations: Some(vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\Remote Assistance".to_string(),
+                    key: "fAllowFullControl".to_string(),
+                    value: RegistryValue::DWord(1),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\Remote Assistance".to_string(),
+                    key: "fAllowToGetHelp".to_string(),
+                    value: RegistryValue::DWord(1),
+                },
+                TweakOperation::Command {
+                    cmd: "netsh".to_string(),
+                    args: vec![
+                        "advfirewall".to_string(),
+                        "firewall".to_string(),
+                        "set".to_string(),
+                        "rule".to_string(),
+                        "group=Remote Assistance".to_string(),
+                        "new".to_string(),
+                        "enable=yes".to_string(),
+                    ],
+                },
+            ]),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
