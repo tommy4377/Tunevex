@@ -106,32 +106,8 @@ pub fn get_scheduling_tweaks() -> Vec<Tweak> {
                 },
             ],
         },
-        Tweak {
-            id: "gpu_disable_nvidia_telemetry".to_string(),
-            category: TweakCategory::GpuOptimization,
-            name: "Disable NVIDIA Telemetry".to_string(),
-            description: "Stops and disables NVIDIA telemetry services. Reduces background CPU usage and network traffic.".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: false,
-            tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::ServiceDisabled {
-                name: "NvTelemetryContainer".to_string(),
-            }),
-            revert_operations: Some(vec![
-                TweakOperation::ServiceSetMode { name: "NvTelemetryContainer".to_string(), mode: "auto".to_string() },
-                TweakOperation::ScheduledTaskEnable { path: "\\Microsoft\\NVIDIA".to_string(), name: "NvTmMon".to_string() },
-            ]),
-            operations: vec![
-                TweakOperation::ServiceDisable { name: "NvTelemetryContainer".to_string() },
-                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\NVIDIA".to_string(), name: "NvTmMon".to_string() },
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SOFTWARE\\NVIDIA Corporation\\NvControlPanel2\\Client".to_string(),
-                    key: "OptInOrOutPreference".to_string(),
-                    value: RegistryValue::DWord(0),
-                },
-            ],
-        },
+        // Note: NVIDIA Telemetry is consolidated in priv_nvidia_telemetry (privacy/apps.rs)
+        // Keeping this module focused on GPU-specific optimizations
         Tweak {
             id: "gpu_disable_preemption".to_string(),
             category: TweakCategory::GpuOptimization,

@@ -133,7 +133,7 @@ Default is 20% reserved for background. Setting to 0 gives games more CPU time.
 Note: May slightly affect background task performance.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            tweak_type: TweakType::Toggle,
+            tweak_type: TweakType::Action,
             enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
@@ -141,12 +141,7 @@ Note: May slightly affect background task performance.".to_string(),
                 key: "SystemResponsiveness".to_string(),
                 expected_value: RegistryValue::DWord(0),
             }),
-            revert_operations: Some(vec![TweakOperation::RegistrySet {
-                root_key: "HKLM".to_string(),
-                path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                key: "SystemResponsiveness".to_string(),
-                value: RegistryValue::DWord(20), // Windows default
-            }]),
+            revert_operations: None,
             operations: vec![TweakOperation::RegistrySet {
                 root_key: "HKLM".to_string(),
                 path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
