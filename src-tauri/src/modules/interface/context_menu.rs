@@ -53,8 +53,16 @@ pub fn get_context_menu_tweaks() -> Vec<Tweak> {
                 expected_value: RegistryValue::String("Take Ownership".to_string()),
             }),
             revert_operations: Some(vec![
-                TweakOperation::RegistryDelete { root_key: "HKCR".to_string(), path: r"*\shell\TakeOwnership".to_string(), key: "".to_string() },
-                TweakOperation::RegistryDelete { root_key: "HKCR".to_string(), path: r"Directory\shell\TakeOwnership".to_string(), key: "".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKCR".to_string(), path: r"*\shell\TakeOwnership\command".to_string(), key: "".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKCR".to_string(), path: r"*\shell\TakeOwnership".to_string(), key: "Icon".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKCR".to_string(), path: r"*\shell\TakeOwnership".to_string(), key: "MUIVerb".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKCR".to_string(), path: r"*\shell\TakeOwnership".to_string(), key: "HasLUAShield".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKCR".to_string(), path: r"*\shell\TakeOwnership".to_string(), key: "IsolatedCommand".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKCR".to_string(), path: r"Directory\shell\TakeOwnership\command".to_string(), key: "".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKCR".to_string(), path: r"Directory\shell\TakeOwnership".to_string(), key: "Icon".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKCR".to_string(), path: r"Directory\shell\TakeOwnership".to_string(), key: "MUIVerb".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKCR".to_string(), path: r"Directory\shell\TakeOwnership".to_string(), key: "HasLUAShield".to_string() },
+                TweakOperation::RegistryDelete { root_key: "HKCR".to_string(), path: r"Directory\shell\TakeOwnership".to_string(), key: "IsolatedCommand".to_string() },
             ]),
             operations: vec![
                 // File Context Menu

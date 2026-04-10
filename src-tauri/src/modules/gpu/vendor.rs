@@ -144,7 +144,21 @@ Profiles will be automatically recreated."
                     cmd: "cmd".to_string(),
                     args: vec![
                         "/C".to_string(),
-                        "rmdir /S /Q \"%LOCALAPPDATA%\\NVIDIA\" 2>nul".to_string(),
+                        "rmdir /S /Q \"%LOCALAPPDATA%\\NVIDIA\\DXCache\" 2>nul".to_string(),
+                    ],
+                },
+                TweakOperation::Command {
+                    cmd: "cmd".to_string(),
+                    args: vec![
+                        "/C".to_string(),
+                        "rmdir /S /Q \"%LOCALAPPDATA%\\NVIDIA\\GLCache\" 2>nul".to_string(),
+                    ],
+                },
+                TweakOperation::Command {
+                    cmd: "cmd".to_string(),
+                    args: vec![
+                        "/C".to_string(),
+                        "rmdir /S /Q \"%LOCALAPPDATA%\\NVIDIA\\ShaderCache\" 2>nul".to_string(),
                     ],
                 },
             ],
