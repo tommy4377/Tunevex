@@ -460,6 +460,21 @@
       ]
     },
     {
+      "type": "entity",
+      "name": "NEW-TWEAKS",
+      "entityType": "feature",
+      "observations": [
+        "NEW-03: Added mem_fixed_pagefile (fixed 4GB page file)",
+        "NEW-05: Added sec_disable_auto_driver_update (ExcludeWUDriversInQualityUpdate)",
+        "NEW-06: Added cpu_dpc_latency (DisableWakeupReasonForDPCLatency)",
+        "NEW-07: Added gpu_shader_cache_size (MaxFolderSizeGB 50)",
+        "NEW-08: Added gaming_disable_gameinput (GameInputSvc)",
+        "NEW-09: Added sys_gpu_mmcss_priority (DisplayPostProcessing GPU Priority)",
+        "NEW-11: Added interface_disable_ink (PenWorkspaceButtonDesiredVisibility)",
+        "All cargo check passed"
+      ]
+    },
+    {
       "type": "relation",
       "from": "AllBugFixes",
       "to": "TommyTweaker",
