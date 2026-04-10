@@ -621,7 +621,7 @@ pub fn get_power_tweaks() -> Vec<Tweak> {
                 // Restore IdlePowerMode (delete to return to default)
                 TweakOperation::RegistryDelete {
                     root_key: "HKLM".to_string(),
-                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Services\\stornvme\\Parameters\\Device".to_string(),
                     key: "IdlePowerMode".to_string(),
                 },
             ]),
