@@ -1023,8 +1023,9 @@ pub async fn apply_tweak(
                     {
                         use tauri::Manager;
                         if let Some(state) = app_handle.try_state::<Mutex<crate::modules::utils::process_manager::ProcessManager>>() {
-                             let mut mgr = state.lock().unwrap();
-                             mgr.register(id_clone.clone(), pid);
+                             if let Ok(mut mgr) = state.lock() {
+                                 mgr.register(id_clone.clone(), pid);
+                             }
                         }
                     }
 
@@ -1056,8 +1057,9 @@ pub async fn apply_tweak(
                     {
                         use tauri::Manager;
                         if let Some(state) = app_handle.try_state::<Mutex<crate::modules::utils::process_manager::ProcessManager>>() {
-                             let mut mgr = state.lock().unwrap();
-                             mgr.unregister(&id_clone);
+                             if let Ok(mut mgr) = state.lock() {
+                                 mgr.unregister(&id_clone);
+                             }
                         }
                     }
 
