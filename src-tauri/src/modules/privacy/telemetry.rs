@@ -130,11 +130,6 @@ pub fn get_tweaks() -> Vec<Tweak> {
                     key: "CEIPEnable".to_string(),
                     value: RegistryValue::DWord(1),
                 },
-                TweakOperation::RegistryDelete {
-                    root_key: "HKLM".to_string(),
-                    path: "SOFTWARE\\Microsoft\\SQMClient\\Windows".to_string(),
-                    key: "CEIPEnable".to_string(),
-                },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
@@ -279,39 +274,6 @@ pub fn get_tweaks() -> Vec<Tweak> {
             ]
         },
 
-        // Disable Scheduled Telemetry Tasks
-        Tweak {
-            id: "priv_disable_telemetry_tasks".to_string(),
-            category: TweakCategory::Privacy,
-            name: "Disable Telemetry Scheduled Tasks".to_string(),
-            description: "Disables Microsoft Compatibility Appraiser, ProgramDataUpdater, and other telemetry tasks.".to_string(),
-            warning_level: WarningLevel::Careful,
-            requires_restart: false,
-            revert_operations: Some(vec![
-                TweakOperation::Command { cmd: "schtasks".to_string(), args: vec!["/Change".to_string(), "/TN".to_string(), "\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser".to_string(), "/ENABLE".to_string()] },
-                TweakOperation::Command { cmd: "schtasks".to_string(), args: vec!["/Change".to_string(), "/TN".to_string(), "\\Microsoft\\Windows\\Application Experience\\ProgramDataUpdater".to_string(), "/ENABLE".to_string()] },
-                TweakOperation::Command { cmd: "schtasks".to_string(), args: vec!["/Change".to_string(), "/TN".to_string(), "\\Microsoft\\Windows\\Autochk\\Proxy".to_string(), "/ENABLE".to_string()] },
-                TweakOperation::Command { cmd: "schtasks".to_string(), args: vec!["/Change".to_string(), "/TN".to_string(), "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Consolidator".to_string(), "/ENABLE".to_string()] },
-                TweakOperation::Command { cmd: "schtasks".to_string(), args: vec!["/Change".to_string(), "/TN".to_string(), "\\Microsoft\\Windows\\Customer Experience Improvement Program\\UsbCeip".to_string(), "/ENABLE".to_string()] },
-                TweakOperation::Command { cmd: "schtasks".to_string(), args: vec!["/Change".to_string(), "/TN".to_string(), "\\Microsoft\\Windows\\DiskDiagnostic\\Microsoft-Windows-DiskDiagnosticDataCollector".to_string(), "/ENABLE".to_string()] },
-                TweakOperation::Command { cmd: "schtasks".to_string(), args: vec!["/Change".to_string(), "/TN".to_string(), "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClient".to_string(), "/ENABLE".to_string()] },
-                TweakOperation::Command { cmd: "schtasks".to_string(), args: vec!["/Change".to_string(), "/TN".to_string(), "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClientOnScenarioDownload".to_string(), "/ENABLE".to_string()] },
-                TweakOperation::Command { cmd: "schtasks".to_string(), args: vec!["/Change".to_string(), "/TN".to_string(), "\\Microsoft\\Windows\\PI\\Sqm-Tasks".to_string(), "/ENABLE".to_string()] },
-            ]),
-            tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::ScheduledTaskDisabled { name: "\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser".to_string() }),
-            operations: vec![
-                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\Application Experience".to_string(), name: "Microsoft Compatibility Appraiser".to_string() },
-                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\Application Experience".to_string(), name: "ProgramDataUpdater".to_string() },
-                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\Autochk".to_string(), name: "Proxy".to_string() },
-                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\Customer Experience Improvement Program".to_string(), name: "Consolidator".to_string() },
-                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\Customer Experience Improvement Program".to_string(), name: "UsbCeip".to_string() },
-                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\DiskDiagnostic".to_string(), name: "Microsoft-Windows-DiskDiagnosticDataCollector".to_string() },
-                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\Feedback\\Siuf".to_string(), name: "DmClient".to_string() },
-                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\Feedback\\Siuf".to_string(), name: "DmClientOnScenarioDownload".to_string() },
-                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\PI".to_string(), name: "Sqm-Tasks".to_string() }
-            ]
-        },
         // Disable NVIDIA Telemetry
         Tweak {
             id: "priv_disable_nvidia_telemetry".to_string(),

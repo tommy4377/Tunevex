@@ -12,21 +12,58 @@ pub fn get_task_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::ScheduledTaskEnable { path: "\\Microsoft\\Windows\\Application Experience".to_string(), name: "Microsoft Compatibility Appraiser".to_string() },
-                TweakOperation::ScheduledTaskEnable { path: "\\Microsoft\\Windows\\Application Experience".to_string(), name: "PcaPatchDbTask".to_string() },
-                TweakOperation::ScheduledTaskEnable { path: "\\Microsoft\\Windows\\Application Experience".to_string(), name: "ProgramDataUpdater".to_string() },
-                TweakOperation::ScheduledTaskEnable { path: "\\Microsoft\\Windows\\Customer Experience Improvement Program".to_string(), name: "Consolidator".to_string() },
-                TweakOperation::ScheduledTaskEnable { path: "\\Microsoft\\Windows\\Customer Experience Improvement Program".to_string(), name: "UsbCeip".to_string() },
+                TweakOperation::ScheduledTaskEnable {
+                    path: "\\Microsoft\\Windows\\Application Experience".to_string(),
+                    name: "Microsoft Compatibility Appraiser".to_string(),
+                },
+                TweakOperation::ScheduledTaskEnable {
+                    path: "\\Microsoft\\Windows\\Application Experience".to_string(),
+                    name: "PcaPatchDbTask".to_string(),
+                },
+                TweakOperation::ScheduledTaskEnable {
+                    path: "\\Microsoft\\Windows\\Application Experience".to_string(),
+                    name: "ProgramDataUpdater".to_string(),
+                },
+                TweakOperation::ScheduledTaskEnable {
+                    path: "\\Microsoft\\Windows\\Customer Experience Improvement Program"
+                        .to_string(),
+                    name: "Consolidator".to_string(),
+                },
+                TweakOperation::ScheduledTaskEnable {
+                    path: "\\Microsoft\\Windows\\Customer Experience Improvement Program"
+                        .to_string(),
+                    name: "UsbCeip".to_string(),
+                },
             ]),
-            tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::ScheduledTaskDisabled { name: "\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser".to_string() }),
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::ScheduledTaskDisabled {
+                name: "Microsoft Compatibility Appraiser".to_string(),
+            }),
             operations: vec![
-                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\Application Experience".to_string(), name: "Microsoft Compatibility Appraiser".to_string() },
-                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\Application Experience".to_string(), name: "PcaPatchDbTask".to_string() },
-                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\Application Experience".to_string(), name: "ProgramDataUpdater".to_string() },
-                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\Customer Experience Improvement Program".to_string(), name: "Consolidator".to_string() },
-                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\Customer Experience Improvement Program".to_string(), name: "UsbCeip".to_string() },
-            ]
+                TweakOperation::ScheduledTaskDisable {
+                    path: "\\Microsoft\\Windows\\Application Experience".to_string(),
+                    name: "Microsoft Compatibility Appraiser".to_string(),
+                },
+                TweakOperation::ScheduledTaskDisable {
+                    path: "\\Microsoft\\Windows\\Application Experience".to_string(),
+                    name: "PcaPatchDbTask".to_string(),
+                },
+                TweakOperation::ScheduledTaskDisable {
+                    path: "\\Microsoft\\Windows\\Application Experience".to_string(),
+                    name: "ProgramDataUpdater".to_string(),
+                },
+                TweakOperation::ScheduledTaskDisable {
+                    path: "\\Microsoft\\Windows\\Customer Experience Improvement Program"
+                        .to_string(),
+                    name: "Consolidator".to_string(),
+                },
+                TweakOperation::ScheduledTaskDisable {
+                    path: "\\Microsoft\\Windows\\Customer Experience Improvement Program"
+                        .to_string(),
+                    name: "UsbCeip".to_string(),
+                },
+            ],
         },
         Tweak {
             id: "privacy_disable_input_sync_tasks".to_string(),
@@ -36,15 +73,30 @@ pub fn get_task_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             revert_operations: Some(vec![
-                TweakOperation::ScheduledTaskEnable { path: "\\Microsoft\\Windows\\Input".to_string(), name: "LocalUserSyncDataAvailable".to_string() },
-                TweakOperation::ScheduledTaskEnable { path: "\\Microsoft\\Windows\\Input".to_string(), name: "MouseSyncDataAvailable".to_string() },
+                TweakOperation::ScheduledTaskEnable {
+                    path: "\\Microsoft\\Windows\\Input".to_string(),
+                    name: "LocalUserSyncDataAvailable".to_string(),
+                },
+                TweakOperation::ScheduledTaskEnable {
+                    path: "\\Microsoft\\Windows\\Input".to_string(),
+                    name: "MouseSyncDataAvailable".to_string(),
+                },
             ]),
-            tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::ScheduledTaskDisabled { name: "\\Microsoft\\Windows\\Input\\LocalUserSyncDataAvailable".to_string() }),
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::ScheduledTaskDisabled {
+                name: "LocalUserSyncDataAvailable".to_string(),
+            }),
             operations: vec![
-                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\Input".to_string(), name: "LocalUserSyncDataAvailable".to_string() },
-                TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\Input".to_string(), name: "MouseSyncDataAvailable".to_string() },
-            ]
-        }
+                TweakOperation::ScheduledTaskDisable {
+                    path: "\\Microsoft\\Windows\\Input".to_string(),
+                    name: "LocalUserSyncDataAvailable".to_string(),
+                },
+                TweakOperation::ScheduledTaskDisable {
+                    path: "\\Microsoft\\Windows\\Input".to_string(),
+                    name: "MouseSyncDataAvailable".to_string(),
+                },
+            ],
+        },
     ]
 }

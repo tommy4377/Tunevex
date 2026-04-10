@@ -69,7 +69,7 @@ pub fn get_xbox_tweaks() -> Vec<Tweak> {
             tweak_type: TweakType::Toggle,
             enabled: false,
             check: Some(TweakCheck::ScheduledTaskDisabled {
-                name: "\\Microsoft\\XblGameSave\\XblGameSaveTask".to_string(),
+                name: "XblGameSaveTask".to_string(),
             }),
             operations: vec![TweakOperation::ScheduledTaskDisable {
                 path: "\\Microsoft\\XblGameSave".to_string(),

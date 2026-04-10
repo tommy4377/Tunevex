@@ -181,7 +181,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
 }"#.to_string(),
                 })
             ]),
-            tweak_type: TweakType::Toggle, enabled: false,
+            tweak_type: TweakType::Action, enabled: false,
             check: None,
             operations: vec![
                 TweakOperation::FileOperation(FileOp::Write {
