@@ -219,6 +219,9 @@ pub enum TweakCheck {
     ScheduledTaskDisabled { name: String },
     /// Returns true if the specified service is disabled
     ServiceDisabled { name: String },
+    /// Returns true if the specified service is set to the expected startup mode
+    /// (auto, manual, demand, disabled, etc.)
+    ServiceMode { name: String, mode: String },
     /// Returns true if all specified services are disabled
     MultiServiceDisabled { names: Vec<String> },
     /// Check if MSI is enabled globally for all PCI device classes at the specified priority.
