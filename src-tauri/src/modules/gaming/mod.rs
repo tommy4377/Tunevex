@@ -45,6 +45,10 @@ pub fn get_gaming_tweaks() -> Vec<Tweak> {
                     key: "AutoGameModeEnabled".to_string(),
                     value: RegistryValue::DWord(1),
                 },
+                TweakOperation::ServiceSetMode { name: "XblAuthManager".to_string(), mode: "demand".to_string() },
+                TweakOperation::ServiceSetMode { name: "XblGameSave".to_string(), mode: "demand".to_string() },
+                TweakOperation::ServiceSetMode { name: "XboxGipSvc".to_string(), mode: "demand".to_string() },
+                TweakOperation::ServiceSetMode { name: "XboxNetApiSvc".to_string(), mode: "demand".to_string() },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Powershell {

@@ -114,17 +114,15 @@ pub fn get_scheduling_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::MultiServiceDisabled {
-                names: vec!["NvTelemetryContainer".to_string(), "NVDisplay.ContainerLocalSystem".to_string()],
+            check: Some(TweakCheck::ServiceDisabled {
+                name: "NvTelemetryContainer".to_string(),
             }),
             revert_operations: Some(vec![
                 TweakOperation::ServiceSetMode { name: "NvTelemetryContainer".to_string(), mode: "auto".to_string() },
-                TweakOperation::ServiceSetMode { name: "NVDisplay.ContainerLocalSystem".to_string(), mode: "auto".to_string() },
                 TweakOperation::ScheduledTaskEnable { path: "\\Microsoft\\NVIDIA".to_string(), name: "NvTmMon".to_string() },
             ]),
             operations: vec![
                 TweakOperation::ServiceDisable { name: "NvTelemetryContainer".to_string() },
-                TweakOperation::ServiceDisable { name: "NVDisplay.ContainerLocalSystem".to_string() },
                 TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\NVIDIA".to_string(), name: "NvTmMon".to_string() },
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),

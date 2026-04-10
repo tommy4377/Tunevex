@@ -175,12 +175,8 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
             description: "Ensures TCP Auto-Tuning is set to 'Normal'.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            revert_operations: Some(vec![
-                TweakOperation::Command {
-                    cmd: "netsh".to_string(),
-                    args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "autotuninglevel=normal".into()],
-                }
-            ]), tweak_type: TweakType::Toggle, enabled: false,
+            revert_operations: None,
+            tweak_type: TweakType::Action, enabled: false,
             check: Some(TweakCheck::CommandOutputContains {
                 cmd: "netsh".to_string(),
                 args: vec!["int".to_string(), "tcp".to_string(), "show".to_string(), "global".to_string()],
