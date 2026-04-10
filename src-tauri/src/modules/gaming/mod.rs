@@ -51,13 +51,11 @@ pub fn get_gaming_tweaks() -> Vec<Tweak> {
                 TweakOperation::ServiceSetMode { name: "XboxNetApiSvc".to_string(), mode: "demand".to_string() },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$panel = Get-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\GameBar" -Name "ShowStartupPanel" -ErrorAction SilentlyContinue
-$capture = Get-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR" -Name "AppCaptureEnabled" -ErrorAction SilentlyContinue
-if (($panel.ShowStartupPanel -eq 0) -and ($capture.AppCaptureEnabled -eq 0)) { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "SOFTWARE\\Microsoft\\GameBar".to_string(),
+                key: "ShowStartupPanel".to_string(),
+                expected_value: RegistryValue::DWord(0),
             }),
             operations: vec![
                 TweakOperation::RegistrySet {

@@ -70,8 +70,8 @@ pub fn get_mouse_tweaks() -> Vec<Tweak> {
             description: "Resets Windows mouse sensitivity to default 10. Let games handle DPI scaling.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            revert_operations: None, // Resetting to default IS the revert/fix
-            tweak_type: TweakType::Toggle, enabled: false,
+            revert_operations: None,
+            tweak_type: TweakType::Action, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKCU".to_string(),
                 path: "Control Panel\\Mouse".to_string(),
@@ -166,7 +166,7 @@ pub fn get_mouse_tweaks() -> Vec<Tweak> {
                     root_key: "HKCU".to_string(),
                     path: "Control Panel\\Mouse".to_string(),
                     key: "SnapToDefaultButton".to_string(),
-                    value: RegistryValue::String("0".to_string()),
+                    value: RegistryValue::String("1".to_string()),
                 },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
