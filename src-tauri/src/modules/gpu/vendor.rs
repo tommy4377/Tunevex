@@ -212,3 +212,41 @@ May slightly increase idle power consumption."
         }],
     }]
 }
+
+// ============================================
+// DirectX Shader Cache Size Increase
+// ============================================
+pub fn get_shader_cache_tweak() -> Vec<Tweak> {
+    vec![Tweak {
+        id: "gpu_shader_cache_size".to_string(),
+        category: TweakCategory::GpuOptimization,
+        name: "Increase Shader Cache Size (50GB)".to_string(),
+        description: "Increases Windows DirectX shader cache limit from 10GB to 50GB.
+
+Windows limits shader cache to 10GB by default. On modern GPUs with large
+game libraries the cache fills up and shaders are recompiled, causing stutters.
+Increasing the limit prevents recompilation."
+            .to_string(),
+        warning_level: WarningLevel::Safe,
+        requires_restart: false,
+        tweak_type: TweakType::Toggle,
+        enabled: false,
+        revert_operations: Some(vec![TweakOperation::RegistryDelete {
+            root_key: "HKLM".to_string(),
+            path: "SOFTWARE\\Microsoft\\Direct3D\\ShaderCache".to_string(),
+            key: "MaxFolderSizeGB".to_string(),
+        }]),
+        check: Some(TweakCheck::Registry {
+            root_key: "HKLM".to_string(),
+            path: "SOFTWARE\\Microsoft\\Direct3D\\ShaderCache".to_string(),
+            key: "MaxFolderSizeGB".to_string(),
+            expected_value: RegistryValue::DWord(50),
+        }),
+        operations: vec![TweakOperation::RegistrySet {
+            root_key: "HKLM".to_string(),
+            path: "SOFTWARE\\Microsoft\\Direct3D\\ShaderCache".to_string(),
+            key: "MaxFolderSizeGB".to_string(),
+            value: RegistryValue::DWord(50),
+        }],
+    }]
+}
