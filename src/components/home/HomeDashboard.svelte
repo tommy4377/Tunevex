@@ -191,14 +191,14 @@
                         <span class="stat-label">RAM</span>
                         <span class="stat-value"
                             >{Math.round(
-                                (stats.ram_usage / stats.ram_total) * 100,
+                                (stats.ram_total > 0 ? stats.ram_usage / stats.ram_total : 0) * 100,
                             )}%</span
                         >
                     </div>
                     <div class="mini-bar">
                         <div
                             class="mini-fill"
-                            style="width: {(stats.ram_usage / stats.ram_total) *
+                            style="width: {(stats.ram_total > 0 ? stats.ram_usage / stats.ram_total : 0) *
                                 100}%"
                         ></div>
                     </div>
@@ -239,14 +239,15 @@
                         <div class="drive-bar">
                             <div
                                 class="drive-fill"
-                                class:warning={(disk.total_space -
-                                    disk.available_space) /
-                                    disk.total_space >
+                                class:warning={disk.total_space > 0 &&
+                                    (disk.total_space - disk.available_space) /
+                                        disk.total_space >
                                     0.9}
-                                style="width: {((disk.total_space -
-                                    disk.available_space) /
-                                    disk.total_space) *
-                                    100}%"
+                                style="width: {disk.total_space > 0
+                                    ? ((disk.total_space - disk.available_space) /
+                                        disk.total_space) *
+                                        100
+                                    : 0}%"
                             ></div>
                         </div>
                     </div>

@@ -9,8 +9,13 @@
     async function applyAllSafe() {
         for (const tweak of tweaks.filter((t) => t.warning_level === "Safe")) {
             if (!tweak.enabled) {
-                await invoke("apply_tweak", { id: tweak.id });
-                tweak.enabled = true;
+                try {
+                    await invoke("apply_tweak", { id: tweak.id });
+                    tweak.enabled = true;
+                } catch (e) {
+                    console.error("Failed to apply tweak:", tweak.id, e);
+                    alert(`Failed to apply ${tweak.name}: ${e}`);
+                }
             }
         }
         tweaks = tweaks; // Trigger reactivity
