@@ -32,6 +32,11 @@ fn is_nvidia_gpu() -> bool {
 
 /// Detect if AMD GPU is present by checking registry
 fn is_amd_gpu() -> bool {
+    find_amd_gpu_instance().is_some()
+}
+
+/// Find the AMD GPU instance ID (e.g., "0000", "0001")
+fn find_amd_gpu_instance() -> Option<String> {
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let video_path =
         r"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}";
@@ -42,13 +47,13 @@ fn is_amd_gpu() -> bool {
                 if let Ok(driver_desc) = subkey.get_value::<String, _>("DriverDesc") {
                     let lower = driver_desc.to_lowercase();
                     if lower.contains("amd") || lower.contains("radeon") {
-                        return true;
+                        return Some(subkey_name);
                     }
                 }
             }
         }
     }
-    false
+    None
 }
 
 /// Returns hardware-specific GPU tweaks based on detected vendor
@@ -149,38 +154,47 @@ Profiles will be automatically recreated."
 
 /// AMD-specific GPU tweaks
 fn get_amd_gpu_tweaks() -> Vec<Tweak> {
-    vec![
-        Tweak {
-            id: "gpu_amd_ulps".to_string(),
-            category: TweakCategory::GpuOptimization,
-            name: "[AMD] Disable Ultra Low Power State".to_string(),
-            description: "Disables AMD ULPS (Ultra Low Power State).
+    let amd_instance = match find_amd_gpu_instance() {
+        Some(id) => id,
+        None => return vec![],
+    };
+
+    let amd_path = format!(
+        "SYSTEM\\CurrentControlSet\\Control\\Class\\{{4d36e968-e325-11ce-bfc1-08002be10318}}\\{}",
+        amd_instance
+    );
+
+    vec![Tweak {
+        id: "gpu_amd_ulps".to_string(),
+        category: TweakCategory::GpuOptimization,
+        name: "[AMD] Disable Ultra Low Power State".to_string(),
+        description: "Disables AMD ULPS (Ultra Low Power State).
 
 Prevents the GPU from entering deep sleep states.
 Can fix issues with multi-monitor and CrossFire setups.
-May slightly increase idle power consumption.".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: true,
-            tweak_type: TweakType::Toggle,
-            enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\0000".to_string(),
-                key: "EnableUlps".to_string(),
-                expected_value: RegistryValue::DWord(0),
-            }),
-            revert_operations: Some(vec![TweakOperation::RegistrySet {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\0000".to_string(),
-                key: "EnableUlps".to_string(),
-                value: RegistryValue::DWord(1),
-            }]),
-            operations: vec![TweakOperation::RegistrySet {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\0000".to_string(),
-                key: "EnableUlps".to_string(),
-                value: RegistryValue::DWord(0),
-            }],
-        },
-    ]
+May slightly increase idle power consumption."
+            .to_string(),
+        warning_level: WarningLevel::Safe,
+        requires_restart: true,
+        tweak_type: TweakType::Toggle,
+        enabled: false,
+        check: Some(TweakCheck::Registry {
+            root_key: "HKLM".to_string(),
+            path: amd_path.clone(),
+            key: "EnableUlps".to_string(),
+            expected_value: RegistryValue::DWord(0),
+        }),
+        revert_operations: Some(vec![TweakOperation::RegistrySet {
+            root_key: "HKLM".to_string(),
+            path: amd_path.clone(),
+            key: "EnableUlps".to_string(),
+            value: RegistryValue::DWord(1),
+        }]),
+        operations: vec![TweakOperation::RegistrySet {
+            root_key: "HKLM".to_string(),
+            path: amd_path,
+            key: "EnableUlps".to_string(),
+            value: RegistryValue::DWord(0),
+        }],
+    }]
 }
