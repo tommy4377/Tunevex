@@ -53,6 +53,31 @@ pub fn get_update_tweaks() -> Vec<Tweak> {
                 TweakOperation::ScheduledTaskDisable { path: "\\Microsoft\\Windows\\WindowsUpdate".to_string(), name: "Scheduled Start".to_string() },
                 TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate".to_string(), key: "DisableWindowsUpdateAccess".to_string(), value: RegistryValue::DWord(1) },
             ]
+        },
+
+        // ============================================
+        // Disable Automatic Driver Installation
+        // ============================================
+        Tweak {
+            id: "sec_disable_auto_driver_update".to_string(),
+            category: TweakCategory::SecurityPrivacy,
+            name: "Disable Automatic Driver Updates".to_string(),
+            description: "Prevents Windows Update from automatically installing drivers. Keeps your custom GPU/NIC drivers.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle, enabled: false,
+            revert_operations: Some(vec![
+                TweakOperation::RegistryDelete { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate".to_string(), key: "ExcludeWUDriversInQualityUpdate".to_string() },
+            ]),
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate".to_string(),
+                key: "ExcludeWUDriversInQualityUpdate".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
+            operations: vec![
+                TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate".to_string(), key: "ExcludeWUDriversInQualityUpdate".to_string(), value: RegistryValue::DWord(1) },
+            ]
         }
     ]
 }
