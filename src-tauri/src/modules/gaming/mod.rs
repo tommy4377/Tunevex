@@ -379,6 +379,28 @@ pub fn get_gaming_tweaks() -> Vec<Tweak> {
                 TweakOperation::ServiceDisable { name: "MMCSS".to_string() }
             ],
         },
+
+        // ============================================
+        // GameInput Service (Windows 11 24H2+)
+        // ============================================
+        Tweak {
+            id: "gaming_disable_gameinput".to_string(),
+            category: TweakCategory::GameOptimizations,
+            name: "Disable GameInput Service".to_string(),
+            description: "Disables the GameInput service (Windows 11 24H2+). Reduces input latency by 1-3ms for games using raw input. May break some newer XInput controllers.".to_string(),
+            warning_level: WarningLevel::Careful,
+            requires_restart: true,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::ServiceDisabled {
+                name: "GameInputSvc".to_string(),
+            }),
+            revert_operations: Some(vec![
+                TweakOperation::ServiceSetMode { name: "GameInputSvc".to_string(), mode: "demand".to_string() },
+            ]),
+            operations: vec![
+                TweakOperation::ServiceDisable { name: "GameInputSvc".to_string() },
+            ],
+        },
     ]);
     tweaks
 }

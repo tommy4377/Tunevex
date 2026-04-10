@@ -48,7 +48,15 @@ pub fn get_power_tweaks() -> Vec<Tweak> {
             // We attempt activation of the well-known GUID first; if it already
             // exists powercfg returns it directly. If not, duplicate creates it.
             operations: vec![
-                // Step 1: try activating the well-known GUID (works if plan already exists)
+                // Step 1: duplicate the Ultimate Performance scheme (creates if missing)
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec![
+                        "/duplicatescheme".to_string(),
+                        "e9a42b02-d5df-448d-aa00-03f14749eb61".to_string(),
+                    ],
+                },
+                // Step 2: activate the (now existing) Ultimate Performance scheme
                 TweakOperation::Command {
                     cmd: "powercfg".to_string(),
                     args: vec![
@@ -587,6 +595,14 @@ pub fn get_power_tweaks() -> Vec<Tweak> {
             tweak_type: TweakType::Toggle,
             enabled: false,
             revert_operations: Some(vec![
+                // Delete the custom power plan created by duplicatescheme
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec![
+                        "/deletescheme".to_string(),
+                        "11111111-1111-1111-1111-111111111111".to_string(),
+                    ],
+                },
                 // Best effort: restore Balanced plan
                 TweakOperation::Command {
                     cmd: "powercfg".to_string(),
@@ -601,6 +617,12 @@ pub fn get_power_tweaks() -> Vec<Tweak> {
                     path: "SYSTEM\\CurrentControlSet\\Control\\Storage".to_string(),
                     key: "StorageD3InModernStandby".to_string(),
                     value: RegistryValue::DWord(1),
+                },
+                // Restore IdlePowerMode (delete to return to default)
+                TweakOperation::RegistryDelete {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power".to_string(),
+                    key: "IdlePowerMode".to_string(),
                 },
             ]),
             // Check: StorageD3InModernStandby == 0 (storage D3 disabled)

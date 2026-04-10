@@ -1,449 +1,581 @@
-# TommyTweaker — Complete Bug Report
-> Based on full analysis of converted-repo.txt → converted-repo-3.txt (April 2026)
-> Status: ✅ Fixed in latest build | ❌ Still open | ⚠️ Partial fix
+# TommyTweaker — Master Bug Report + Improvement Proposals
+# April 2026 | Covers converted-repo.txt → converted-repo-3.txt
+# Status: ✅ Fixed | ❌ Open | ⚠️ Partial
 
----
+═══════════════════════════════════════════════════════
+  SECTION 1 — BUGS
+═══════════════════════════════════════════════════════
 
-## CRITICAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITICAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-### BUG-C1 · `gpudisablenvidiatelemetry` — `NVDisplay.ContainerLocalSystem` disabled ✅ Fixed
-**File:** `src-tauri/src/modules/gpu/scheduling.rs`
-The tweak originally disabled `NVDisplay.ContainerLocalSystem`, which is the core
-NVIDIA Display Container LS service (not telemetry). Disabling it causes display driver
-failure and black screens. Fixed in latest build — only `NvTelemetryContainer` is now
-targeted.
+[BUG-C1] gpudisablenvidiatelemetry — NVDisplay.ContainerLocalSystem disabled ✅ Fixed
+  File: gpu/scheduling.rs
+  Was disabling NVDisplay.ContainerLocalSystem (core display driver container),
+  causing driver failure and black screens. Now only targets NvTelemetryContainer.
 
-### BUG-C2 · `interfaceclassiccontextmenu` — check logic is inverted ❌ Open
-**File:** `src-tauri/src/modules/interface/contextmenu.rs`
-```rust
-check: TweakCheckRegistryKeyAbsent {
-    path: r"Software\Classes\CLSID\{86ca1aa0-...}\InprocServer32"
-}
-```
-`RegistryKeyAbsent` returns `true` when the key does NOT exist. On a fresh Windows 11
-install the key is absent → UI shows toggle as "already applied" when it isn't. After
-the user applies the tweak (key is created), the check returns `false` → UI shows "not
-applied". The toggle state is permanently inverted.
-**Fix:** replace with `TweakCheckRegistryKeyExists { path: "...\\InprocServer32" }`.
+[BUG-C2] interfaceclassiccontextmenu — check logic is inverted ❌ Open
+  File: interface/contextmenu.rs
+  ─── Current:
+  check: TweakCheckRegistryKeyAbsent { path: r"...\{86ca1aa0-...}\InprocServer32" }
+  ─── Problem:
+  TweakCheckRegistryKeyAbsent returns true when the key does NOT exist.
+  On a fresh Windows 11 the InprocServer32 key is absent → check returns true
+  → UI shows the toggle as "already applied" when it is NOT.
+  After applying (key is created), check returns false → UI shows "not applied".
+  The toggle state is always the opposite of reality.
+  ─── Fix:
+  change to: TweakCheckRegistryKeyExists { path: r"...\{86ca1aa0-...}\InprocServer32" }
 
-### BUG-C3 · `interfaceclassiccontextmenu` — revert targets wrong registry path ❌ Open
-**File:** `src-tauri/src/modules/interface/contextmenu.rs`
-```rust
-// ops write to:
-path: r"Software\Classes\CLSID\{86ca1aa0-...}\InprocServer32"
-// revert deletes from:
-path: r"Software\Classes\CLSID\{86ca1aa0-...}"   // ← parent, missing \InprocServer32
-```
-The revert calls `RegistryDelete` on the *parent* key's default value. The
-`InprocServer32` subkey is never removed → classic context menu remains active after
-reverting, and the toggle is stuck.
-**Fix:** use `RegistryDeleteKey` on the full `InprocServer32` path.
+[BUG-C3] interfaceclassiccontextmenu — revert targets wrong registry path ❌ Open
+  File: interface/contextmenu.rs
+  ─── Current:
+  ops    write to: r"Software\Classes\CLSID\{86ca1aa0-...}\InprocServer32"  ← correct
+  revert deletes:  r"Software\Classes\CLSID\{86ca1aa0-...}"                 ← parent!
+  ─── Problem:
+  RegistryDelete on the parent key removes only its default "" value, NOT the
+  InprocServer32 subkey. Classic context menu remains active after reverting.
+  ─── Fix:
+  use: TweakOperationRegistryDeleteKey {
+      path: r"Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32"
+  }
 
----
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+  HIGH
+━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-## HIGH
+[BUG-H1] debloatdisablemisctasks — check uses bare "." as task name ❌ Open
+  File: debloat/tasks.rs
+  ─── Current:
+  check: TweakCheckScheduledTaskDisabled { name: ".".to_string() }
+  ─── Problem:
+  schtasks /Query /TN "." queries the root folder, not a specific task.
+  The check never correctly matches the disabled state → toggle always shows
+  "not applied" regardless of actual task state.
+  ─── Fix:
+  check: TweakCheckScheduledTaskDisabled { name: "MapsToastTask".to_string() }
 
-### BUG-H1 · `debloatdisablemisctasks` — check always uses bare `"."` as task name ❌ Open
-**File:** `src-tauri/src/modules/debloat/tasks.rs`
-```rust
-check: TweakCheckScheduledTaskDisabled { name: ".".to_string() }
-// operations disable: MapsToastTask, MapsUpdateTask, SpeechModelDownloadTask, ...
-```
-`schtasks /Query /TN "."` queries the root folder, not a specific task. The check
-never matches the disabled tasks, so the toggle always shows "not applied" regardless
-of state.
-**Fix:** check against the first (or most representative) task name:
-`name: "MapsToastTask".to_string()`
+[BUG-H2] gamingdisablexboxtasks — same dot bug ✅ Fixed
+  Fixed: now uses name: "XblGameSaveTask".
 
-### BUG-H2 · `gamingdisablexboxtasks` — same dot bug ✅ Fixed
-**File:** `src-tauri/src/modules/gaming/xbox.rs`
-Was `check: TweakCheckScheduledTaskDisabled { name: ".".to_string() }`.
-Fixed in latest build: `name: "XblGameSaveTask".to_string()`.
+[BUG-H3] privacydisabletelemetrytasks — wrong task name in check ❌ Open
+  File: privacy/tasks.rs
+  ─── Current:
+  check: TweakCheckScheduledTaskDisabled { name: "Experience Compatibility Appraiser" }
+  ─── Problem:
+  Actual task name is "Microsoft Compatibility Appraiser" under
+  \Microsoft\Windows\Application Experience\
+  A missing task is treated as disabled by schtasks → permanent false positive
+  (toggle shows "applied" on every fresh install).
+  ─── Fix:
+  name: "Microsoft Compatibility Appraiser"
+  path: r"\Microsoft\Windows\Application Experience\"
 
-### BUG-H3 · `privacydisabletelemetrytasks` — wrong task name in check ❌ Open
-**File:** `src-tauri/src/modules/privacy/tasks.rs`
-```rust
-check: TweakCheckScheduledTaskDisabled { name: "Experience Compatibility Appraiser" }
-// actual task name:  "Microsoft Compatibility Appraiser"
-// under path:        \Microsoft\Windows\Application Experience\
-```
-The task path `\Experience Compatibility Appraiser` does not exist on stock Windows.
-`schtasks` will treat a missing task as disabled → check always returns `true` →
-**permanent false positive** (toggle shows "applied" on every fresh install).
-**Fix:** `name: "Microsoft Compatibility Appraiser".to_string()` and validate the
-path prefix in `TweakCheckScheduledTaskDisabled`.
+[BUG-H4] privdisabletelemetrytasks + privacydisabletelemetrytasks — duplicate conflict ❌ Open
+  Files: privacy/tasks.rs (two separate functions)
+  Two tweaks independently disable the same scheduled tasks:
+  Microsoft Compatibility Appraiser, Consolidator, UsbCeip, ProgramDataUpdater.
+  They have different IDs, different op styles (schtasks /Change vs ScheduledTaskDisable),
+  and different revert_operations. Applying one then reverting the other
+  leaves tasks in an inconsistent state with no warning to the user.
+  ─── Fix:
+  Merge into single tweak. Keep privacydisabletelemetrytasks (native ScheduledTaskDisable op).
+  Remove the schtasks /Change variant entirely.
 
-### BUG-H4 · `privdisabletelemetrytasks` + `privacydisabletelemetrytasks` — duplicate conflict ❌ Open
-**Files:** `src-tauri/src/modules/privacy/tasks.rs` (two separate functions)
-Both tweaks independently disable the same scheduled tasks:
-`Microsoft Compatibility Appraiser`, `Consolidator`, `UsbCeip`, `ProgramDataUpdater`.
-They have different IDs, different op styles (`schtasks /Change` vs `ScheduledTaskDisable`),
-and different `revert_operations`. Applying one then reverting the other leaves tasks in
-an inconsistent state with no visible warning.
-**Fix:** merge into a single tweak. Keep `privacydisabletelemetrytasks` (uses the native
-`ScheduledTaskDisable` op); remove the `schtasks /Change` variant.
+[BUG-H5] privdisabletelemetrytasks — bare "." in revert + duplicate entry ❌ Open
+  File: privacy/tasks.rs
+  ─── Current:
+  revert_operations: [
+      Command("schtasks", ["Change", "TN", ".", "ENABLE"]),              // ← "." invalid
+      Command("schtasks", ["Change", "TN", "...Improvement Program", "ENABLE"]),
+      Command("schtasks", ["Change", "TN", "...Improvement Program", "ENABLE"]), // ← duplicate
+  ]
+  ─── Fix:
+  Remove the TN "." entry. Remove one of the two identical Improvement Program entries.
 
-### BUG-H5 · `privdisabletelemetrytasks` — bare `"."` in revert + duplicate entry ❌ Open
-**File:** `src-tauri/src/modules/privacy/tasks.rs`
-```rust
-revert_operations: [
-    Command("schtasks", ["Change", "TN", ".", "ENABLE"]),     // ← "." is invalid
-    Command("schtasks", ["Change", "TN", "...Improvement Program", "ENABLE"]),
-    Command("schtasks", ["Change", "TN", "...Improvement Program", "ENABLE"]),  // ← duplicate
-]
-```
-Two separate bugs in the same vec: one `TN "."` that silently fails, and one path that
-is listed twice (copy-paste error).
-**Fix:** remove the `"."` entry; remove one of the two duplicate `Improvement Program` entries.
+[BUG-H6] gamingdisablefso — GameDVRHonorUserFSEBehaviorMode missing from revert ❌ Open
+  File: gaming/mod.rs
+  ─── Current:
+  operations:       [ RegistrySet("GameDVRFSEBehaviorMode", 2),
+                      RegistrySet("GameDVRHonorUserFSEBehaviorMode", 1),   ← written
+                      RegistrySet("GameDVRDXGIHonorFSEWindowsCompatible", 1) ]
+  revert_operations:[ RegistrySet("GameDVRFSEBehaviorMode", 0),
+                      RegistrySet("GameDVRDXGIHonorFSEWindowsCompatible", 0)
+                      // GameDVRHonorUserFSEBehaviorMode ← MISSING ]
+  ─── Fix:
+  add: RegistrySet("GameDVRHonorUserFSEBehaviorMode", DWord(0)) to revert.
 
-### BUG-H6 · `gamingdisablefso` — `GameDVRHonorUserFSEBehaviorMode` missing from revert ❌ Open
-**File:** `src-tauri/src/modules/gaming/mod.rs`
-```rust
-operations: [
-    RegistrySet("GameDVRFSEBehaviorMode",              DWord(2)),
-    RegistrySet("GameDVRHonorUserFSEBehaviorMode",     DWord(1)),  // ← written
-    RegistrySet("GameDVRDXGIHonorFSEWindowsCompatible",DWord(1)),
-]
-revert_operations: [
-    RegistrySet("GameDVRFSEBehaviorMode",              DWord(0)),
-    RegistrySet("GameDVRDXGIHonorFSEWindowsCompatible",DWord(0)),
-    // GameDVRHonorUserFSEBehaviorMode ← MISSING
-]
-```
-After reverting, `GameDVRHonorUserFSEBehaviorMode = 1` remains permanently set, keeping
-partial FSO-disable behavior active.
-**Fix:** add `RegistrySet("GameDVRHonorUserFSEBehaviorMode", DWord(0))` to revert.
+[BUG-H7] gamingmmcsspriority — "SFIO Priority" missing from revert ❌ Open
+  File: gaming/mod.rs
+  ─── Current:
+  operations:       [ ..., RegistrySet("SFIO Priority", String("High")) ]
+  revert_operations:[ ...  // SFIO Priority absent ]
+  ─── Problem:
+  After reverting, SFIO Priority = "High" stays set under the Games MMCSS key,
+  affecting I/O scheduling for game processes indefinitely.
+  ─── Fix:
+  add: RegistryDelete("SFIO Priority") to revert (key is absent by default).
 
-### BUG-H7 · `gamingmmcsspriority` — `SFIO Priority` missing from revert ❌ Open
-**File:** `src-tauri/src/modules/gaming/mod.rs`
-```rust
-operations:       [..., RegistrySet("SFIO Priority", String("High"))]
-revert_operations:[...  /* SFIO Priority not present */]
-```
-After reverting, `SFIO Priority = "High"` remains set under the Games MMCSS key,
-affecting I/O scheduling for game processes indefinitely.
-**Fix:** add `RegistryDelete("SFIO Priority")` to revert (key is absent by default).
+[BUG-H8] interfacecompactmode — taskkill /F without Explorer restart ❌ Open
+  File: interface/explorer.rs
+  ─── Current:
+  operations:       [ RegistrySet("UseCompactMode", 1),
+                      Command("taskkill", ["/F","/IM","explorer.exe"]) ]
+  revert_operations:[ RegistrySet("UseCompactMode", 0),
+                      Command("taskkill", ["/F","/IM","explorer.exe"]) ]
+  ─── Problem:
+  Explorer is force-killed in both branches but never restarted. On debloated / LTSC
+  builds Explorer does not auto-restart → black screen until manual reboot.
+  ─── Fix:
+  append to both ops and revert:
+  TweakOperationCommand { cmd: "cmd", args: ["/c", "start", "explorer.exe"] }
 
-### BUG-H8 · `interfacecompactmode` — `taskkill /F` without Explorer restart ❌ Open
-**File:** `src-tauri/src/modules/interface/explorer.rs`
-```rust
-operations:       [RegistrySet("UseCompactMode", 1), Command("taskkill",["/F","/IM","explorer.exe"])]
-revert_operations:[RegistrySet("UseCompactMode", 0), Command("taskkill",["/F","/IM","explorer.exe"])]
-```
-Explorer is force-killed in both branches but never restarted. On debloated / LTSC
-builds Explorer does not auto-restart and the user is left with a black screen.
-**Fix:** append `Command("cmd", ["/c", "start", "explorer.exe"])` to both ops and revert.
+[BUG-H9] gamingdisablegamebar — Xbox service restores missing from revert ✅ Fixed
+  All four Xbox services now correctly restored to "demand" on revert.
 
-### BUG-H9 · `gamingdisablegamebar` — revert missing Xbox service restores ✅ Fixed
-**File:** `src-tauri/src/modules/gaming/mod.rs`
-Was missing `ServiceSetMode` calls for `XblAuthManager`, `XblGameSave`, `XboxGipSvc`,
-`XboxNetApiSvc` in revert. Fixed in latest build — all four services are now restored to
-`demand` mode on revert.
+[BUG-H10] gamingdisablexboxservices — check covered only 2 of 4 services ✅ Fixed
+  TweakCheckMultiServiceDisabled now covers all four services.
 
-### BUG-H10 · `gamingdisablexboxservices` — check covered only 2 of 4 services ✅ Fixed
-**File:** `src-tauri/src/modules/gaming/xbox.rs`
-Check was missing `XboxNetApiSvc` and `XblGameSave`. Fixed in latest build.
+[BUG-H11] cpudisableallpowersaving — orphan power plan never cleaned up ❌ Open
+  File: cpu/power.rs
+  ─── Current:
+  operations: [
+      Command("powercfg", ["duplicatescheme",
+          "e9a42b02-...", "11111111-1111-1111-1111-111111111111"]),  // creates custom plan
+      Command("powercfg", ["setactive", "11111111-1111-1111-1111-111111111111"]),
+      ...
+  ]
+  revert: [
+      Command("powercfg", ["-setactive", "381b4222-..."]),  // Balanced
+      RegistrySet("StorageD3InModernStandby", DWord(1)),
+      // 11111111-... plan is NEVER deleted
+  ]
+  ─── Problem:
+  The custom GUID 11111111-... persists in the Power Plans list after reverting.
+  ─── Fix:
+  add to revert: Command("powercfg", ["/deletescheme", "11111111-1111-1111-1111-111111111111"])
 
----
+[BUG-H12] cpudisableallpowersaving — IdlePowerMode missing from revert ❌ Open
+  File: cpu/power.rs
+  ─── Current:
+  operations:       [ ..., RegistrySet("StorageD3InModernStandby", DWord(0)),
+                           RegistrySet("IdlePowerMode", DWord(0)) ]   ← written
+  revert_operations:[ ..., RegistrySet("StorageD3InModernStandby", DWord(1))
+                      // IdlePowerMode ← MISSING ]
+  ─── Fix:
+  add to revert: RegistryDelete { key: "IdlePowerMode" }  (absent = default)
 
-## MEDIUM
+[BUG-H13] cpuusb3linkpower — revert only restores USB3 link power, not selective suspend ❌ Open
+  File: cpu/power.rs
+  ─── Current:
+  operations write three power settings:
+    d4e98f31-...  (USB 3 Link Power)         → set to 3
+    48e6b7a6-...  (USB Selective Suspend)     → set to 0 (disabled)
+    0853a681-...  (USB Hub Suspend Timeout)   → set to 0
+  revert restores only:
+    d4e98f31-...  (USB 3 Link Power)          → set to 1
+    // 48e6b7a6 and 0853a681 ← MISSING
+  ─── Problem:
+  After reverting, USB Selective Suspend and USB Hub Timeout remain permanently set
+  to the ops values, even though the toggle appears "off".
+  ─── Fix:
+  add to revert:
+  Command("powercfg", ["-setacvalueindex", "SCHEME_CURRENT",
+      "2a737441-...", "48e6b7a6-...", "1"])   // re-enable USB Selective Suspend
+  Command("powercfg", ["-setacvalueindex", "SCHEME_CURRENT",
+      "2a737441-...", "0853a681-...", "5000"]) // restore default hub timeout
 
-### BUG-M1 · Triple NVIDIA telemetry conflict — 3 tweaks target the same service ❌ Open
-**Files:** `gpu/scheduling.rs`, `privacy/tasks.rs`, `privacy/apps.rs`
-Three independent tweaks (`gpudisablenvidiatelemetry`, `privdisablenvidiatelemetry`,
-`privnvidiatelemetry`) all disable `NvTelemetryContainer`. They have different IDs,
-different scopes, and different `revert_operations`. Applying any two and reverting only
-one leaves the service and scheduled tasks in an inconsistent state. Additionally their
-reverts fight each other (`sc start` vs `ServiceSetMode = Auto`).
-**Fix:** consolidate into a single `privdisablenvidiatelemetry` (service + all tasks +
-all registry keys). Remove `gpudisablenvidiatelemetry` and `privnvidiatelemetry`.
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+  MEDIUM
+━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-### BUG-M2 · `netsystemresponsiveness` + `sysresponsiveness` — same key, both in tweak list ❌ Open
-**Files:** `network/tcp.rs`, `system/services.rs`
-Both tweaks set `HKLM\...\SystemProfile\SystemResponsiveness = 0`. They have different
-IDs and both appear in `getAllTweaks()`. If one is reverted, the other's check still
-passes (key = 0), so the UI reports a phantom applied state.
-**Fix:** remove `sysresponsiveness` from `system/services.rs`; keep `netsystemresponsiveness`
-in the network module (it has the correct default-restore revert).
+[BUG-M1] Triple NVIDIA telemetry conflict ❌ Open
+  Files: gpu/scheduling.rs, privacy/tasks.rs, privacy/apps.rs
+  Three tweaks (gpudisablenvidiatelemetry, privdisablenvidiatelemetry, privnvidiatelemetry)
+  independently target NvTelemetryContainer + NvTmMon. They fight each other on revert.
+  ─── Fix: consolidate into one tweak. Remove the two privacy duplicates.
 
-### BUG-M3 · `nettcpautotuning` — ops and revert are identical ❌ Open
-**File:** `src-tauri/src/modules/network/tcp.rs`
-```rust
-operations:       [Command("netsh",["int","tcp","set","global","autotuninglevel=normal"])]
-revert_operations:[Command("netsh",["int","tcp","set","global","autotuninglevel=normal"])]
-```
-Both set `normal`, which is the Windows default. The toggle has no off-state.
-**Fix:** either change to `TweakTypeAction`, or set ops to `disabled` / `experimental`
-and keep revert as `normal`.
+[BUG-M2] sysresponsiveness + netsystemresponsiveness — same key, both in getAllTweaks() ❌ Open
+  Files: system/services.rs, network/tcp.rs
+  Both set SystemResponsiveness = 0. Reverting one while the other is applied
+  causes phantom "applied" state in the UI.
+  ─── Fix: remove sysresponsiveness from system/services.rs.
 
-### BUG-M4 · `inputdisablesnapto` — ops, revert, and check all set the Windows default `"0"` ❌ Open
-**File:** `src-tauri/src/modules/input/mouse.rs`
-`SnapToDefaultButton = "0"` is the Windows default. The check returns `true` on every
-fresh install, the ops write the default value, and the revert also writes `"0"`. The
-toggle is a permanent no-op.
-**Fix:** ops → `"0"`, revert → `"1"`. Or change to `TweakTypeAction`.
+[BUG-M3] nettcpautotuning — ops and revert are identical ❌ Open
+  File: network/tcp.rs
+  ─── Current:
+  operations:       [ Command("netsh", [..., "autotuninglevel=normal"]) ]
+  revert_operations:[ Command("netsh", [..., "autotuninglevel=normal"]) ]  ← same!
+  ─── Fix: ops → "disabled" or "experimental"; revert → "normal" (Windows default).
 
-### BUG-M5 · `inputmousesensitivitydefault` — `TweakTypeToggle` with `revert_operations: None` ❌ Open
-**File:** `src-tauri/src/modules/input/mouse.rs`
-```rust
-tweaktype: TweakTypeToggle,
-revert_operations: None,
-```
-A Toggle without revert silently succeeds (executor skips the revert step), updates the
-UI state to "not applied," but does nothing. If the user had a non-default sensitivity,
-it's lost with no recovery path.
-**Fix:** `tweaktype: TweakTypeAction` — expose only an "Apply" button, no toggle.
+[BUG-M4] inputdisablesnapto — ops, revert, and check all use the Windows default "0" ❌ Open
+  File: input/mouse.rs
+  SnapToDefaultButton = "0" is already the Windows default. The toggle is a permanent
+  no-op and the check always returns true on any stock Windows install.
+  ─── Fix: ops → "0"; revert → "1". Or convert to TweakTypeAction.
 
-### BUG-M6 · `secdisablenotifications` — three identical `RegistrySet` operations ❌ Open
-**File:** `src-tauri/src/modules/security/hardening.rs`
-```rust
-operations: [
-    RegistrySet(HKLM, ..., "DisableNotifications", DWord(1)),
-    RegistrySet(HKLM, ..., "DisableNotifications", DWord(1)),  // duplicate
-    RegistrySet(HKLM, ..., "DisableNotifications", DWord(1)),  // duplicate
-]
-```
-Copy-paste error. Not functionally broken (idempotent writes), but wastes execution
-time and signals a maintenance defect.
-**Fix:** keep only one entry.
+[BUG-M5] inputmousesensitivitydefault — TweakTypeToggle with revert_operations: None ❌ Open
+  File: input/mouse.rs
+  ─── Current:
+  tweaktype: TweakTypeToggle,
+  revert_operations: None,   // "Resetting to default IS the revert/fix"
+  ─── Problem:
+  The executor silently skips revert, updates UI to "not applied", and loses the user's
+  original sensitivity. Toggle without revert is UX-breaking.
+  ─── Fix: tweaktype: TweakTypeAction — show only an Apply button.
 
-### BUG-M7 · `secdisableallmitigations` — `bcdedit nx OptIn` is the Windows default ❌ Open
-**File:** `src-tauri/src/modules/security/hardening.rs`
-`OptIn` is the default DEP policy on all Windows 10/11 installations. Inside a tweak
-called "Disable All Mitigations" this either does nothing (the tweak was already at
-`OptIn`) or is wrong (should be `AlwaysOff` to actually disable DEP). Additionally,
-there is no matching `bcdedit` entry in `revert_operations` → apply/revert asymmetry.
-**Fix:** if the intent is to disable DEP, change to `AlwaysOff` and add
-`bcdedit /set nx OptIn` to `revert_operations`. If the intent is "no change," remove
-the `bcdedit` line entirely.
+[BUG-M6] secdisablenotifications — three identical RegistrySet operations ❌ Open
+  File: security/hardening.rs
+  operations: [
+      RegistrySet(HKLM, ..., "DisableNotifications", DWord(1)),
+      RegistrySet(HKLM, ..., "DisableNotifications", DWord(1)),   // duplicate
+      RegistrySet(HKLM, ..., "DisableNotifications", DWord(1)),   // duplicate
+  ]
+  ─── Fix: keep only one entry.
 
-### BUG-M8 · `secdisablecpumitigations` — check requires optional PowerShell module ❌ Open
-**File:** `src-tauri/src/modules/security/hardening.rs`
-```rust
-check: TweakCheckPowershell {
-    script: "Get-SpeculationControlSettings ...",  // requires SpeculationControl module
-}
-```
-`SpeculationControl` is not installed by default on all Windows editions. All operations
-are native registry writes. The check should match.
-**Fix:**
-```rust
-check: TweakCheckRegistry {
-    rootkey: "HKLM", path: "SYSTEM\\...\\Memory Management",
-    key: "FeatureSettingsOverride", expected_value: RegistryValue::DWord(3)
-}
-```
+[BUG-M7] secdisableallmitigations — bcdedit nx OptIn is the Windows default ❌ Open
+  File: security/hardening.rs
+  "Disable All Mitigations" sets DEP to OptIn, which is already the default.
+  No bcdedit entry in revert_operations → apply/revert asymmetry.
+  ─── Fix: if intent is disabling DEP, use AlwaysOff and add "bcdedit /set nx OptIn"
+  to revert. If no change intended, remove the bcdedit line entirely.
 
-### BUG-M9 · `privdisableceip` — revert `Set` immediately followed by `Delete` on same key ❌ Open
-**File:** `src-tauri/src/modules/privacy/telemetry.rs`
-```rust
-revert_operations: [
-    RegistrySet(HKLM, ..., "CEIPEnable", DWord(1)),   // re-enables
-    RegistryDelete(HKLM, ..., "CEIPEnable"),           // then deletes it
-]
-```
-The `Delete` immediately undoes the `Set`. Net effect: reverting leaves `CEIPEnable`
-absent instead of restored to `1`.
-**Fix:** remove the `RegistryDelete` from revert; keep only `RegistrySet(DWord(1))`.
+[BUG-M8] secdisablecpumitigations — check requires optional PowerShell module ❌ Open
+  File: security/hardening.rs
+  check: TweakCheckPowershell { script: "Get-SpeculationControlSettings ..." }
+  SpeculationControl is not installed on all Windows editions.
+  Operations are pure registry writes — check should match.
+  ─── Fix:
+  check: TweakCheckRegistry {
+      rootkey: "HKLM",
+      path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management",
+      key: "FeatureSettingsOverride",
+      expected_value: RegistryValue::DWord(3)
+  }
 
-### BUG-M10 · `privvscodetelemetry` — `TweakTypeToggle` with `check: None` ❌ Open
-**File:** `src-tauri/src/modules/privacy/apps.rs`
-```rust
-tweaktype: TweakTypeToggle,
-check: None,
-```
-A Toggle with no check cannot verify actual system state. On every app restart the
-toggle resets to "not applied" regardless of whether the VS Code settings file was
-already modified. State is purely in-memory.
-**Fix:** add `TweakCheckFileContains` that reads
-`%APPDATA%\Code\User\settings.json` and checks for `"telemetry.telemetryLevel": "off"`.
+[BUG-M9] privdisableceip — revert Set immediately followed by Delete on same key ❌ Open
+  File: privacy/telemetry.rs
+  revert_operations: [
+      RegistrySet(HKLM, ..., "CEIPEnable", DWord(1)),   // re-enables
+      RegistryDelete(HKLM, ..., "CEIPEnable"),           // then deletes it!
+  ]
+  Net effect: reverting leaves CEIPEnable absent instead of restored to 1.
+  ─── Fix: remove the RegistryDelete from revert. Keep only RegistrySet(DWord(1)).
 
-### BUG-M11 · `debloatdisabledefender` + `secdisabledefender` — duplicate Defender tweaks ❌ Open
-**Files:** `debloat/services.rs`, `security/hardening.rs`
-Both tweaks write to the same registry keys (`DisableAntiSpyware`, `DisableAntiVirus`)
-and target the same services (`WinDefend`, `WdNisSvc`). Partial revert of either one
-leaves Defender in an inconsistent registry state with no warning.
-**Fix:** remove `debloatdisabledefender`; keep only `secdisabledefender` which uses the
-native `DefenderServiceControl` op.
+[BUG-M10] privvscodetelemetry — TweakTypeToggle with check: None ❌ Open
+  File: privacy/apps.rs
+  toggle + check: None → state resets to "not applied" on every app restart.
+  ─── Fix: add TweakCheckFileContains reading
+  %APPDATA%\Code\User\settings.json for "telemetry.telemetryLevel": "off".
 
-### BUG-M12 · `gamingdisablegamebar` — check still uses PowerShell, ops are pure registry ❌ Open
-**File:** `src-tauri/src/modules/gaming/mod.rs`
-```rust
-check: TweakCheckPowershell {
-    script: "Get-ItemProperty ... ShowStartupPanel ... AppCaptureEnabled ..."
-}
-operations: [RegistrySet(...), RegistrySet(...), ...]  // all native
-```
-The PowerShell check adds unnecessary overhead and can fail if PS execution policy is
-restricted. All written keys are readable natively.
-**Fix:**
-```rust
-check: TweakCheckRegistry {
-    rootkey: "HKCU", path: "SOFTWARE\\...",
-    key: "ShowStartupPanel", expected_value: RegistryValue::DWord(0)
-}
-```
+[BUG-M11] debloatdisabledefender + secdisabledefender — duplicate Defender tweaks ❌ Open
+  Files: debloat/services.rs, security/hardening.rs
+  Both write DisableAntiSpyware, DisableAntiVirus and target WinDefend, WdNisSvc.
+  ─── Fix: remove debloatdisabledefender. Keep only secdisabledefender.
 
-### BUG-M13 · `secdisableremoteassistance` — revert missing two registry key restores ✅ Fixed
-**File:** `src-tauri/src/modules/security/hardening.rs`
-Originally revert only re-enabled the firewall rule but left `fAllowFullControl` and
-`fAllowToGetHelp` permanently at `0`. Fixed in latest build — both keys are now
-restored in revert.
+[BUG-M12] gamingdisablegamebar — check uses PowerShell, ops are pure registry ❌ Open
+  File: gaming/mod.rs
+  check: TweakCheckPowershell { script: "Get-ItemProperty ... ShowStartupPanel ..." }
+  All written keys are readable natively.
+  ─── Fix:
+  check: TweakCheckRegistry {
+      rootkey: "HKCU",
+      path:    "SOFTWARE\\Microsoft\\GameBar",
+      key:     "ShowStartupPanel",
+      expected_value: RegistryValue::DWord(0)
+  }
 
-### BUG-M14 · `secdisablewer` — trailing space in one registry path in operations ❌ Open
-**File:** `src-tauri/src/modules/security/hardening.rs`
-```rust
-operations: [
-    RegistrySet(HKLM, "...\\Windows Error Reporting ",  "Disabled", DWord(1)), // ← trailing space
-    RegistrySet(HKLM, "...\\Windows Error Reporting",   "Disabled", DWord(1)), // correct
-]
-```
-Creates a phantom key under a path with a trailing space. Invisible in regedit by
-default. The revert correctly removes both, so there is no permanent leak, but the
-write is wrong.
-**Fix:** remove the entry with the trailing space from `operations`.
+[BUG-M13] secdisableremoteassistance — revert missing two registry key restores ✅ Fixed
+  Both fAllowFullControl and fAllowToGetHelp now restored in revert.
 
-### BUG-M15 · `netnetworkthrottling` + `gamingdisablenetworkthrottling` — duplicate ✅ Fixed
-Both tweaks set `NetworkThrottlingIndex = 0xFFFFFFFF`. The gaming duplicate has been
-removed from the latest build.
+[BUG-M14] secdisablewer — trailing space in one registry path in operations ❌ Open
+  File: security/hardening.rs
+  operations: [
+      RegistrySet(HKLM, "...\\Windows Error Reporting ",  "Disabled", DWord(1)),  // ← trailing space
+      RegistrySet(HKLM, "...\\Windows Error Reporting",   "Disabled", DWord(1)),  // correct
+  ]
+  Creates a phantom registry key invisible in regedit.
+  ─── Fix: remove the entry with trailing space from operations.
 
-### BUG-M16 · `secrsopplogging` — revert set wrong value ✅ Fixed
-Was setting `RSoPLogging = 0` in both ops and revert. Fixed in latest build — revert
-now correctly sets `DWord(1)` (re-enables logging).
+[BUG-M15] gamingdisablenetworkthrottling — duplicate of nettcpthrottling ✅ Fixed
+  Gaming duplicate removed from latest build.
 
-### BUG-M17 · `inputnumlockstartup` — ops and revert identical ✅ Fixed
-Was setting `InitialKeyboardIndicators = "2"` in both ops and revert. Fixed in latest
-build — revert now sets `"0"` (NumLock off).
+[BUG-M16] secrsopplogging — revert set wrong value ✅ Fixed
+  Revert now correctly sets DWord(1) (re-enables logging).
 
-### BUG-M18 · `netoptimizespeed` — Toggle with identical ops and revert ✅ Fixed
-Was `TweakTypeToggle` with both branches setting `SpeedDuplex = "0"`. Fixed in latest
-build — now `TweakTypeAction` with `revert_operations: None`.
+[BUG-M17] inputnumlockstartup — ops and revert identical ✅ Fixed
+  Revert now correctly sets "0" (NumLock off).
 
----
+[BUG-M18] netoptimizespeed — Toggle with identical ops and revert ✅ Fixed
+  Now TweakTypeAction with revert_operations: None.
 
-## LOW
+[BUG-M19] cpuultimateperformance — missing duplicatescheme fallback ❌ Open
+  File: cpu/power.rs
+  ─── Current:
+  operations: [
+      // Step 1: try activating the well-known GUID (works IF plan already exists)
+      Command("powercfg", ["-setactive", "e9a42b02-d5df-448d-aa00-03f14749eb61"]),
+      // Step 2 (duplicate): NOT PRESENT
+  ]
+  ─── Problem:
+  On Windows 11 Home and other editions where Ultimate Performance doesn't exist,
+  Step 1 fails with exit code non-zero and the tweak silently does nothing.
+  There is no fallback duplicatescheme step (unlike cpudisableallpowersaving which
+  correctly has both steps).
+  ─── Fix:
+  operations: [
+      Command("powercfg", ["/duplicatescheme",
+          "e9a42b02-d5df-448d-aa00-03f14749eb61"]),        // creates plan if missing
+      Command("powercfg", ["-setactive",
+          "e9a42b02-d5df-448d-aa00-03f14749eb61"]),        // activates it
+  ]
 
-### BUG-L1 · `privacydisabletelemetrytasks` — `privdisabletelemetrytasks` revert duplicate entry ❌ Open
-**File:** `src-tauri/src/modules/privacy/tasks.rs`
-The schtasks-based revert re-enables `\Experience Improvement Program` twice (identical
-line repeated). Copy-paste error; wastes one `schtasks` invocation.
-**Fix:** remove the duplicate line.
+[BUG-M20] cpudisablehpet — check uses hardcoded PnP instance path ❌ Open
+  File: cpu/timer.rs
+  ─── Current:
+  check: TweakCheckRegistry {
+      path: "SYSTEM\\...\\Enum\\ACPI\\...\\01030",  // hardcoded instance!
+      key: "ConfigFlags",
+      expected_value: RegistryValue::DWord(1)
+  }
+  ─── Problem:
+  The HPET PnP instance suffix (01030, 00000, etc.) varies by motherboard/firmware.
+  On systems where the instance ID differs, the check always returns false → toggle
+  shows "not applied" even after the device is correctly disabled by pnputil.
+  ─── Fix:
+  enumerate HKLM\SYSTEM\CurrentControlSet\Enum\ACPI\ACPI0103\* at runtime,
+  or use TweakCheckCommandOutputContains with:
+  cmd: "pnputil", args: ["/enum-devices", "/instanceid", "ACPI\\ACPI0103\\*", "/status"]
+  contains: "Disabled"
 
-### BUG-L2 · `privallinone` — check tests 3 keys, ops write 15+ ❌ Open
-**File:** `src-tauri/src/modules/privacy/advertising.rs`
-```rust
-check: TweakCheckMultiRegistry { checks: [
-    { key: "TurnOffWindowsCopilot",    expected: DWord(1) },
-    { key: "DisableAIDataAnalysis",    expected: DWord(1) },
-    { key: "EnableSmartScreen",        expected: DWord(0) },
-]}
-// operations write ~15 additional keys (SubscribedContent-*, SystemPaneSuggestions, etc.)
-```
-If any of the 12+ other keys are not set (e.g., after a Windows update resets them),
-the check still returns `true` because only 3 are tested. The toggle appears "applied"
-when the full configuration is no longer active.
-**Fix:** add the remaining written keys to `TweakCheckMultiRegistry`, or at minimum
-the most fragile ones (`SubscribedContent-338388Enabled`, `DisableSearchBoxSuggestions`).
+[BUG-M21] cpuprocessorcheckinterval — revert sets DC value that ops never touched ❌ Open
+  File: cpu/timer.rs
+  ─── Current:
+  operations:       [ setacvalueindex, ..., 4d2b0152-..., 1    ← AC only ]
+  revert_operations:[ setacvalueindex, ..., 4d2b0152-..., 15,  ← AC
+                      setdcvalueindex, ..., 4d2b0152-..., 15,  ← DC (never set by ops!)
+                      setactive, schemecurrent ]
+  ─── Problem:
+  Revert writes the DC (battery) value even though the ops never changed it.
+  On laptops this silently overwrites a user-configured DC check interval.
+  ─── Fix: remove setdcvalueindex from revert_operations.
 
-### BUG-L3 · `inputkeyboardspeed` — check tests only `KeyboardDelay`, not `KeyboardSpeed` ❌ Open
-**File:** `src-tauri/src/modules/input/keyboard.rs`
-```rust
-check: TweakCheckRegistry { key: "KeyboardDelay", expected_value: String("0") }
-// ops also write: KeyboardSpeed = "31"
-```
-If a user manually sets `KeyboardDelay = "0"` but `KeyboardSpeed` is at a lower value,
-the toggle shows "applied" when the speed tweak is not fully in effect. Not critical
-(the default `KeyboardSpeed` is already `31`) but the check is incomplete.
-**Fix:** use `TweakCheckMultiRegistry` checking both `KeyboardDelay = "0"` and
-`KeyboardSpeed = "31"`.
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+  LOW
+━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-### BUG-L4 · `interfaceclassiccontextmenu` — `cmd /c start explorer.exe` without kill ✅ Partial fix
-**File:** `src-tauri/src/modules/interface/contextmenu.rs`
-The old version killed Explorer with `taskkill /F` and never restarted it. The latest
-build removed the `taskkill` and only runs `cmd /c start explorer.exe`. This opens a
-new File Explorer *window* but does not restart the shell if Explorer is already
-running. On Windows 11 the classic context menu requires a full Explorer restart.
-**Fix:** replace both ops and revert with a proper shell restart sequence:
-```rust
-Command("cmd", ["/c", "taskkill /F /IM explorer.exe & start explorer.exe"])
-```
+[BUG-L1] privacydisabletelemetrytasks — duplicate revert entry ❌ Open
+  File: privacy/tasks.rs
+  The schtasks-based revert re-enables "\Experience Improvement Program" twice.
+  ─── Fix: remove the duplicate line.
 
-### BUG-L5 · `gpunvidiacleancache` — deletes user's entire NVIDIA local app data folder ❌ Open
-**File:** `src-tauri/src/modules/gpu/vendor.rs`
-```rust
-operations: [
-    Command("cmd", ["/c", "del /Q /F ...\\nv_cache\\*.bin 2>nul"]),
-    Command("cmd", ["/c", "del /Q /F ...\\nvdrsdb0.bin 2>nul"]),
-    Command("cmd", ["/c", "rmdir /S /Q %LOCALAPPDATA%\\...\\NVIDIA 2>nul"]),  // ← entire folder!
-]
-```
-The `rmdir /S /Q` on the NVIDIA LocalAppData folder also removes game-specific shader
-caches and custom NVIDIA profile settings — not just the driver profile database `.bin`
-files. This is broader than the description ("Clears NVIDIA driver profile database
-files") states.
-**Fix:** narrow the scope to only target the specific `.bin` and `.nip` files, not
-the entire `%LOCALAPPDATA%\NVIDIA` directory.
+[BUG-L2] privallinone — check tests 3 keys, ops write 15+ ❌ Open
+  File: privacy/advertising.rs
+  If any of the 12 extra written keys are reset by a Windows update, the check
+  still passes (only 3 keys tested) → toggle permanently shows false "applied".
+  ─── Fix: add key SubscribedContent-338388Enabled and DisableSearchBoxSuggestions
+  to TweakCheckMultiRegistry at minimum.
 
-### BUG-L6 · `interfacetakeownership` — revert only deletes the `shell\runas` verb, leaves all other subkeys ❌ Open
-**File:** `src-tauri/src/modules/interface/contextmenu.rs`
-```rust
-operations: [
-    // creates: HKCR\*\shell\runas\  (MUIVerb, Icon, HasLUAShield, command, IsolatedCommand)
-    // creates: HKCR\Directory\shell\runas\  (same 5 keys)
-]
-revert_operations: [
-    RegistryDelete(HKCR, r"*\shell\runas",           ""),  // deletes only default value
-    RegistryDelete(HKCR, r"Directory\shell\runas",   ""),  // deletes only default value
-]
-```
-Revert deletes only the default `""` value from each `shell\runas` key, leaving
-`MUIVerb`, `Icon`, `HasLUAShield`, `command`, and `IsolatedCommand` behind. The "Take
-Ownership" entry persists in the context menu after reverting.
-**Fix:** use `RegistryDeleteKey` on `*\shell\runas` and `Directory\shell\runas` to
-remove the entire subkey tree.
+[BUG-L3] inputkeyboardspeed — check tests only KeyboardDelay, not KeyboardSpeed ❌ Open
+  File: input/keyboard.rs
+  ops write both KeyboardDelay = "0" AND KeyboardSpeed = "31".
+  Check only verifies KeyboardDelay.
+  ─── Fix: use TweakCheckMultiRegistry checking both keys.
 
----
+[BUG-L4] interfaceclassiccontextmenu — cmd start explorer without kill ⚠️ Partial fix
+  File: interface/contextmenu.rs
+  Old version killed Explorer and never restarted it. New version runs
+  "cmd /c start explorer.exe" which opens a File Explorer window, not a shell restart.
+  Context menu changes require a full shell restart to take effect.
+  ─── Fix:
+  Command("cmd", ["/c", "taskkill /F /IM explorer.exe & start explorer.exe"])
 
-## Summary Table
+[BUG-L5] gpunvidiacleancache — rmdir deletes entire NVIDIA LocalAppData folder ❌ Open
+  File: gpu/vendor.rs
+  Command("cmd", ["/c", "rmdir /S /Q %LOCALAPPDATA%\\...\\NVIDIA 2>nul"])
+  Removes game shader caches and custom NVIDIA profile settings, not just .bin files.
+  Scope is wider than the description states.
+  ─── Fix: target only *.bin and *.nip driver profile files, not the entire folder.
 
-| ID     | Tweak ID                                | Category      | Status   | Severity |
-|--------|-----------------------------------------|---------------|----------|----------|
-| C1     | `gpudisablenvidiatelemetry`             | GPU           | ✅ Fixed  | Critical |
-| C2     | `interfaceclassiccontextmenu` (check)   | Interface     | ✅ Fixed  | Critical |
-| C3     | `interfaceclassiccontextmenu` (revert)  | Interface     | ✅ Fixed  | Critical |
-| H1     | `debloatdisablemisctasks`               | Debloat       | ✅ Fixed  | High     |
-| H2     | `gamingdisablexboxtasks`                | Gaming        | ✅ Fixed  | High     |
-| H3     | `privacydisabletelemetrytasks` (check)  | Privacy       | ✅ Fixed  | High     |
-| H4     | Duplicate telemetry task tweaks         | Privacy       | ✅ Fixed  | High     |
-| H5     | `privdisabletelemetrytasks` (dot+dupe)  | Privacy       | ✅ Fixed  | High     |
-| H6     | `gamingdisablefso` (missing revert key) | Gaming        | ✅ Fixed  | High     |
-| H7     | `gamingmmcsspriority` (SFIO missing)    | Gaming        | ✅ Fixed  | High     |
-| H8     | `interfacecompactmode` (no restart)     | Interface     | ✅ Fixed  | High     |
-| H9     | `gamingdisablegamebar` (Xbox revert)    | Gaming        | ✅ Fixed  | High     |
-| H10    | `gamingdisablexboxservices` (check)     | Gaming        | ✅ Fixed  | High     |
-| M1     | Triple NVIDIA telemetry conflict        | GPU/Privacy   | ✅ Fixed  | Medium   |
-| M2     | `sysresponsiveness` duplicate           | System/Net    | ✅ Fixed  | Medium   |
-| M3     | `nettcpautotuning` (ops=revert)         | Network       | ✅ Fixed  | Medium   |
-| M4     | `inputdisablesnapto` (no-op toggle)     | Input         | ✅ Fixed  | Medium   |
-| M5     | `inputmousesensitivitydefault` (Toggle) | Input         | ✅ Fixed  | Medium   |
-| M6     | `secdisablenotifications` (triple dupe) | Security      | ✅ Fixed  | Medium   |
-| M7     | `secdisableallmitigations` (bcdedit)    | Security      | ✅ Fixed  | Medium   |
-| M8     | `secdisablecpumitigations` (PS module)  | Security      | ✅ Fixed  | Medium   |
-| M9     | `privdisableceip` (Set+Delete)          | Privacy       | ✅ Fixed  | Medium   |
-| M10    | `privvscodetelemetry` (check: None)     | Privacy       | ✅ Fixed  | Medium   |
-| M11    | Duplicate Defender tweaks               | Debloat/Sec   | ✅ Fixed  | Medium   |
-| M12    | `gamingdisablegamebar` (PS check)       | Gaming        | ✅ Fixed  | Medium   |
-| M13    | `secdisableremoteassistance`            | Security      | ✅ Fixed  | Medium   |
-| M14    | `secdisablewer` (trailing space)        | Security      | ✅ Fixed  | Medium   |
-| M15    | `gamingdisablenetworkthrottling` dupe   | Gaming/Net    | ✅ Fixed  | Medium   |
-| M16    | `secrsopplogging` (revert value)        | Security      | ✅ Fixed  | Medium   |
-| M17    | `inputnumlockstartup` (ops=revert)      | Input         | ✅ Fixed  | Medium   |
-| M18    | `netoptimizespeed` (ops=revert)         | Network       | ✅ Fixed  | Medium   |
-| L1     | Duplicate revert entry (telemetry)      | Privacy       | ✅ Fixed  | Low      |
-| L2     | `privallinone` (incomplete check)       | Privacy       | ✅ Fixed  | Low      |
-| L3     | `inputkeyboardspeed` (partial check)    | Input         | ✅ Fixed  | Low      |
-| L4     | `interfaceclassiccontextmenu` (restart) | Interface     | ✅ Fixed  | Low      |
-| L5     | `gpunvidiacleancache` (too broad rmdir) | GPU           | ✅ Fixed  | Low      |
-| L6     | `interfacetakeownership` (revert scope) | Interface     | ✅ Fixed  | Low      |
+[BUG-L6] interfacetakeownership — revert deletes value, not the shell\runas subkey tree ❌ Open
+  File: interface/contextmenu.rs
+  ops create: HKCR\*\shell\runas\ with 5 child values
+  revert: RegistryDelete(HKCR, r"*\shell\runas", "")  ← deletes only default "" value
+  MUIVerb, Icon, HasLUAShield, command, IsolatedCommand all remain.
+  "Take Ownership" persists in context menu after reverting.
+  ─── Fix: use RegistryDeleteKey on r"*\shell\runas" and r"Directory\shell\runas".
 
-**Total: 36 bugs found — 36 fixed, 0 open**
+═══════════════════════════════════════════════════════
+  SECTION 2 — MISSING TWEAKS & IMPROVEMENTS
+═══════════════════════════════════════════════════════
+
+[NEW-01] Disable Full-Screen Optimizations — globally (not per-game) 🆕
+  Category: Gaming
+  Windows wraps fullscreen games in a borderless window by default, adding overhead.
+  The per-game FSO disabling exists but no global toggle does.
+  ─── Implementation:
+  RegistrySet(HKCU,
+      r"System\GameConfigStore",
+      "GameDVR_FSEBehaviorMode", DWord(2))
+  RegistrySet(HKCU,
+      r"System\GameConfigStore",
+      "GameDVR_HonorUserFSEBehaviorMode", DWord(1))
+  RegistrySet(HKCU,
+      r"Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers",
+      key: "DisableFullscreenOptimizations", value: String("1"))
+  check: TweakCheckRegistry { key: "GameDVR_FSEBehaviorMode", expected: DWord(2) }
+
+[NEW-02] TCP ACK Frequency optimization 🆕
+  Category: Network
+  Windows delays ACK packets to batch them, which adds latency in real-time apps.
+  Setting TcpAckFrequency=1 forces immediate ACK → measurable ping reduction.
+  ─── Implementation:
+  TweakOperationNetworkInterfacesSet {
+      key: "TcpAckFrequency",
+      value: RegistryValue::DWord(1)
+  }
+  TweakOperationNetworkInterfacesSet {
+      key: "TCPNoDelay",    // also disable Nagle at interface level
+      value: RegistryValue::DWord(1)
+  }
+  check: TweakCheckNetworkInterfacesCheck { key: "TcpAckFrequency", expected: DWord(1) }
+  revert: TweakOperationNetworkInterfacesDelete { key: "TcpAckFrequency" }
+
+[NEW-03] Set fixed page file size 🆕
+  Category: System / Memory
+  Dynamic page file resizing causes intermittent I/O stalls during gaming.
+  A fixed size eliminates resize overhead.
+  ─── Implementation: TweakOperationPowershell script that calls
+  SystemPropertiesAdvanced / wmic pagefile or sets registry under
+  HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management:
+  PagingFiles = "C:\pagefile.sys 4096 4096"  (or RAM-matched size)
+  ─── Note: expose as TweakTypeAction with a user-configurable size parameter
+  once the UI supports parameterized tweaks.
+
+[NEW-04] IRQ priority boost for GPU and NIC 🆕
+  Category: GPU / Network
+  Assigning higher IRQ priority to the GPU and NIC reduces scheduling jitter.
+  ─── Implementation (registry, no PowerShell):
+  RegistrySet(HKLM,
+      r"SYSTEM\CurrentControlSet\Control\PriorityControl",
+      "IRQ8Priority", DWord(1))
+  RegistrySet(HKLM,
+      r"SYSTEM\CurrentControlSet\Control\PriorityControl",
+      "IRQ16Priority", DWord(1))
+  check: TweakCheckRegistry { key: "IRQ8Priority", expected: DWord(1) }
+
+[NEW-05] Disable automatic driver installation via Windows Update 🆕
+  Category: System / Security
+  Windows Update silently replaces GPU and NIC drivers with generic WHQL versions,
+  which can downgrade performance or break custom driver settings.
+  ─── Implementation:
+  RegistrySet(HKLM,
+      r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate",
+      "ExcludeWUDriversInQualityUpdate", DWord(1))
+  check: TweakCheckRegistry { key: "ExcludeWUDriversInQualityUpdate", expected: DWord(1) }
+  revert: RegistryDelete { key: "ExcludeWUDriversInQualityUpdate" }
+
+[NEW-06] DPC Latency — disable ACPI.sys interrupt deferral 🆕
+  Category: CPU / System
+  ACPI.sys can spike DPC latency to 500–2000 µs on some systems, causing
+  audio glitches and frametime spikes. Disabling deferred ACPI interrupts
+  stabilizes latency.
+  ─── Implementation:
+  RegistrySet(HKLM,
+      r"SYSTEM\CurrentControlSet\Services\ACPI\Parameters",
+      "DisableWakeupReasonForDPCLatency", DWord(1))
+  ─── Note: mark as WarningLevelCareful; may affect sleep/wake on laptops.
+
+[NEW-07] Shader cache size increase for NVIDIA/AMD 🆕
+  Category: GPU
+  Windows limits the DirectX shader cache to 10 GB. On modern GPUs with large
+  game libraries the cache fills up and shaders are recompiled, causing stutters.
+  ─── Implementation:
+  RegistrySet(HKLM,
+      r"SOFTWARE\Microsoft\Direct3D\ShaderCache",
+      "MaxFolderSizeGB", DWord(50))
+  check: TweakCheckRegistry { key: "MaxFolderSizeGB", expected: DWord(50) }
+  revert: RegistryDelete { key: "MaxFolderSizeGB" }
+
+[NEW-08] Disable GameInput service (Windows 11 24H2+) 🆕
+  Category: Gaming / Input
+  The new GameInput service (Windows 11 24H2) introduces an extra input layer
+  that can add 1–3 ms of latency. Not needed if using raw input.
+  ─── Implementation:
+  TweakOperationServiceDisable { name: "GameInputSvc" }
+  check: TweakCheckServiceDisabled { name: "GameInputSvc" }
+  revert: TweakOperationServiceSetMode { name: "GameInputSvc", mode: "demand" }
+  ─── Warning: WarningLevelCareful — may break some newer XInput controllers.
+
+[NEW-09] Prioritize GPU process class in MMCSS 🆕
+  Category: GPU / Gaming
+  Registering the GPU scheduling task in MMCSS ensures the scheduler gives it
+  the same priority boost as audio/game threads.
+  ─── Implementation:
+  RegistrySet(HKLM,
+      r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games",
+      "GPU Priority", DWord(8))         // already present
+  RegistrySet(HKLM,
+      r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\DisplayPostProcessing",
+      "GPU Priority", DWord(8))         // missing — new
+  RegistrySet(HKLM, same path, "Priority",           DWord(8))
+  RegistrySet(HKLM, same path, "Scheduling Category", String("High"))
+
+[NEW-10] Increase NtfsDisable8dot3NameCreation (storage, SSD) 🆕
+  Category: Storage
+  Disabling 8.3 short name creation on NTFS volumes reduces filesystem overhead,
+  especially on SSDs with large game folders.
+  ─── Implementation:
+  RegistrySet(HKLM,
+      r"SYSTEM\CurrentControlSet\Control\FileSystem",
+      "NtfsDisable8dot3NameCreation", DWord(1))
+  check: TweakCheckRegistry { key: "NtfsDisable8dot3NameCreation", expected: DWord(1) }
+  revert: RegistrySet { ..., DWord(0) }
+
+[NEW-11] Disable Windows Ink Workspace 🆕
+  Category: Interface / Debloat
+  Windows Ink adds a hook to every pointer event even on non-touch systems,
+  adding ~0.2 ms of processing overhead to stylus and mouse events.
+  ─── Implementation:
+  RegistrySet(HKCU,
+      r"Software\Microsoft\Windows\CurrentVersion\PenWorkspace",
+      "PenWorkspaceButtonDesiredVisibility", DWord(0))
+  RegistrySet(HKLM,
+      r"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace",
+      "AllowWindowsInkWorkspace", DWord(0))
+
+[NEW-12] Batch apply + rollback support 🆕
+  Category: Architecture / UX
+  Currently each tweak is applied individually. A "Apply All Recommended" button
+  with a single atomic rollback (restore point created beforehand) would allow
+  users to apply a curated preset safely.
+  ─── Proposal:
+  Add a TweakPreset struct:
+  pub struct TweakPreset {
+      pub id: String,
+      pub name: String,
+      pub tweak_ids: Vec<String>,
+      pub create_restore_point: bool,
+  }
+  Route through the existing createrestorepoint command before batch-apply.
+
+[NEW-13] Per-tweak "last applied" timestamp in AppState 🆕
+  Category: Architecture
+  AppState currently stores only a Set<String> of applied tweak IDs.
+  Adding a HashMap<String, DateTime<Utc>> would allow the UI to show
+  "Applied 3 days ago" and enable future scheduled re-check (for tweaks
+  that Windows Update can silently reset).
+
+═══════════════════════════════════════════════════════
+  SECTION 3 — TOTALS
+═══════════════════════════════════════════════════════
+
+  Critical bugs      :  3  (2 open, 1 fixed)
+  High bugs          : 13  (9 open, 4 fixed)
+  Medium bugs        : 21  (15 open, 6 fixed)
+  Low bugs           :  6  (5 open, 1 partial)
+  ─────────────────────────────────────────────────────
+  Total bugs         : 43  (31 open, 11 fixed, 1 partial)
+  New tweaks proposed: 11
+  Architecture improvements: 2
