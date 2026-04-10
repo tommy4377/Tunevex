@@ -58,10 +58,10 @@ pub fn get_explorer_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(0),
                 },
                 TweakOperation::Command {
-                    cmd: "taskkill".to_string(),
+                    cmd: "cmd".to_string(),
                     args: vec![
-                        "/F".to_string(),
-                        "/IM".to_string(),
+                        "/c".to_string(),
+                        "start".to_string(),
                         "explorer.exe".to_string(),
                     ],
                 },
@@ -75,10 +75,10 @@ pub fn get_explorer_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::DWord(1),
                 },
                 TweakOperation::Command {
-                    cmd: "taskkill".to_string(),
+                    cmd: "cmd".to_string(),
                     args: vec![
-                        "/F".to_string(),
-                        "/IM".to_string(),
+                        "/c".to_string(),
+                        "start".to_string(),
                         "explorer.exe".to_string(),
                     ],
                 },
