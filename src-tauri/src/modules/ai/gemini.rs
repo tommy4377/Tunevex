@@ -7,7 +7,7 @@ const SERVICE_NAME: &str = "TommyTweaker";
 const KEY_USERNAME: &str = "gemini_api_key";
 
 const GEMINI_URL: &str =
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent";
 
 pub fn save_api_key(key: &str) -> Result<(), String> {
     let entry = Entry::new(SERVICE_NAME, KEY_USERNAME)
@@ -104,8 +104,8 @@ pub async fn call_gemini(
     let body = GeminiRequest {
         contents,
         generation_config: GenerationConfig {
-            temperature: if expect_json { 0.1 } else { 0.7 },
-            max_output_tokens: 4096,
+            temperature: 1.0,
+            max_output_tokens: 8192,
             response_mime_type: if expect_json {
                 "application/json".to_string()
             } else {

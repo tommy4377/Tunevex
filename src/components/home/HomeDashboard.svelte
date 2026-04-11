@@ -668,43 +668,28 @@
 
     /* AI CTA Button */
     .ai-cta {
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-        border: none;
-        border-radius: var(--radius-lg, 16px);
-        padding: 20px 24px;
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        gap: 14px;
+        width: 100%;
+        padding: 14px 18px;
+        background: var(--layer-card);
+        border: var(--border-glass);
+        border-left: 2px solid var(--accent-color);
+        border-radius: var(--radius-card);
+        color: var(--text-color);
         cursor: pointer;
-        transition: all 0.3s;
-        margin-top: 12px;
+        transition: background 0.18s, border-color 0.18s;
+        text-align: left;
     }
 
     .ai-cta:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+        background: var(--layer-hover);
+        border-left-color: var(--accent-hover, var(--accent-color));
     }
 
-    .ai-cta-text {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-    }
-
-    .ai-cta-title {
-        font-size: 16px;
-        font-weight: 700;
-        color: white;
-    }
-
-    .ai-cta-sub {
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.8);
-    }
-
-    .ai-cta-arrow {
-        font-size: 24px;
-        color: white;
-    }
+    .ai-cta :global(svg) { color: var(--accent-color); flex-shrink: 0; }
+    .ai-cta-title  { display: block; font-size: 14px; font-weight: 600; color: var(--text-color); }
+    .ai-cta-sub    { display: block; font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .ai-cta-arrow  { font-size: 14px; color: var(--text-muted); margin-left: auto; }
 </style>

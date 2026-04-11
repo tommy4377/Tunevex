@@ -7,8 +7,8 @@
   import ChatPanel from "./ChatPanel.svelte";
   import DiagnosePanel from "./DiagnosePanel.svelte";
 
-  type Tab = "analyze" | "chat" | "diagnose";
-  let tab: Tab = "analyze";
+  type Tab = "scan" | "chat" | "diagnose";
+  let tab: Tab = "scan";
   let hasKey = false;
   let keyInput = "";
   let savingKey = false;
@@ -51,7 +51,7 @@
         — no billing required.
       </p>
       <p class="security-note">
-        🔒 Your key is stored in <strong>Windows Credential Manager</strong>,
+        Your key is stored in <strong>Windows Credential Manager</strong>,
         encrypted with your Windows login. It never touches the filesystem.
       </p>
       <div class="key-input-row">
@@ -75,7 +75,7 @@
       <div class="title-row">
         <Sparkles size={20} />
         <h1>AI Advisor</h1>
-        <span class="powered-by">powered by Gemini 2.0 Flash</span>
+        <span class="powered-by">powered by Gemini 3 Flash</span>
       </div>
       <button class="remove-key" onclick={deleteKey} title="Remove API key">
         <Trash2 size={13} /> Remove Key
@@ -83,19 +83,14 @@
     </div>
 
     <div class="tabs">
-      <button class:active={tab === "analyze"} onclick={() => tab = "analyze"}>
-        <Sparkles size={14} /> Analyze
-      </button>
-      <button class:active={tab === "chat"} onclick={() => tab = "chat"}>
-        <MessageSquare size={14} /> Chat
-      </button>
-      <button class:active={tab === "diagnose"} onclick={() => tab = "diagnose"}>
-        <AlertTriangle size={14} /> Diagnose Problem
-      </button>
+      <button class:active={tab === "scan"} onclick={() => tab = "scan"}>Scan</button>
+      <button class:active={tab === "chat"} onclick={() => tab = "chat"}>Chat</button>
+      <button class:active={tab === "diagnose"} onclick={() => tab = "diagnose"}>Diagnose</button>
+      <button class="disconnect-btn" onclick={deleteKey}>Disconnect</button>
     </div>
 
     <div class="tab-content">
-      {#if tab === "analyze"}
+      {#if tab === "scan"}
         <ScanPanel />
       {:else if tab === "chat"}
         <ChatPanel />
