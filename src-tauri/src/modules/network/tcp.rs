@@ -211,7 +211,7 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
                 TweakOperation::Command {
                     cmd: "netsh".to_string(),
                     args: vec!["int".into(), "tcp".into(), "set".into(), "supplemental".into(), "template=internet".into(), "congestionprovider=cubic".into()],
-                }
+}
             ]
         },
         Tweak {
@@ -402,35 +402,6 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
                     path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
                     key: "NetworkThrottlingIndex".to_string(),
                     value: RegistryValue::DWord(0xFFFFFFFF),
-                }
-            ]
-        },
-        Tweak {
-            id: "net_system_responsiveness".to_string(),
-            category: TweakCategory::Network,
-            name: "Optimize System Responsiveness".to_string(),
-            description: "Sets SystemResponsiveness to 0.".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: true,
-            revert_operations: Some(vec![
-                TweakOperation::RegistryDelete {
-                    root_key: "HKLM".to_string(),
-                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                    key: "SystemResponsiveness".to_string(),
-                }
-            ]), tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                key: "SystemResponsiveness".to_string(),
-                expected_value: RegistryValue::DWord(0),
-            }),
-            operations: vec![
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                    key: "SystemResponsiveness".to_string(),
-                    value: RegistryValue::DWord(0),
                 }
             ]
         },
