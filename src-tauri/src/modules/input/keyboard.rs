@@ -258,5 +258,37 @@ pub fn get_keyboard_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
+
+        // ============================================
+        // NEW PART 2 INPUT TWEAKS
+        // ============================================
+        Tweak {
+            id: "input_keyboard_delay_zero".to_string(),
+            category: TweakCategory::MouseInput,
+            name: "Zero Keyboard Repeat Delay".to_string(),
+            description: "Sets keyboard repeat delay to the minimum. Improves key responsiveness in games and fast typing.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "Control Panel\\Keyboard".to_string(),
+                key: "KeyboardDelay".to_string(),
+                expected_value: RegistryValue::String("0".to_string()),
+            }),
+            revert_operations: Some(vec![TweakOperation::RegistrySet {
+                root_key: "HKCU".to_string(),
+                path: "Control Panel\\Keyboard".to_string(),
+                key: "KeyboardDelay".to_string(),
+                value: RegistryValue::String("1".to_string()),
+            }]),
+            operations: vec![TweakOperation::RegistrySet {
+                root_key: "HKCU".to_string(),
+                path: "Control Panel\\Keyboard".to_string(),
+                key: "KeyboardDelay".to_string(),
+                value: RegistryValue::String("0".to_string()),
+            }],
+        },
     ]
 }
