@@ -9,30 +9,17 @@
 
 <style>
     .badge {
-        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+        font-size: 10px;
         font-weight: 600;
-        padding: 4px 10px;
-        border-radius: 20px;
+        padding: 3px 8px;
+        border-radius: var(--radius-pill);
         white-space: nowrap;
+        letter-spacing: 0.02em;
     }
-
-    .safe {
-        background: rgba(34, 197, 94, 0.15);
-        color: #22c55e;
-    }
-
-    .careful {
-        background: rgba(245, 158, 11, 0.15);
-        color: #f59e0b;
-    }
-
-    .dangerous {
-        background: rgba(239, 68, 68, 0.15);
-        color: #ef4444;
-    }
-
-    .default {
-        background: rgba(100, 116, 139, 0.15);
-        color: #64748b;
-    }
+    .safe      { background: rgba(52, 211, 153, 0.14); color: #34d399; }
+    .careful   { background: rgba(251, 191, 36,  0.14); color: #fbbf24; }
+    .dangerous { background: rgba(248, 113, 113, 0.14); color: #f87171; }
+    .default   { background: rgba(100, 116, 139, 0.14); color: #94a3b8; }
 </style>

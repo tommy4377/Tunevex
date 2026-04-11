@@ -308,60 +308,46 @@
         flex-shrink: 0;
     }
 
-    /* Toggle Button - Disabled State */
+    /* Toggle Button */
     .toggle-btn {
         min-width: 90px;
-        padding: 8px 16px;
-        border-radius: 10px;
+        padding: 7px 16px;
+        border-radius: var(--radius-sm);
         border: 1px solid var(--toggle-off-border);
         background: var(--toggle-off-bg);
         color: var(--toggle-off-color);
         cursor: pointer;
         font-size: 13px;
         font-weight: 600;
-        transition: all 0.25s ease;
+        transition: all 0.18s ease;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 6px;
     }
-
     .toggle-btn:hover {
-        border-color: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.18);
         color: var(--text-color);
-        background: rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.07);
     }
-
-    /* Toggle Button - Enabled State (Azure Accent + Glow) */
     .toggle-btn.on {
         background: var(--toggle-on-bg);
         border-color: var(--toggle-on-border);
         color: var(--toggle-on-color);
         box-shadow: var(--toggle-on-glow);
     }
-
     .toggle-btn.on:hover {
-        background: rgba(96, 205, 255, 0.3);
-        transform: translateY(-1px);
-        box-shadow: 0 0 16px rgba(96, 205, 255, 0.4);
+        background: rgba(129, 140, 248, 0.26);
+        box-shadow: 0 0 14px rgba(129, 140, 248, 0.3);
     }
+    .toggle-btn.loading { opacity: 0.7; cursor: wait; pointer-events: none; }
+    .toggle-btn:disabled { cursor: not-allowed; }
 
     .empty-state {
         padding: 40px;
         text-align: center;
         color: var(--text-muted);
         font-style: italic;
-    }
-
-    /* Loading state for buttons */
-    .toggle-btn.loading {
-        opacity: 0.7;
-        cursor: wait;
-        pointer-events: none;
-    }
-
-    .toggle-btn:disabled {
-        cursor: not-allowed;
     }
 
     .btn-spinner {
