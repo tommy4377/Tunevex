@@ -239,35 +239,7 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
                 }
             ]
         },
-        Tweak {
-            id: "net_global_max_tcp_window".to_string(),
-            category: TweakCategory::Network,
-            name: "Set GlobalMaxTcpWindowSize".to_string(),
-            description: "Sets GlobalMaxTcpWindowSize to 65535 for better throughput on most broadband connections.".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: true,
-            revert_operations: Some(vec![
-                TweakOperation::RegistryDelete {
-                    root_key: "HKLM".to_string(),
-                    path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
-                    key: "GlobalMaxTcpWindowSize".to_string(),
-                }
-            ]), tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
-                key: "GlobalMaxTcpWindowSize".to_string(),
-                expected_value: RegistryValue::DWord(65535),
-            }),
-            operations: vec![
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
-                    key: "GlobalMaxTcpWindowSize".to_string(),
-                    value: RegistryValue::DWord(65535),
-                }
-            ]
-        },
+        // REMOVED: net_global_max_tcp_window - conflicts with TCP window scaling (RFC 1323), limits throughput
         Tweak {
             id: "net_enable_pmtu_discovery".to_string(),
             category: TweakCategory::Network,

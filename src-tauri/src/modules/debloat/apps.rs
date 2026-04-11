@@ -261,8 +261,7 @@ if (Test-Path "$env:SystemRoot\System32\OneDriveSetup.exe") {
     & "$env:SystemRoot\SysWOW64\OneDriveSetup.exe" /uninstall
 }
 
-# Remove leftover folders
-Remove-Item "$env:USERPROFILE\OneDrive" -Recurse -Force -EA 0
+# Remove leftover folders (skip USERPROFILE\OneDrive - it's the synced folder with user data!)
 Remove-Item "$env:LOCALAPPDATA\Microsoft\OneDrive" -Recurse -Force -EA 0
 Remove-Item "$env:PROGRAMDATA\Microsoft OneDrive" -Recurse -Force -EA 0
 Remove-Item "C:\OneDriveTemp" -Recurse -Force -EA 0
