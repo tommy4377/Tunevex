@@ -12,7 +12,7 @@ use tauri::{Emitter, State};
 const ALLOWED_COMMANDS: &[&str] = &[
     "sc", "schtasks", "bcdedit", "powercfg",
     "fsutil", "powershell", "taskkill", "netsh",
-    "reg", "cmd", "pnputil", "del", "rmdir",
+    "reg", "cmd", "pnputil", "del", "rmdir", "dism"
 ];
 
 fn validate_command(cmd: &str) -> Result<(), String> {

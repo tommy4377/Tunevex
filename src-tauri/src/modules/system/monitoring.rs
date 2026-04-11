@@ -1,19 +1,17 @@
 // src-tauri/src/modules/system/monitoring.rs
 
-use std::ffi::c_void;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
 use tauri::{command, Manager};
-use windows::Win32::System::Performance::{
-    PdhAddCounterW, PdhCloseQuery, PdhCollectQueryData, PdhGetFormattedCounterValue,
-    PdhOpenQueryW, PDH_FMT_COUNTERVALUE, PDH_FMT_DOUBLE, PDH_HCOUNTER, PDH_HQUERY,
-};
 use winreg::{enums::*, RegKey};
+use std::os::windows::process::CommandExt;
 
-// ─── Public data structs ─────────────────────────────────────────────────────
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+// ─── Structs ─────────────────────────────────────────────────────────────────
 
 #[derive(serde::Serialize, Clone)]
 pub struct DiskStats {
@@ -41,7 +39,7 @@ pub struct SystemStats {
     pub gpu: Option<GpuStats>,
 }
 
-// ─── SystemMonitor ───────────────────────────────────────────────────────────
+// ─── SystemMonitor ────────────────────────────────────────────────────────────
 
 pub struct SystemMonitor {
     pub sys: System,
@@ -59,90 +57,49 @@ impl SystemMonitor {
         let gpu_usage_clone = gpu_usage.clone();
         let gpu_cancel_clone = gpu_cancel.clone();
 
+        // GPU monitoring via typeperf — nativo Windows, no PDH bindings necessari
         let gpu_thread = thread::spawn(move || {
-            // PDH_HQUERY / PDH_HCOUNTER wrap *mut c_void which is !Send.
-            // We store them as usize (pointer-width integer) and reconstruct
-            // the newtypes only inside this thread — safe because:
-            //   1. Only this thread reads/writes the handles.
-            //   2. Drop signals gpu_cancel and then joins this thread, so the
-            //      caller cannot outlive the handles.
-            let mut raw_query: usize = 0;
-            let mut raw_counter: usize = 0;
-            let mut pdh_ok = false;
-
-            unsafe {
-                let mut q: PDH_HQUERY = std::mem::zeroed();
-                // null PCWSTR = real-time data source
-                if PdhOpenQueryW(windows::core::PCWSTR::null(), 0, &mut q) == 0 {
-                    let mut c: PDH_HCOUNTER = std::mem::zeroed();
-                    let counter_path =
-                        windows::core::w!(r"\GPU Engine(*engtype_3D)\Utilization Percentage");
-                    if PdhAddCounterW(q, counter_path, 0, &mut c) == 0 {
-                        // Warm-up: first sample is always 0, discard it
-                        PdhCollectQueryData(q);
-                        // Store as usize to satisfy Send bound
-                        raw_query = q.0 as usize;
-                        raw_counter = c.0 as usize;
-                        pdh_ok = true;
-                    } else {
-                        eprintln!("[GPU Monitor] PdhAddCounterW failed");
-                        PdhCloseQuery(q);
-                    }
-                } else {
-                    eprintln!("[GPU Monitor] PdhOpenQueryW failed");
-                }
-            }
-
-            // ── Polling loop ─────────────────────────────────────────────────
             loop {
                 if gpu_cancel_clone.load(Ordering::SeqCst) {
                     break;
                 }
 
-                if pdh_ok {
-                    unsafe {
-                        // Reconstruct newtypes from stored usize values
-                        let q = PDH_HQUERY(raw_query as *mut c_void);
-                        let c = PDH_HCOUNTER(raw_counter as *mut c_void);
+                let output = std::process::Command::new("typeperf")
+                    .args(["-sc", "1", r"\GPU Engine(*engtype_3D)\Utilization Percentage"])
+                    .creation_flags(CREATE_NO_WINDOW)
+                    .output();
 
-                        PdhCollectQueryData(q);
-
-                        let mut fmt_val: PDH_FMT_COUNTERVALUE = std::mem::zeroed();
-                        let status = PdhGetFormattedCounterValue(
-                            c,
-                            PDH_FMT_DOUBLE,
-                            None,
-                            &mut fmt_val,
-                        );
-
-                        if status == 0 {
-                            // SAFETY: PDH_FMT_DOUBLE guarantees doubleValue is valid
-                            let usage = fmt_val.Anonymous.doubleValue as f32;
-                            if let Ok(mut g) = gpu_usage_clone.lock() {
-                                *g = usage.clamp(0.0, 100.0);
+                if let Ok(out) = output {
+                    let stdout = String::from_utf8_lossy(&out.stdout);
+                    // typeperf restituisce CSV: prima riga header, seconda riga dati
+                    // Sommiamo tutti i valori delle istanze GPU
+                    let mut total = 0.0f32;
+                    let mut count = 0;
+                    for line in stdout.lines().skip(1) {
+                        // Ogni campo dopo il timestamp è un valore GPU
+                        for field in line.split(',').skip(1) {
+                            let trimmed = field.trim().trim_matches('"');
+                            if let Ok(v) = trimmed.parse::<f32>() {
+                                if v >= 0.0 {
+                                    total += v;
+                                    count += 1;
+                                }
                             }
+                        }
+                    }
+                    if count > 0 {
+                        if let Ok(mut g) = gpu_usage_clone.lock() {
+                            *g = total.clamp(0.0, 100.0);
                         }
                     }
                 }
 
-                // Sleep in 100ms slices so cancel responds within ~100ms
+                // Sleep in slice da 100ms per rispondere al cancel entro ~100ms
                 for _ in 0..20 {
                     if gpu_cancel_clone.load(Ordering::SeqCst) {
-                        if pdh_ok {
-                            unsafe {
-                                PdhCloseQuery(PDH_HQUERY(raw_query as *mut c_void));
-                            }
-                        }
                         return;
                     }
                     thread::sleep(Duration::from_millis(100));
-                }
-            }
-
-            // Normal exit: close handles
-            if pdh_ok {
-                unsafe {
-                    PdhCloseQuery(PDH_HQUERY(raw_query as *mut c_void));
                 }
             }
         });
@@ -166,16 +123,14 @@ impl SystemMonitor {
 
 impl Drop for SystemMonitor {
     fn drop(&mut self) {
-        // 1. Signal thread to stop
         self.gpu_cancel.store(true, Ordering::SeqCst);
-        // 2. Wait — thread closes PDH handles on its way out
         if let Some(handle) = self.gpu_thread_handle.take() {
             let _ = handle.join();
         }
     }
 }
 
-// ─── Registry-based GPU name detection ──────────────────────────────────────
+// ─── GPU name da registry ─────────────────────────────────────────────────────
 
 fn get_gpu_name() -> Option<String> {
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
@@ -197,8 +152,7 @@ fn get_gpu_name() -> Option<String> {
         let vram: u32 = sub
             .get_value("HardwareInformation.qwMemorySize")
             .unwrap_or(0u32);
-        let update = best.as_ref().map_or(true, |(best_vram, _)| vram > *best_vram);
-        if update {
+        if best.as_ref().map_or(true, |(bv, _)| vram > *bv) {
             best = Some((vram, driver_desc));
         }
     }
@@ -206,7 +160,7 @@ fn get_gpu_name() -> Option<String> {
     best.map(|(_, name)| name)
 }
 
-// ─── Tauri commands ──────────────────────────────────────────────────────────
+// ─── Tauri commands ───────────────────────────────────────────────────────────
 
 #[command]
 pub async fn get_quick_stats(app: tauri::AppHandle) -> Result<SystemStats, String> {
@@ -243,7 +197,8 @@ pub async fn get_disk_stats(app: tauri::AppHandle) -> Result<Vec<DiskStats>, Str
         let state = app.state::<Mutex<SystemMonitor>>();
         let mut monitor = state.lock().map_err(|e| e.to_string())?;
 
-        monitor.disks.refresh(false);
+        // true = rimuovi dischi stale, aggiorna la lista
+        monitor.disks.refresh(true);
 
         Ok(monitor
             .disks
