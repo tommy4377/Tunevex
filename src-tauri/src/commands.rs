@@ -921,6 +921,20 @@ fn get_current_windows_build() -> u32 {
         .unwrap_or(0)
 }
 
+fn win11_only_tweaks() -> std::collections::HashMap<&'static str, u32> {
+    [
+        ("interface_taskbar_end_task", 22621),
+        ("taskbar_align_left", 22000),
+        ("interface_remove_home_namespace", 22000),
+        ("interface_disable_dynamic_lighting", 22621),
+        ("privacy_disable_recall", 26100),
+        ("privacy_disable_cross_device_resume", 26100),
+        ("boot_highest_mode", 22000),
+    ]
+    .into_iter()
+    .collect()
+}
+
 #[tauri::command]
 pub async fn benchmark_dns() -> Result<Vec<DnsBenchmarkResult>, String> {
     tokio::task::spawn_blocking(dns_benchmark::run_benchmark)
@@ -949,10 +963,14 @@ pub async fn get_tweaks(ctx: State<'_, Mutex<TweakContext>>, state: State<'_, Mu
         app_state.applied_tweaks.clone()
     };
 
-// Move heavy I/O (registry, sc, schtasks) to blocking thread pool
+    let build = get_current_windows_build();
+    let min_builds = win11_only_tweaks();
+
+    // Move heavy I/O (registry, sc, schtasks) to blocking thread pool
     tokio::task::spawn_blocking(move||
         tweaks
             .iter()
+            .filter(|t| min_builds.get(t.id.as_str()).map_or(true, |&min| build >= min))
             .map(|t| {
                 let mut tweak = t.clone();
                 // First, check actual system state via TweakCheck if available
@@ -988,8 +1006,12 @@ pub async fn get_tweaks_fast(
         app_state.applied_tweaks.clone()
     }; // state guard dropped here
 
+    let build = get_current_windows_build();
+    let min_builds = win11_only_tweaks();
+
     Ok(tweaks
         .into_iter()
+        .filter(|t| min_builds.get(t.id.as_str()).map_or(true, |&min| build >= min))
         .map(|mut t| {
             t.enabled = applied.contains(&t.id);
             t

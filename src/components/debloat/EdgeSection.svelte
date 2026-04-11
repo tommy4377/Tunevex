@@ -82,8 +82,10 @@
     }
     .tweaks-wrapper {
         flex: 1;
-        overflow: hidden;
+        overflow-y: auto;
+        overflow-x: hidden;
         display: flex;
         flex-direction: column;
+        padding-bottom: 24px;
     }
 </style>

@@ -63,6 +63,8 @@
         height: 100%;
         width: 100%;
         overflow: hidden;
+        min-height: 140px;
+        max-height: 180px;
     }
 
     /* Gradient overlay for sheen */
@@ -128,6 +130,7 @@
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        word-break: break-word;
     }
 
     .status {

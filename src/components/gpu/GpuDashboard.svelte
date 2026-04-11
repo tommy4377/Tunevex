@@ -169,5 +169,8 @@
         max-width: 600px;
         margin: 0 auto;
         width: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-bottom: 24px;
     }
 </style>

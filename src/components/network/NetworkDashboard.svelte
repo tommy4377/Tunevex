@@ -71,7 +71,7 @@
 
 <div class="network-container">
     {#if currentView === "dashboard"}
-        <CardGrid>
+        <CardGrid columns="repeat(auto-fill, minmax(200px, 1fr))">
             <Card
                 icon={Globe}
                 title="DNS Optimizer"

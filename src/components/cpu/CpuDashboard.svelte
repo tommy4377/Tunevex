@@ -122,7 +122,7 @@
 
 <div class="cpu-container">
     {#if currentView === "dashboard"}
-        <CardGrid>
+        <CardGrid columns="repeat(auto-fill, minmax(200px, 1fr))">
             {#each sections.filter((s) => s.tweaks().length > 0) as section}
                 <Card
                     icon={section.icon}
@@ -180,8 +180,10 @@
 
     .tweaks-wrapper {
         flex: 1;
-        overflow: hidden;
+        overflow-y: auto;
+        overflow-x: hidden;
         display: flex;
         flex-direction: column;
+        padding-bottom: 24px;
     }
 </style>

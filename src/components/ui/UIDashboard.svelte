@@ -123,7 +123,7 @@
 
 <div class="ui-dashboard" in:fade>
     {#if currentView === "dashboard"}
-        <CardGrid>
+        <CardGrid columns="repeat(2, 1fr)">
             {#each sections.filter((s) => s.tweaks().length > 0) as section}
                 <Card
                     icon={section.icon}
