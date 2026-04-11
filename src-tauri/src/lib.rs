@@ -15,7 +15,7 @@ use crate::modules::network::get_network_tweaks;
 use crate::modules::privacy::get_privacy_tweaks;
 use crate::modules::security::get_security_tweaks;
 use crate::modules::storage::get_storage_tweaks;
-// use crate::modules::startup::get_startup_tweaks;
+use crate::modules::startup::boot::get_boot_tweaks;
 use crate::modules::interface::get_interface_tweaks;
 use crate::modules::system::get_system_tweaks;
 use std::sync::Mutex;
@@ -31,7 +31,7 @@ pub fn run() {
     all_tweaks.extend(get_debloat_tweaks());
     all_tweaks.extend(get_display_tweaks());
     all_tweaks.extend(get_system_tweaks());
-    // all_tweaks.extend(get_startup_tweaks()); // Startup is now a separate manager
+    all_tweaks.extend(get_boot_tweaks()); // Boot configuration tweaks
     all_tweaks.extend(get_gaming_tweaks());
     all_tweaks.extend(get_gpu_tweaks());
     all_tweaks.extend(get_input_tweaks());

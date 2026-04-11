@@ -247,3 +247,237 @@ fn toggle_bootexec_item(_id: &str, _enable: bool) -> Result<(), String> {
          Use 'msconfig' or 'autoruns' for manual editing."
         .to_string())
 }
+
+// ============================================
+// BOOT TWEAKS - Part 2 additions
+// ============================================
+
+use crate::modules::types::{
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
+};
+
+pub fn get_boot_tweaks() -> Vec<Tweak> {
+    vec![
+        Tweak {
+            id: "boot_ignore_failures".to_string(),
+            category: TweakCategory::StartupServices,
+            name: "Disable Auto Repair on Boot Failure".to_string(),
+            description: "Prevents Windows from entering the automatic repair loop after a crash or hard reset. Boots normally instead of showing the recovery screen.".to_string(),
+            warning_level: WarningLevel::Careful,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "bcdedit".to_string(),
+                args: vec!["/enum".to_string(), "{current}".to_string()],
+                contains: "bootstatuspolicy".to_string(),
+            }),
+            revert_operations: Some(vec![TweakOperation::Command {
+                cmd: "bcdedit".to_string(),
+                args: vec!["/deletevalue".to_string(), "{current}".to_string(), "bootstatuspolicy".to_string()],
+            }]),
+            operations: vec![TweakOperation::Command {
+                cmd: "bcdedit".to_string(),
+                args: vec!["/set".to_string(), "{current}".to_string(), "bootstatuspolicy".to_string(), "IgnoreAllFailures".to_string()],
+            }],
+        },
+        Tweak {
+            id: "boot_highest_mode".to_string(),
+            category: TweakCategory::StartupServices,
+            name: "Maximum Resolution in Boot Environment".to_string(),
+            description: "Forces the UEFI boot environment and Safe Mode to use the maximum supported resolution instead of low-resolution fallback.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "bcdedit".to_string(),
+                args: vec!["/enum".to_string(), "{globalsettings}".to_string()],
+                contains: "highestmode".to_string(),
+            }),
+            revert_operations: Some(vec![TweakOperation::Command {
+                cmd: "bcdedit".to_string(),
+                args: vec!["/deletevalue".to_string(), "{globalsettings}".to_string(), "highestmode".to_string()],
+            }]),
+            operations: vec![TweakOperation::Command {
+                cmd: "bcdedit".to_string(),
+                args: vec!["/set".to_string(), "{globalsettings}".to_string(), "highestmode".to_string(), "true".to_string()],
+            }],
+        },
+        Tweak {
+            id: "boot_disable_animations".to_string(),
+            category: TweakCategory::StartupServices,
+            name: "Disable Boot Logo & Loading Spinner".to_string(),
+            description: "Hides the OEM manufacturer logo and Windows loading spinner during boot. Uses undocumented BCD flags from AtlasOS.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: true,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "bcdedit".to_string(),
+                args: vec!["/enum".to_string(), "{globalsettings}".to_string()],
+                contains: "16000067".to_string(),
+            }),
+            revert_operations: Some(vec![
+                TweakOperation::Command {
+                    cmd: "bcdedit".to_string(),
+                    args: vec!["/deletevalue".to_string(), "{globalsettings}".to_string(), "custom:16000067".to_string()],
+                },
+                TweakOperation::Command {
+                    cmd: "bcdedit".to_string(),
+                    args: vec!["/deletevalue".to_string(), "{globalsettings}".to_string(), "custom:16000069".to_string()],
+                },
+            ]),
+            operations: vec![
+                TweakOperation::Command {
+                    cmd: "bcdedit".to_string(),
+                    args: vec!["/set".to_string(), "{globalsettings}".to_string(), "custom:16000067".to_string(), "true".to_string()],
+                },
+                TweakOperation::Command {
+                    cmd: "bcdedit".to_string(),
+                    args: vec!["/set".to_string(), "{globalsettings}".to_string(), "custom:16000069".to_string(), "true".to_string()],
+                },
+            ],
+        },
+        Tweak {
+            id: "boot_f8_legacy_menu".to_string(),
+            category: TweakCategory::StartupServices,
+            name: "Enable F8 Legacy Boot Menu".to_string(),
+            description: "Restores the classic F8 Advanced Boot Options text menu (Safe Mode, Debug Mode, etc.) disabled since Windows 8.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "bcdedit".to_string(),
+                args: vec!["/enum".to_string(), "{current}".to_string()],
+                contains: "legacy".to_string(),
+            }),
+            revert_operations: Some(vec![TweakOperation::Command {
+                cmd: "bcdedit".to_string(),
+                args: vec!["/set".to_string(), "{current}".to_string(), "bootmenupolicy".to_string(), "standard".to_string()],
+            }]),
+            operations: vec![TweakOperation::Command {
+                cmd: "bcdedit".to_string(),
+                args: vec!["/set".to_string(), "{current}".to_string(), "bootmenupolicy".to_string(), "legacy".to_string()],
+            }],
+        },
+        Tweak {
+            id: "boot_disable_fast_startup".to_string(),
+            category: TweakCategory::StartupServices,
+            name: "Disable Fast Startup".to_string(),
+            description: "Disables Windows hybrid boot. Fast Startup causes issues with dual boot, hardware detection, and Windows Update. Ensures a clean full kernel reload on every boot.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: true,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: r"SYSTEM\CurrentControlSet\Control\Session Manager\Power".to_string(),
+                key: "HiberbootEnabled".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
+            revert_operations: Some(vec![TweakOperation::RegistrySet {
+                root_key: "HKLM".to_string(),
+                path: r"SYSTEM\CurrentControlSet\Control\Session Manager\Power".to_string(),
+                key: "HiberbootEnabled".to_string(),
+                value: RegistryValue::DWord(1),
+            }]),
+            operations: vec![TweakOperation::RegistrySet {
+                root_key: "HKLM".to_string(),
+                path: r"SYSTEM\CurrentControlSet\Control\Session Manager\Power".to_string(),
+                key: "HiberbootEnabled".to_string(),
+                value: RegistryValue::DWord(0),
+            }],
+        },
+        Tweak {
+            id: "boot_real_time_universal".to_string(),
+            category: TweakCategory::StartupServices,
+            name: "Hardware Clock = UTC (Dual Boot Fix)".to_string(),
+            description: "Sets the hardware clock to UTC. Required when dual-booting with Linux to prevent the system clock from being wrong after switching OS.".to_string(),
+            warning_level: WarningLevel::Careful,
+            requires_restart: true,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: r"SYSTEM\CurrentControlSet\Control\TimeZoneInformation".to_string(),
+                key: "RealTimeIsUniversal".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
+            revert_operations: Some(vec![TweakOperation::RegistryDelete {
+                root_key: "HKLM".to_string(),
+                path: r"SYSTEM\CurrentControlSet\Control\TimeZoneInformation".to_string(),
+                key: "RealTimeIsUniversal".to_string(),
+            }]),
+            operations: vec![TweakOperation::RegistrySet {
+                root_key: "HKLM".to_string(),
+                path: r"SYSTEM\CurrentControlSet\Control\TimeZoneInformation".to_string(),
+                key: "RealTimeIsUniversal".to_string(),
+                value: RegistryValue::DWord(1),
+            }],
+        },
+        Tweak {
+            id: "boot_verbose_status".to_string(),
+            category: TweakCategory::StartupServices,
+            name: "Verbose Boot/Shutdown Status Messages".to_string(),
+            description: "Shows detailed status messages (e.g. 'Stopping Windows Update...') during boot and shutdown instead of just the spinning circle.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System".to_string(),
+                key: "VerboseStatus".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
+            revert_operations: Some(vec![TweakOperation::RegistryDelete {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System".to_string(),
+                key: "VerboseStatus".to_string(),
+            }]),
+            operations: vec![TweakOperation::RegistrySet {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System".to_string(),
+                key: "VerboseStatus".to_string(),
+                value: RegistryValue::DWord(1),
+            }],
+        },
+        Tweak {
+            id: "boot_modern_standby_network".to_string(),
+            category: TweakCategory::StartupServices,
+            name: "Disable Network on Modern Standby (S0)".to_string(),
+            description: "Prevents the network adapter from staying active during S0 modern sleep. Fixes laptops overheating in bags while suspended.".to_string(),
+            warning_level: WarningLevel::Careful,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "powercfg".to_string(),
+                args: vec!["/q".to_string(), "SCHEME_CURRENT".to_string(), "f15576e8-98b7-4186-b944-eafa664402d9".to_string(), "f15576e8-98b7-4186-b944-eafa664402d9".to_string()],
+                contains: "0x00000000".to_string(),
+            }),
+            revert_operations: Some(vec![
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec!["/setacvalueindex".to_string(), "SCHEME_CURRENT".to_string(), "f15576e8-98b7-4186-b944-eafa664402d9".to_string(), "f15576e8-98b7-4186-b944-eafa664402d9".to_string(), "1".to_string()],
+                },
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec!["/setactive".to_string(), "SCHEME_CURRENT".to_string()],
+                },
+            ]),
+            operations: vec![
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec!["/setacvalueindex".to_string(), "SCHEME_CURRENT".to_string(), "f15576e8-98b7-4186-b944-eafa664402d9".to_string(), "f15576e8-98b7-4186-b944-eafa664402d9".to_string(), "0".to_string()],
+                },
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec!["/setactive".to_string(), "SCHEME_CURRENT".to_string()],
+                },
+            ],
+        },
+    ]
+}
