@@ -1,15 +1,15 @@
-# Tunevex v0.3.0
+# Tunevex v0.4.0
 
-Native Windows backend
+AI Advisor
 
 Tunevex is a Windows system tuning and optimization utility built with Rust, Tauri and Svelte.
 
 ## Highlights
 
-- More native registry, service and Windows API operations
-- Stronger state detection and rollback semantics
-- Safer device and system monitoring
-- Large duplicate and bug cleanup
+- Optional Gemini powered advisor
+- Analyze, chat and diagnose workflows
+- Windows Credential Manager key storage
+- System profile aware recommendations
 
 ## Safety
 

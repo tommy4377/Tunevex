@@ -1,6 +1,6 @@
 [package]
 name = "tunevex"
-version = "0.3.0"
+version = "0.4.0"
 description = "Windows system tuning and optimization utility"
 authors = ["tommy4377"]
 edition = "2021"
@@ -30,6 +30,7 @@ anyhow = "1.0"
 log = "0.4"
 env_logger = "0.10"
 hickory-resolver = "0.24"
+rayon = "1.10"
 rust-embed = "8.5.0"
 
 
@@ -39,6 +40,14 @@ globset = "0.4"
 tokio = { version = "1", features = ["full"] }
 pelite = "0.10"
 sysinfo = "0.37"
+strip-ansi-escapes = "0.2"
+
+# AI Dependencies
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+keyring = { version = "3", features = ["windows-native"] }
+
+# HTTP plugin for Tauri
+tauri-plugin-http = "2"
 
 # Windows Dependencies (Now Mandatory)
 winreg = "0.52"
@@ -62,6 +71,7 @@ features = [
     "Win32_Devices_Display",
     "Win32_System_SystemInformation",
     "Win32_System_Threading",
+    "Win32_System_Performance",
 ]
 
 [profile.release]

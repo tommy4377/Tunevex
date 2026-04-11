@@ -55,33 +55,26 @@ pub fn get_service_tweaks() -> Vec<Tweak> {
                 ],
             }),
             operations: vec![
-                TweakOperation::ServiceSetMode {
+                TweakOperation::ServiceDisable {
                     name: "WMPNetworkSvc".to_string(),
-                    mode: "Manual".to_string(),
                 },
-                TweakOperation::ServiceSetMode {
+                TweakOperation::ServiceDisable {
                     name: "MapsBroker".to_string(),
-                    mode: "Manual".to_string(),
                 },
-                TweakOperation::ServiceSetMode {
+                TweakOperation::ServiceDisable {
                     name: "Fax".to_string(),
-                    mode: "Manual".to_string(),
                 },
-                TweakOperation::ServiceSetMode {
+                TweakOperation::ServiceDisable {
                     name: "RetailDemo".to_string(),
-                    mode: "Manual".to_string(),
                 },
-                TweakOperation::ServiceSetMode {
+                TweakOperation::ServiceDisable {
                     name: "WalletService".to_string(),
-                    mode: "Manual".to_string(),
                 },
-                TweakOperation::ServiceSetMode {
+                TweakOperation::ServiceDisable {
                     name: "PhoneSvc".to_string(),
-                    mode: "Manual".to_string(),
                 },
-                TweakOperation::ServiceSetMode {
+                TweakOperation::ServiceDisable {
                     name: "TapiSrv".to_string(),
-                    mode: "Manual".to_string(),
                 },
             ],
             tweak_type: TweakType::Toggle,
@@ -130,39 +123,6 @@ pub fn get_service_tweaks() -> Vec<Tweak> {
             ],
         },
         Tweak {
-            id: "debloat_disable_printer_services".to_string(),
-            category: TweakCategory::DebloatTelemetry,
-            name: "Disable Printer Services".to_string(),
-            description: "Disables Print Spooler. Only if not using printers!".to_string(),
-            warning_level: WarningLevel::Careful,
-            requires_restart: false,
-            revert_operations: Some(vec![
-                TweakOperation::ServiceSetMode {
-                    name: "Spooler".to_string(),
-                    mode: "Auto".to_string(),
-                },
-                TweakOperation::Command {
-                    cmd: "sc".to_string(),
-                    args: vec!["start".to_string(), "Spooler".to_string()],
-                },
-            ]),
-            tweak_type: TweakType::Toggle,
-            enabled: false,
-            check: Some(TweakCheck::ServiceDisabled {
-                name: "Spooler".to_string(),
-            }),
-            operations: vec![
-                TweakOperation::ServiceSetMode {
-                    name: "Spooler".to_string(),
-                    mode: "Auto".to_string(),
-                },
-                TweakOperation::Command {
-                    cmd: "sc".to_string(),
-                    args: vec!["start".to_string(), "Spooler".to_string()],
-                },
-            ],
-        },
-        Tweak {
             id: "debloat_disable_bluetooth_services".to_string(),
             category: TweakCategory::DebloatTelemetry,
             name: "Disable Bluetooth Services".to_string(),
@@ -185,13 +145,43 @@ pub fn get_service_tweaks() -> Vec<Tweak> {
                 names: vec!["BTAGService".to_string(), "bthserv".to_string()],
             }),
             operations: vec![
-                TweakOperation::ServiceSetMode {
+                TweakOperation::ServiceDisable {
                     name: "BTAGService".to_string(),
-                    mode: "Manual".to_string(),
                 },
-                TweakOperation::ServiceSetMode {
+                TweakOperation::ServiceDisable {
                     name: "bthserv".to_string(),
-                    mode: "Manual".to_string(),
+                },
+            ],
+        },
+        Tweak {
+            id: "debloat_disable_printer_services".to_string(),
+            category: TweakCategory::DebloatTelemetry,
+            name: "Disable Printer Services".to_string(),
+            description: "Disables Print Spooler. Only if not using printers!".to_string(),
+            warning_level: WarningLevel::Careful,
+            requires_restart: false,
+            revert_operations: Some(vec![
+                TweakOperation::ServiceSetMode {
+                    name: "Spooler".to_string(),
+                    mode: "Auto".to_string(),
+                },
+                TweakOperation::Command {
+                    cmd: "sc".to_string(),
+                    args: vec!["start".to_string(), "Spooler".to_string()],
+                },
+            ]),
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::ServiceDisabled {
+                name: "Spooler".to_string(),
+            }),
+            operations: vec![
+                TweakOperation::ServiceDisable {
+                    name: "Spooler".to_string(),
+                },
+                TweakOperation::Command {
+                    cmd: "sc".to_string(),
+                    args: vec!["stop".to_string(), "Spooler".to_string()],
                 },
             ],
         },

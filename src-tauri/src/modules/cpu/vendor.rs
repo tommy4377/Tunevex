@@ -51,82 +51,14 @@ pub fn get_hardware_specific_tweaks() -> Vec<Tweak> {
 
 /// Intel-specific CPU tweaks
 fn get_intel_tweaks() -> Vec<Tweak> {
-    vec![
-        Tweak {
-            id: "cpu_intel_ppm_mode".to_string(),
-            category: TweakCategory::CpuPerformance,
-            name: "[Intel] Enable Processor Power Management".to_string(),
-            description: "Ensures Intel PPM driver is enabled for proper power management.
-
-Required for Turbo Boost and P-state transitions.
-Set to Automatic (Start=3) for best balance."
-                .to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: true,
-            tweak_type: TweakType::Toggle,
-            enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Services\\intelppm".to_string(),
-                key: "Start".to_string(),
-                expected_value: RegistryValue::DWord(3), // Automatic
-            }),
-            revert_operations: Some(vec![TweakOperation::RegistrySet {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Services\\intelppm".to_string(),
-                key: "Start".to_string(),
-                value: RegistryValue::DWord(1), // Only if user broke it
-            }]),
-            operations: vec![TweakOperation::RegistrySet {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Services\\intelppm".to_string(),
-                key: "Start".to_string(),
-                value: RegistryValue::DWord(3),
-            }],
-        },
-        Tweak {
-            id: "cpu_intel_disable_tsx".to_string(),
-            category: TweakCategory::CpuPerformance,
-            name: "[Intel] Disable TSX (Transactional Synchronization)".to_string(),
-            description: "Disables Intel TSX feature that has known security vulnerabilities.
+    vec![Tweak {
+        id: "cpu_intel_disable_tsx".to_string(),
+        category: TweakCategory::CpuPerformance,
+        name: "[Intel] Disable TSX (Transactional Synchronization)".to_string(),
+        description: "Disables Intel TSX feature that has known security vulnerabilities.
 
 Also slightly improves performance on affected CPUs.
 Recommended for Haswell through Coffee Lake."
-                .to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: true,
-            tweak_type: TweakType::Toggle,
-            enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Kernel".to_string(),
-                key: "DisableTsx".to_string(),
-                expected_value: RegistryValue::DWord(1),
-            }),
-            revert_operations: Some(vec![TweakOperation::RegistryDelete {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Kernel".to_string(),
-                key: "DisableTsx".to_string(),
-            }]),
-            operations: vec![TweakOperation::RegistrySet {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Kernel".to_string(),
-                key: "DisableTsx".to_string(),
-                value: RegistryValue::DWord(1),
-            }],
-        },
-    ]
-}
-
-/// AMD-specific CPU tweaks
-fn get_amd_tweaks() -> Vec<Tweak> {
-    vec![Tweak {
-        id: "cpu_amd_ppm_mode".to_string(),
-        category: TweakCategory::CpuPerformance,
-        name: "[AMD] Enable Processor Power Management".to_string(),
-        description: "Ensures AMD PPM driver is enabled for proper power management.
-
-Required for Precision Boost and P-state transitions on Ryzen."
             .to_string(),
         warning_level: WarningLevel::Safe,
         requires_restart: true,
@@ -134,21 +66,25 @@ Required for Precision Boost and P-state transitions on Ryzen."
         enabled: false,
         check: Some(TweakCheck::Registry {
             root_key: "HKLM".to_string(),
-            path: "SYSTEM\\CurrentControlSet\\Services\\amdppm".to_string(),
-            key: "Start".to_string(),
-            expected_value: RegistryValue::DWord(3),
+            path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Kernel".to_string(),
+            key: "DisableTsx".to_string(),
+            expected_value: RegistryValue::DWord(1),
         }),
-        revert_operations: Some(vec![TweakOperation::RegistrySet {
+        revert_operations: Some(vec![TweakOperation::RegistryDelete {
             root_key: "HKLM".to_string(),
-            path: "SYSTEM\\CurrentControlSet\\Services\\amdppm".to_string(),
-            key: "Start".to_string(),
-            value: RegistryValue::DWord(1),
+            path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Kernel".to_string(),
+            key: "DisableTsx".to_string(),
         }]),
         operations: vec![TweakOperation::RegistrySet {
             root_key: "HKLM".to_string(),
-            path: "SYSTEM\\CurrentControlSet\\Services\\amdppm".to_string(),
-            key: "Start".to_string(),
-            value: RegistryValue::DWord(3),
+            path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Kernel".to_string(),
+            key: "DisableTsx".to_string(),
+            value: RegistryValue::DWord(1),
         }],
     }]
+}
+
+/// AMD-specific CPU tweaks
+fn get_amd_tweaks() -> Vec<Tweak> {
+    vec![]
 }

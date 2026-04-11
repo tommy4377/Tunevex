@@ -1,6 +1,6 @@
 {
   "name": "tunevex",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Tunevex - Windows system tuning and optimization utility",
   "type": "module",
   "scripts": {
@@ -19,6 +19,7 @@
     "@tauri-apps/plugin-opener": "^2.5.3",
     "clsx": "^2.1.1",
     "lucide-svelte": "^0.469.0",
+    "marked": "^18.0.0",
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {

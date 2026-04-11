@@ -33,7 +33,12 @@ pub fn get_xbox_tweaks() -> Vec<Tweak> {
             tweak_type: TweakType::Toggle,
             enabled: false,
             check: Some(TweakCheck::MultiServiceDisabled {
-                names: vec!["XboxGipSvc".to_string(), "XblAuthManager".to_string()],
+                names: vec![
+                    "XboxGipSvc".to_string(),
+                    "XblAuthManager".to_string(),
+                    "XboxNetApiSvc".to_string(),
+                    "XblGameSave".to_string(),
+                ],
             }),
             operations: vec![
                 TweakOperation::ServiceDisable {
@@ -64,7 +69,7 @@ pub fn get_xbox_tweaks() -> Vec<Tweak> {
             tweak_type: TweakType::Toggle,
             enabled: false,
             check: Some(TweakCheck::ScheduledTaskDisabled {
-                name: "\\Microsoft\\XblGameSave\\XblGameSaveTask".to_string(),
+                name: "XblGameSaveTask".to_string(),
             }),
             operations: vec![TweakOperation::ScheduledTaskDisable {
                 path: "\\Microsoft\\XblGameSave".to_string(),

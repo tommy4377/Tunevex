@@ -22,7 +22,8 @@ export type TweakCategory =
     | 'Programs'
     | 'Restore'
     | 'Activation'
-    | 'Home';
+    | 'Home'
+    | 'AiAdvisor';
 
 export type TweakType = 'Toggle' | 'Action';
 

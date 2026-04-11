@@ -1,4 +1,5 @@
 pub mod activation;
+pub mod ai;
 pub mod cpu;
 pub mod debloat;
 pub mod display;

@@ -11,25 +11,33 @@
 
     let currentView: "dashboard" | "monitor" | "gpu" | "system" = "dashboard";
 
-    // Filters
-    $: monitorTweaks = allTweaks.filter((t) =>
-        [
-            "display_max_refresh_rate",
-            "display_dpi_100",
-            "display_8bit_color",
-        ].includes(t.id),
+    // Filters - Keyword-based filtering
+    $: monitorTweaks = allTweaks.filter(
+        (t) =>
+            t.category === "DisplayMonitor" &&
+            (t.id.includes("refresh") ||
+                t.id.includes("dpi") ||
+                t.id.includes("color") ||
+                t.id.includes("monitor")),
     );
-    $: gpuTweaks = allTweaks.filter((t) =>
-        ["display_enable_vrr", "display_no_gpu_scaling"].includes(t.id),
+    $: gpuTweaks = allTweaks.filter(
+        (t) =>
+            t.category === "DisplayMonitor" &&
+            (t.id.includes("vrr") ||
+                t.id.includes("scaling") ||
+                t.id.includes("hdr") ||
+                t.id.includes("latency")),
     );
-    $: systemTweaks = allTweaks.filter((t) =>
-        ["display_timer_resolution"].includes(t.id),
+    $: systemTweaks = allTweaks.filter(
+        (t) =>
+            t.category === "DisplayMonitor" &&
+            (t.id.includes("timer") || t.id.includes("resolution")),
     );
 </script>
 
 <div class="display-container">
     {#if currentView === "dashboard"}
-        <CardGrid>
+        <CardGrid columns="repeat(3, 1fr)">
             <Card
                 icon={Monitor}
                 title="Monitor Configuration"

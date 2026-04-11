@@ -48,6 +48,8 @@
     /* New Minimal Layout Styles */
     #app-mount {
         background: rgba(32, 32, 32, 0.95);
+        border-radius: 12px;
+        overflow: hidden;
     }
 
     .content-area {

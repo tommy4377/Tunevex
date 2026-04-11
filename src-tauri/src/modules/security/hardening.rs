@@ -57,18 +57,32 @@ pub fn get_hardening_tweaks() -> Vec<Tweak> {
                 key: "fAllowToGetHelp".to_string(),
                 expected_value: RegistryValue::DWord(0),
             }),
-            revert_operations: Some(vec![TweakOperation::Command {
-                cmd: "netsh".to_string(),
-                args: vec![
-                    "advfirewall".to_string(),
-                    "firewall".to_string(),
-                    "set".to_string(),
-                    "rule".to_string(),
-                    "group=Remote Assistance".to_string(),
-                    "new".to_string(),
-                    "enable=yes".to_string(),
-                ],
-            }]),
+            revert_operations: Some(vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\Remote Assistance".to_string(),
+                    key: "fAllowFullControl".to_string(),
+                    value: RegistryValue::DWord(1),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\Remote Assistance".to_string(),
+                    key: "fAllowToGetHelp".to_string(),
+                    value: RegistryValue::DWord(1),
+                },
+                TweakOperation::Command {
+                    cmd: "netsh".to_string(),
+                    args: vec![
+                        "advfirewall".to_string(),
+                        "firewall".to_string(),
+                        "set".to_string(),
+                        "rule".to_string(),
+                        "group=Remote Assistance".to_string(),
+                        "new".to_string(),
+                        "enable=yes".to_string(),
+                    ],
+                },
+            ]),
             operations: vec![
                 TweakOperation::RegistrySet {
                     root_key: "HKLM".to_string(),
@@ -328,6 +342,64 @@ pub fn get_hardening_tweaks() -> Vec<Tweak> {
                 path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Schedule\\Maintenance"
                     .to_string(),
                 key: "MaintenanceDisabled".to_string(),
+                value: RegistryValue::DWord(1),
+            }],
+        },
+
+        // ============================================
+        // NEW PART 2 SECURITY TWEAKS
+        // ============================================
+        Tweak {
+            id: "sec_disable_wpbt".to_string(),
+            category: TweakCategory::SecurityPrivacy,
+            name: "Block BIOS Bloatware Injection (WPBT)".to_string(),
+            description: "Disables the Windows Platform Binary Table - a UEFI feature that allows motherboard vendors (Asus Armoury Crate, Lenovo Vantage, HP Software) to silently reinstall their software from firmware on every boot.".to_string(),
+            warning_level: WarningLevel::Careful,
+            requires_restart: true,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: r"SYSTEM\CurrentControlSet\Control\Session Manager".to_string(),
+                key: "DisableWpbtExecution".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
+            revert_operations: Some(vec![TweakOperation::RegistryDelete {
+                root_key: "HKLM".to_string(),
+                path: r"SYSTEM\CurrentControlSet\Control\Session Manager".to_string(),
+                key: "DisableWpbtExecution".to_string(),
+            }]),
+            operations: vec![TweakOperation::RegistrySet {
+                root_key: "HKLM".to_string(),
+                path: r"SYSTEM\CurrentControlSet\Control\Session Manager".to_string(),
+                key: "DisableWpbtExecution".to_string(),
+                value: RegistryValue::DWord(1),
+            }],
+        },
+        Tweak {
+            id: "sec_block_driver_updates".to_string(),
+            category: TweakCategory::SecurityPrivacy,
+            name: "Block GPU Driver Updates from Windows Update".to_string(),
+            description: "Prevents Windows Update from overwriting manually-installed GPU drivers with generic versions. Essential for users who clean-install drivers with DDU.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate".to_string(),
+                key: "ExcludeWUDriversInQualityUpdate".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
+            revert_operations: Some(vec![TweakOperation::RegistryDelete {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate".to_string(),
+                key: "ExcludeWUDriversInQualityUpdate".to_string(),
+            }]),
+            operations: vec![TweakOperation::RegistrySet {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate".to_string(),
+                key: "ExcludeWUDriversInQualityUpdate".to_string(),
                 value: RegistryValue::DWord(1),
             }],
         },

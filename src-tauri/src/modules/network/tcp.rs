@@ -175,12 +175,8 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
             description: "Ensures TCP Auto-Tuning is set to 'Normal'.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            revert_operations: Some(vec![
-                TweakOperation::Command {
-                    cmd: "netsh".to_string(),
-                    args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "autotuninglevel=normal".into()],
-                }
-            ]), tweak_type: TweakType::Toggle, enabled: false,
+            revert_operations: None,
+            tweak_type: TweakType::Action, enabled: false,
             check: Some(TweakCheck::CommandOutputContains {
                 cmd: "netsh".to_string(),
                 args: vec!["int".to_string(), "tcp".to_string(), "show".to_string(), "global".to_string()],
@@ -190,31 +186,6 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
                 TweakOperation::Command {
                     cmd: "netsh".to_string(),
                     args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "autotuninglevel=normal".into()],
-                }
-            ]
-        },
-        Tweak {
-            id: "net_tcp_ctcp".to_string(),
-            category: TweakCategory::Network,
-            name: "Set Congestion Provider to CUBIC".to_string(),
-            description: "Sets TCP Congestion Provider to 'CUBIC'.".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: false,
-            revert_operations: Some(vec![
-                TweakOperation::Command {
-                    cmd: "netsh".to_string(),
-                    args: vec!["int".into(), "tcp".into(), "set".into(), "supplemental".into(), "template=internet".into(), "congestionprovider=cubic".into()],
-                }
-            ]), tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::CommandOutputContains {
-                cmd: "netsh".to_string(),
-                args: vec!["int".to_string(), "tcp".to_string(), "show".to_string(), "supplemental".to_string()],
-                contains: "CUBIC".to_string(),
-            }),
-            operations: vec![
-                TweakOperation::Command {
-                    cmd: "netsh".to_string(),
-                    args: vec!["int".into(), "tcp".into(), "set".into(), "supplemental".into(), "template=internet".into(), "congestionprovider=cubic".into()],
                 }
             ]
         },
@@ -243,35 +214,7 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
                 }
             ]
         },
-        Tweak {
-            id: "net_global_max_tcp_window".to_string(),
-            category: TweakCategory::Network,
-            name: "Set GlobalMaxTcpWindowSize".to_string(),
-            description: "Sets GlobalMaxTcpWindowSize to 65535 for better throughput on most broadband connections.".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: true,
-            revert_operations: Some(vec![
-                TweakOperation::RegistryDelete {
-                    root_key: "HKLM".to_string(),
-                    path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
-                    key: "GlobalMaxTcpWindowSize".to_string(),
-                }
-            ]), tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
-                key: "GlobalMaxTcpWindowSize".to_string(),
-                expected_value: RegistryValue::DWord(65535),
-            }),
-            operations: vec![
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
-                    key: "GlobalMaxTcpWindowSize".to_string(),
-                    value: RegistryValue::DWord(65535),
-                }
-            ]
-        },
+        // REMOVED: net_global_max_tcp_window - conflicts with TCP window scaling (RFC 1323), limits throughput
         Tweak {
             id: "net_enable_pmtu_discovery".to_string(),
             category: TweakCategory::Network,
@@ -438,35 +381,6 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
             ]
         },
         Tweak {
-            id: "net_system_responsiveness".to_string(),
-            category: TweakCategory::Network,
-            name: "Optimize System Responsiveness".to_string(),
-            description: "Sets SystemResponsiveness to 0.".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: true,
-            revert_operations: Some(vec![
-                TweakOperation::RegistryDelete {
-                    root_key: "HKLM".to_string(),
-                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                    key: "SystemResponsiveness".to_string(),
-                }
-            ]), tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                key: "SystemResponsiveness".to_string(),
-                expected_value: RegistryValue::DWord(0),
-            }),
-            operations: vec![
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                    key: "SystemResponsiveness".to_string(),
-                    value: RegistryValue::DWord(0),
-                }
-            ]
-        },
-        Tweak {
             id: "net_tcp_initial_rto".to_string(),
             category: TweakCategory::Network,
             name: "Reduce TCP Initial Retransmission Timeout".to_string(),
@@ -488,9 +402,225 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
             operations: vec![
                 TweakOperation::Command {
                     cmd: "netsh".to_string(),
-                    args: vec!["int".into(), "tcp".into(), "set".into(), "global".to_string(), "initialRto=2000".to_string()],
+                    args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "initialRto=2000".to_string()],
                 }
             ]
+        },
+        // ============================================
+        // NEW PART 2 NETWORK TWEAKS
+        // ============================================
+        Tweak {
+            id: "net_ipv4_preference".to_string(),
+            category: TweakCategory::Network,
+            name: "Prefer IPv4 over IPv6".to_string(),
+            description: "Forces Windows to prefer IPv4 routing without fully disabling IPv6. Safer than a full IPv6 disable - keeps Microsoft Store and Xbox login working while reducing routing overhead.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: true,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: r"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters".to_string(),
+                key: "DisabledComponents".to_string(),
+                expected_value: RegistryValue::DWord(32),
+            }),
+            revert_operations: Some(vec![TweakOperation::RegistrySet {
+                root_key: "HKLM".to_string(),
+                path: r"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters".to_string(),
+                key: "DisabledComponents".to_string(),
+                value: RegistryValue::DWord(0),
+            }]),
+            operations: vec![TweakOperation::RegistrySet {
+                root_key: "HKLM".to_string(),
+                path: r"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters".to_string(),
+                key: "DisabledComponents".to_string(),
+                value: RegistryValue::DWord(32),
+            }],
+        },
+        Tweak {
+            id: "net_disable_teredo".to_string(),
+            category: TweakCategory::Network,
+            name: "Disable Teredo Tunneling".to_string(),
+            description: "Disables the Teredo IPv6 tunneling adapter that adds latency overhead even on pure IPv4 connections.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "netsh".to_string(),
+                args: vec!["interface".to_string(), "teredo".to_string(), "show".to_string(), "state".to_string()],
+                contains: "disabled".to_string(),
+            }),
+            revert_operations: Some(vec![TweakOperation::Command {
+                cmd: "netsh".to_string(),
+                args: vec!["interface".to_string(), "teredo".to_string(), "set".to_string(), "state".to_string(), "default".to_string()],
+            }]),
+            operations: vec![TweakOperation::Command {
+                cmd: "netsh".to_string(),
+                args: vec!["interface".to_string(), "teredo".to_string(), "set".to_string(), "state".to_string(), "disabled".to_string()],
+            }],
+        },
+        Tweak {
+            id: "net_ntp_pool".to_string(),
+            category: TweakCategory::Network,
+            name: "Use Global NTP Pool".to_string(),
+            description: "Replaces time.windows.com with the global NTP pool for more accurate time sync. Prevents timestamp desync in multiplayer games.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: r"SYSTEM\CurrentControlSet\Services\W32Time\Parameters".to_string(),
+                key: "NtpServer".to_string(),
+                expected_value: RegistryValue::String("0.pool.ntp.org,0x9 1.pool.ntp.org,0x9 2.pool.ntp.org,0x9 3.pool.ntp.org,0x9".to_string()),
+            }),
+            revert_operations: Some(vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: r"SYSTEM\CurrentControlSet\Services\W32Time\Parameters".to_string(),
+                    key: "NtpServer".to_string(),
+                    value: RegistryValue::String("time.windows.com,0x9".to_string()),
+                },
+                TweakOperation::Command {
+                    cmd: "w32tm".to_string(),
+                    args: vec!["/config".to_string(), "/update".to_string()],
+                },
+            ]),
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: r"SYSTEM\CurrentControlSet\Services\W32Time\Parameters".to_string(),
+                    key: "NtpServer".to_string(),
+                    value: RegistryValue::String("0.pool.ntp.org,0x9 1.pool.ntp.org,0x9 2.pool.ntp.org,0x9 3.pool.ntp.org,0x9".to_string()),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: r"SYSTEM\CurrentControlSet\Services\W32Time\Parameters".to_string(),
+                    key: "Type".to_string(),
+                    value: RegistryValue::String("NTP".to_string()),
+                },
+                TweakOperation::Command {
+                    cmd: "w32tm".to_string(),
+                    args: vec!["/config".to_string(), "/update".to_string()],
+                },
+                TweakOperation::Command {
+                    cmd: "net".to_string(),
+                    args: vec!["stop".to_string(), "w32time".to_string()],
+                },
+                TweakOperation::Command {
+                    cmd: "net".to_string(),
+                    args: vec!["start".to_string(), "w32time".to_string()],
+                },
+            ],
+        },
+        Tweak {
+            id: "net_tcp_heuristics_disable".to_string(),
+            category: TweakCategory::Network,
+            name: "Disable TCP Receive-Side Scaling Heuristics".to_string(),
+            description: "Disables Windows TCP heuristics that can interfere with throughput on modern high-speed connections.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "netsh".to_string(),
+                args: vec!["int".to_string(), "tcp".to_string(), "show".to_string(), "heuristics".to_string()],
+                contains: "disabled".to_string(),
+            }),
+            revert_operations: Some(vec![TweakOperation::Command {
+                cmd: "netsh".to_string(),
+                args: vec!["int".to_string(), "tcp".to_string(), "set".to_string(), "heuristics".to_string(), "enabled".to_string()],
+            }]),
+            operations: vec![TweakOperation::Command {
+                cmd: "netsh".to_string(),
+                args: vec!["int".to_string(), "tcp".to_string(), "set".to_string(), "heuristics".to_string(), "disabled".to_string()],
+            }],
+        },
+        Tweak {
+            id: "net_tcp_fast_open".to_string(),
+            category: TweakCategory::Network,
+            name: "Enable TCP Fast Open".to_string(),
+            description: "Enables TCP Fast Open and Fast Open Fallback, reducing round-trips for new connections. Noticeable on frequently-visited sites.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "netsh".to_string(),
+                args: vec!["int".to_string(), "tcp".to_string(), "show".to_string(), "global".to_string()],
+                contains: "fastopen: enabled".to_string(),
+            }),
+            revert_operations: Some(vec![
+                TweakOperation::Command {
+                    cmd: "netsh".to_string(),
+                    args: vec!["int".to_string(), "tcp".to_string(), "set".to_string(), "global".to_string(), "fastopen=disabled".to_string()],
+                },
+                TweakOperation::Command {
+                    cmd: "netsh".to_string(),
+                    args: vec!["int".to_string(), "tcp".to_string(), "set".to_string(), "global".to_string(), "fastopenfallback=disabled".to_string()],
+                },
+            ]),
+            operations: vec![
+                TweakOperation::Command {
+                    cmd: "netsh".to_string(),
+                    args: vec!["int".to_string(), "tcp".to_string(), "set".to_string(), "global".to_string(), "fastopen=enabled".to_string()],
+                },
+                TweakOperation::Command {
+                    cmd: "netsh".to_string(),
+                    args: vec!["int".to_string(), "tcp".to_string(), "set".to_string(), "global".to_string(), "fastopenfallback=enabled".to_string()],
+                },
+            ],
+        },
+        Tweak {
+            id: "net_tcp_icw10".to_string(),
+            category: TweakCategory::Network,
+            name: "TCP Initial Congestion Window = 10".to_string(),
+            description: "Sets the Initial Congestion Window to 10 segments (default 4). Maximizes the data burst on new connections, speeding up page loads and download starts.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::CommandOutputContains {
+                cmd: "netsh".to_string(),
+                args: vec!["int".to_string(), "tcp".to_string(), "show".to_string(), "supplemental".to_string(), "template=custom".to_string()],
+                contains: "icw=10".to_string(),
+            }),
+            revert_operations: Some(vec![TweakOperation::Command {
+                cmd: "netsh".to_string(),
+                args: vec!["int".to_string(), "tcp".to_string(), "set".to_string(), "supplemental".to_string(), "template=custom".to_string(), "icw=4".to_string()],
+            }]),
+            operations: vec![TweakOperation::Command {
+                cmd: "netsh".to_string(),
+                args: vec!["int".to_string(), "tcp".to_string(), "set".to_string(), "supplemental".to_string(), "template=custom".to_string(), "icw=10".to_string()],
+            }],
+        },
+        Tweak {
+            id: "net_irp_stack_size".to_string(),
+            category: TweakCategory::Network,
+            name: "Increase Network Buffer Stack Size".to_string(),
+            description: "Increases the LanmanServer IRP stack size to 30, improving LAN file transfer reliability and speed.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: true,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: r"SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters".to_string(),
+                key: "IRPStackSize".to_string(),
+                expected_value: RegistryValue::DWord(30),
+            }),
+            revert_operations: Some(vec![TweakOperation::RegistryDelete {
+                root_key: "HKLM".to_string(),
+                path: r"SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters".to_string(),
+                key: "IRPStackSize".to_string(),
+            }]),
+            operations: vec![TweakOperation::RegistrySet {
+                root_key: "HKLM".to_string(),
+                path: r"SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters".to_string(),
+                key: "IRPStackSize".to_string(),
+                value: RegistryValue::DWord(30),
+            }],
         },
     ]
 }

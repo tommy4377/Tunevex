@@ -1,12 +1,138 @@
+use crate::modules::ai::memory::{
+    delete_chat_session, list_chat_sessions, load_chat_session, save_chat_session, AiMemoryStore,
+    ChatMessage as AiChatMessage, ChatSession, ChatSessionMeta, MemoryKind,
+};
+use crate::modules::ai::startup::{scan_startup_with_ai, StartupRecommendation};
 use crate::modules::registry::backup::RegistryBackup;
 use crate::modules::registry::operations::apply_registry_tweak;
+use crate::modules::startup::toggle_item;
+use crate::modules::startup::types::StartupItem;
 use crate::modules::types::{RegistryValue, Tweak, TweakCheck, TweakOperation};
 use crate::modules::utils::privileges::is_admin;
 use crate::modules::utils::state::AppState;
 use std::os::windows::process::CommandExt;
 use std::process::Command;
 use std::sync::Mutex;
+use strip_ansi_escapes::strip_str;
 use tauri::{Emitter, State};
+
+// ─── Allowed Commands Whitelist (Security) ───────────────────────────────
+const ALLOWED_COMMANDS: &[&str] = &[
+    "sc",
+    "schtasks",
+    "bcdedit",
+    "powercfg",
+    "fsutil",
+    "powershell",
+    "taskkill",
+    "netsh",
+    "reg",
+    "cmd",
+    "pnputil",
+    "del",
+    "rmdir",
+    "dism",
+];
+
+fn validate_command(cmd: &str) -> Result<(), String> {
+    let cmd_path = std::path::Path::new(cmd);
+    let exe_name = cmd_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(cmd)
+        .to_lowercase();
+    if ALLOWED_COMMANDS.contains(&exe_name.as_str()) {
+        Ok(())
+    } else {
+        Err(format!("Command '{}' is not in the allowed list", cmd))
+    }
+}
+
+// ─── Allowed Write Roots (Security - Path Traversal Prevention) ───────────────
+const ALLOWED_WRITE_ROOTS: &[&str] = &[
+    r"C:\Users",
+    r"C:\ProgramData",
+    r"C:\Program Files",
+    r"C:\Program Files (x86)",
+];
+
+fn expand_env_vars(raw: &str) -> String {
+    raw.replace("%APPDATA%", &std::env::var("APPDATA").unwrap_or_default())
+        .replace(
+            "%LOCALAPPDATA%",
+            &std::env::var("LOCALAPPDATA").unwrap_or_default(),
+        )
+        .replace(
+            "%ProgramData%",
+            &std::env::var("ProgramData").unwrap_or_default(),
+        )
+        .replace(
+            "%ProgramFiles%",
+            &std::env::var("ProgramFiles").unwrap_or_default(),
+        )
+        .replace(
+            "%UserProfile%",
+            &std::env::var("USERPROFILE").unwrap_or_default(),
+        )
+        .replace("%Home%", &std::env::var("USERPROFILE").unwrap_or_default())
+}
+
+fn is_under_allowed_root(p: &std::path::Path) -> bool {
+    let s = p.to_string_lossy().to_lowercase();
+    ALLOWED_WRITE_ROOTS
+        .iter()
+        .any(|r| s.starts_with(&r.to_lowercase()))
+}
+
+// For SOURCE paths that MUST already exist (Delete, Copy/Move src)
+fn safe_path_existing(raw: &str) -> Result<std::path::PathBuf, String> {
+    let expanded = expand_env_vars(raw);
+    let canonical = std::path::Path::new(&expanded)
+        .canonicalize()
+        .map_err(|e| format!("Path not found '{}': {}", raw, e))?;
+    if !is_under_allowed_root(&canonical) {
+        return Err(format!("Path '{}' is outside allowed directories.", raw));
+    }
+    Ok(canonical)
+}
+
+// For DESTINATION paths that may NOT exist yet (Write, Copy/Move dest)
+fn safe_path_new(raw: &str) -> Result<std::path::PathBuf, String> {
+    let expanded = expand_env_vars(raw);
+    let p = std::path::PathBuf::from(&expanded);
+    // Walk up until we find an existing ancestor, canonicalize only that
+    let mut existing = p.clone();
+    let mut suffix = std::path::PathBuf::new();
+    loop {
+        if existing.exists() {
+            break;
+        }
+        match existing.parent() {
+            Some(parent) => {
+                if let Some(component) = existing.file_name() {
+                    suffix = std::path::PathBuf::from(component).join(&suffix);
+                }
+                existing = parent.to_path_buf();
+            }
+            None => break,
+        }
+    }
+    let base = if existing.exists() {
+        existing
+            .canonicalize()
+            .map_err(|e| format!("Cannot resolve base path for '{}': {}", raw, e))?
+    } else {
+        existing
+    };
+    let full = base.join(suffix);
+    if !is_under_allowed_root(&full) {
+        return Err(format!(
+            "Destination '{}' is outside allowed directories.",
+            raw
+        ));
+    }
+    Ok(full)
+}
 
 // ─── Tcpip interface registry path ─────────────────────────────────────────
 const TCPIP_INTERFACES_PATH: &str =
@@ -321,9 +447,14 @@ fn control_defender_services(services: &[String], action: &str) -> Result<(), St
 /// contains the given substring.  Used for bcdedit /enum and powercfg /q checks
 /// without spawning PowerShell.
 fn check_command_output_contains(cmd: &str, args: &[String], contains: &str) -> bool {
+    // BUG-H2 fix: apply the same whitelist used in apply_tweak/undo_tweak
+    if validate_command(cmd).is_err() {
+        eprintln!("[check] Blocked non-whitelisted command: '{}'", cmd);
+        return false; // fail-safe: treat as "not applied"
+    }
     let output = Command::new(cmd)
         .args(args)
-        .creation_flags(0x08000000) // CREATE_NO_WINDOW
+        .creation_flags(0x08000000)
         .output();
     match output {
         Ok(out) => {
@@ -410,7 +541,7 @@ fn check_msi_enabled_globally(priority: u32) -> bool {
     const CLASSES: &[&str] = &["Display", "SCSIAdapter", "Net", "USB", "HDC"];
 
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let pci_key = match hklm.open_subkey_with_flags(PCI_PATH, KEY_READ) {
+    let _pci_key = match hklm.open_subkey_with_flags(PCI_PATH, KEY_READ) {
         Ok(k) => k,
         Err(_) => return false,
     };
@@ -424,7 +555,7 @@ fn check_msi_enabled_globally(priority: u32) -> bool {
 
         for dev_name in class_key.enum_keys().flatten() {
             let dev_path = format!("{}\\{}\\{}", PCI_PATH, class, dev_name);
-            let dev_key = match hklm.open_subkey_with_flags(&dev_path, KEY_READ) {
+            let _dev_key = match hklm.open_subkey_with_flags(&dev_path, KEY_READ) {
                 Ok(k) => k,
                 Err(_) => continue,
             };
@@ -468,9 +599,10 @@ fn apply_msi_set(class: &str, priority: u32) -> Result<(), String> {
     let class_key_path = format!("{}\\{}", PCI_PATH, class);
 
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let class_key = hklm
-        .open_subkey_with_flags(&class_key_path, KEY_READ)
-        .map_err(|e| format!("Failed to open PCI class {}: {}", class, e))?;
+    let class_key = match hklm.open_subkey_with_flags(&class_key_path, KEY_READ) {
+        Ok(k) => k,
+        Err(_) => return Ok(()),
+    };
 
     for dev_name in class_key.enum_keys().flatten() {
         let dev_path = format!("{}\\{}\\{}", PCI_PATH, class, dev_name);
@@ -607,6 +739,19 @@ fn check_tweak_enabled(check: &TweakCheck) -> bool {
             key,
             expected_value,
         } => check_registry_value(root_key, path, key, expected_value),
+        TweakCheck::MultiScheduledTaskDisabled { names } => names.iter().all(|name| {
+            let output = Command::new("schtasks")
+                .args(["/Query", "/TN", name, "/V", "/FO", "LIST"])
+                .creation_flags(0x08000000)
+                .output()
+                .unwrap_or_else(|_| std::process::Output {
+                    status: std::os::windows::process::ExitStatusExt::from_raw(1),
+                    stdout: vec![],
+                    stderr: vec![],
+                });
+            let s = String::from_utf8_lossy(&output.stdout).to_string();
+            s.contains("Disabled") || s.contains("Disabilitato")
+        }),
         TweakCheck::Powershell {
             script,
             expected_output,
@@ -655,6 +800,21 @@ fn check_tweak_enabled(check: &TweakCheck) -> bool {
                 });
             let out_str = String::from_utf8_lossy(&output.stdout).to_string();
             out_str.contains("DISABLED") || out_str.contains("4  DISABLED")
+        }
+        TweakCheck::ServiceMode { name, mode } => {
+            let output = Command::new("sc")
+                .args(&["qc", name])
+                .creation_flags(0x08000000)
+                .output()
+                .unwrap_or_else(|_| std::process::Output {
+                    status: std::os::windows::process::ExitStatusExt::from_raw(1),
+                    stdout: Vec::new(),
+                    stderr: Vec::new(),
+                });
+            let out_str = String::from_utf8_lossy(&output.stdout).to_string();
+            let mode_upper = mode.to_uppercase();
+            out_str.contains(&mode_upper)
+                || out_str.contains(&format!("START_TYPE         : {}", mode_upper))
         }
         TweakCheck::MultiServiceDisabled { names } => names.iter().all(|name| {
             let output = Command::new("sc")
@@ -731,22 +891,34 @@ fn check_registry_value(
 
 /// Check if PowerShell script output matches expected value
 fn check_powershell_output(script: &str, expected_output: &str) -> bool {
-    let output = Command::new("powershell")
+    use std::io::Write;
+    use std::process::Stdio;
+    // BUG-H3 fix: RemoteSigned + script via stdin (same as apply/undo paths)
+    let mut child = match Command::new("powershell")
         .args([
             "-NoProfile",
+            "-NonInteractive",
             "-ExecutionPolicy",
-            "Bypass",
+            "RemoteSigned",
             "-Command",
-            script,
+            "-",
         ])
-        .creation_flags(0x08000000) // CREATE_NO_WINDOW
-        .output();
-
-    match output {
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .creation_flags(0x08000000)
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+    if let Some(mut stdin) = child.stdin.take() {
+        let _ = writeln!(stdin, "{}", script);
+    }
+    match child.wait_with_output() {
         Ok(out) => {
             let stdout = String::from_utf8_lossy(&out.stdout).trim().to_lowercase();
-            let expected = expected_output.trim().to_lowercase();
-            stdout == expected
+            stdout == expected_output.trim().to_lowercase()
         }
         Err(_) => false,
     }
@@ -776,6 +948,30 @@ pub async fn set_startup_item_enabled(id: String, enable: bool) -> Result<(), St
 
 use crate::modules::network::dns_benchmark::{self, DnsBenchmarkResult};
 
+fn get_current_windows_build() -> u32 {
+    use winreg::{enums::*, RegKey};
+    RegKey::predef(HKEY_LOCAL_MACHINE)
+        .open_subkey("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion")
+        .and_then(|k| k.get_value::<String, _>("CurrentBuildNumber"))
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0)
+}
+
+fn win11_only_tweaks() -> std::collections::HashMap<&'static str, u32> {
+    [
+        ("interface_taskbar_end_task", 22621),
+        ("taskbar_align_left", 22000),
+        ("interface_remove_home_namespace", 22000),
+        ("interface_disable_dynamic_lighting", 22621),
+        ("privacy_disable_recall", 26100),
+        ("privacy_disable_cross_device_resume", 26100),
+        ("boot_highest_mode", 22000),
+    ]
+    .into_iter()
+    .collect()
+}
+
 #[tauri::command]
 pub async fn benchmark_dns() -> Result<Vec<DnsBenchmarkResult>, String> {
     tokio::task::spawn_blocking(dns_benchmark::run_benchmark)
@@ -791,30 +987,47 @@ pub async fn apply_dns_server(primary: String, secondary: String) -> Result<(), 
 }
 
 #[tauri::command]
-pub fn get_tweaks(
-    ctx: State<Mutex<TweakContext>>,
-    state: State<Mutex<AppState>>,
+pub async fn get_tweaks(
+    ctx: State<'_, Mutex<TweakContext>>,
+    state: State<'_, Mutex<AppState>>,
 ) -> Result<Vec<Tweak>, String> {
-    let context = ctx.lock().map_err(|e| e.to_string())?;
-    let app_state = state.lock().map_err(|e| e.to_string())?;
+    // Extract data and immediately drop the locks
+    let tweaks = {
+        let context = ctx.lock().map_err(|e| e.to_string())?;
+        context.tweaks.clone()
+    };
+    let applied = {
+        let app_state = state.lock().map_err(|e| e.to_string())?;
+        app_state.applied_tweaks.clone()
+    };
 
-    Ok(context
-        .tweaks
-        .iter()
-        .map(|t| {
-            let mut tweak = t.clone();
+    let build = get_current_windows_build();
+    let min_builds = win11_only_tweaks();
 
-            // First, check actual system state via TweakCheck if available
-            if let Some(ref check) = tweak.check {
-                tweak.enabled = check_tweak_enabled(check);
-            } else {
-                // Fallback to app state for tweaks without explicit checks
-                tweak.enabled = app_state.applied_tweaks.contains(&tweak.id);
-            }
-
-            tweak
-        })
-        .collect())
+    // Move heavy I/O (registry, sc, schtasks) to blocking thread pool
+    tokio::task::spawn_blocking(move || {
+        tweaks
+            .iter()
+            .filter(|t| {
+                min_builds
+                    .get(t.id.as_str())
+                    .map_or(true, |&min| build >= min)
+            })
+            .map(|t| {
+                let mut tweak = t.clone();
+                // First, check actual system state via TweakCheck if available
+                if let Some(ref check) = tweak.check {
+                    tweak.enabled = check_tweak_enabled(check);
+                } else {
+                    // Fallback to app state for tweaks without explicit checks
+                    tweak.enabled = applied.contains(&tweak.id);
+                }
+                tweak
+            })
+            .collect::<Vec<_>>()
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))
 }
 
 /// Fast version - returns tweaks immediately without running any checks
@@ -824,18 +1037,30 @@ pub async fn get_tweaks_fast(
     ctx: State<'_, Mutex<TweakContext>>,
     state: State<'_, Mutex<AppState>>,
 ) -> Result<Vec<Tweak>, String> {
-    let context = ctx.lock().map_err(|e| e.to_string())?;
-    let app_state = state.lock().map_err(|e| e.to_string())?;
+    // BUG-M1 fix: acquire, clone, drop each lock before acquiring the next
+    let tweaks = {
+        let context = ctx.lock().map_err(|e| e.to_string())?;
+        context.tweaks.clone()
+    }; // ctx guard dropped here
 
-    // Return tweaks with state from app_state (no live checks)
-    Ok(context
-        .tweaks
-        .iter()
-        .map(|t| {
-            let mut tweak = t.clone();
-            // Use cached state only, don't run any checks
-            tweak.enabled = app_state.applied_tweaks.contains(&tweak.id);
-            tweak
+    let applied = {
+        let app_state = state.lock().map_err(|e| e.to_string())?;
+        app_state.applied_tweaks.clone()
+    }; // state guard dropped here
+
+    let build = get_current_windows_build();
+    let min_builds = win11_only_tweaks();
+
+    Ok(tweaks
+        .into_iter()
+        .filter(|t| {
+            min_builds
+                .get(t.id.as_str())
+                .map_or(true, |&min| build >= min)
+        })
+        .map(|mut t| {
+            t.enabled = applied.contains(&t.id);
+            t
         })
         .collect())
 }
@@ -863,19 +1088,28 @@ pub async fn check_category(
     let app_clone = app.clone();
     let category_clone = category.clone();
 
-    // Run checks in background thread
+    // Run checks in background thread - SEQUENTIAL (no rayon)
     tokio::task::spawn_blocking(move || {
-        for tweak in tweaks {
-            if let Some(ref check) = tweak.check {
-                let enabled = check_tweak_enabled(check);
-                let _ = app_clone.emit(
-                    "tweak-check-result",
-                    serde_json::json!({
-                        "id": tweak.id,
-                        "enabled": enabled
-                    }),
-                );
-            }
+        // Sequential execution - avoids thread pool saturation
+        let results: Vec<(String, bool)> = tweaks
+            .iter()
+            .filter_map(|tweak| {
+                tweak
+                    .check
+                    .as_ref()
+                    .map(|check| (tweak.id.clone(), check_tweak_enabled(check)))
+            })
+            .collect();
+
+        // Emit results sequentially (order doesn't matter for UI)
+        for (id, enabled) in results {
+            let _ = app_clone.emit(
+                "tweak-check-result",
+                serde_json::json!({
+                    "id": id,
+                    "enabled": enabled
+                }),
+            );
         }
         // Emit completion for this category
         let _ = app_clone.emit(
@@ -931,7 +1165,7 @@ pub async fn apply_tweak(
 
         // Create a single backup manager for all registry operations
         let backup_path = crate::modules::utils::dirs::get_backup_dir()
-            .unwrap_or_else(|_| std::path::PathBuf::from("backups"));
+            .map_err(|e| format!("Cannot determine backup directory: {}", e))?;
         let mut backup_mgr = RegistryBackup::new(backup_path.clone());
 
         println!("[TWEAK APPLY] Applying ID: {}", tweak_clone.id);
@@ -973,21 +1207,27 @@ pub async fn apply_tweak(
                 }
                 TweakOperation::Command { cmd, args } => {
                     println!("  -> Command: {} {:?}", cmd, args);
+                    validate_command(&cmd)?;
                     let output = Command::new(cmd)
                         .args(args)
                         .creation_flags(0x08000000)
                         .output()
                         .map_err(|e| format!("Command exec failed: {}", e))?;
 
-                    if !output.stdout.is_empty() {
-                        println!("    [STDOUT] {}", String::from_utf8_lossy(&output.stdout));
-                    }
-                    if !output.stderr.is_empty() {
-                        eprintln!("    [STDERR] {}", String::from_utf8_lossy(&output.stderr));
-                    }
-
                     if !output.status.success() {
-                        return Err(format!("Command returned non-zero code: {:?}", output.status.code()));
+                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        let stderr = String::from_utf8_lossy(&output.stderr);
+                        let combined = format!("{}{}", stdout, stderr).to_lowercase();
+
+                        if combined.contains("element not found") || combined.contains("value is protected") {
+                            eprintln!("  -> Non-fatal: {} {:?} → {}", cmd, args, combined.trim());
+                        } else {
+                            return Err(format!(
+                                "Command returned non-zero {:?}: {}",
+                                output.status.code(),
+                                combined.trim()
+                            ));
+                        }
                     }
                 }
                 TweakOperation::Powershell { script } => {
@@ -1005,34 +1245,41 @@ pub async fn apply_tweak(
 
                     log("Executing Script...".to_string());
 
-                    use std::io::{BufRead, BufReader};
+                    use std::io::{BufRead, BufReader, Write};
                     use std::process::Stdio;
 
                     let app_handle = app.clone();
                     let id_clone = id.clone();
 
+                    // SECURITY FIX: Use RemoteSigned + pass script via stdin
                     let mut child = Command::new("powershell")
                         .args([
                             "-NoProfile",
-                            "-ExecutionPolicy",
-                            "Bypass",
-                            "-Command",
-                            // Add output flush to ensure streaming works better
-                            &format!("$OutputEncoding = [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; {} ; [Console]::Out.Flush()", script),
+                            "-NonInteractive",
+                            "-ExecutionPolicy", "RemoteSigned", // not Bypass
+                            "-Command", "-",                    // read from stdin
                         ])
-                        .creation_flags(0x08000000) // CREATE_NO_WINDOW
+                        .stdin(Stdio::piped())
                         .stdout(Stdio::piped())
                         .stderr(Stdio::piped())
+                        .creation_flags(0x08000000) // CREATE_NO_WINDOW
                         .spawn()
                         .map_err(|e| format!("PowerShell spawn failed: {}", e))?;
+
+                    // Write script to stdin (not CLI arg)
+                    if let Some(mut stdin) = child.stdin.take() {
+                        writeln!(stdin, "{}", script)
+                            .map_err(|e| format!("Failed to write script to stdin: {}", e))?;
+                    }
 
                     // Register PID
                     let pid = child.id();
                     {
                         use tauri::Manager;
                         if let Some(state) = app_handle.try_state::<Mutex<crate::modules::utils::process_manager::ProcessManager>>() {
-                             let mut mgr = state.lock().unwrap();
-                             mgr.register(id_clone.clone(), pid);
+                             if let Ok(mut mgr) = state.lock() {
+                                 mgr.register(id_clone.clone(), pid);
+                             }
                         }
                     }
 
@@ -1045,11 +1292,12 @@ pub async fn apply_tweak(
                         for line in reader.lines() {
                             match line {
                                 Ok(l) => {
-                                    println!("    [PS STREAM] {}", l);
+                                    let clean = strip_str(&l);
+                                    println!("    [PS STREAM] {}", clean);
                                     let _ = app_handle.emit("tweak-output", serde_json::json!({
                                         "id": id_clone,
                                         "type": "stdout",
-                                        "line": l
+                                        "line": clean
                                     }));
                                 }
                                 Err(e) => eprintln!("Error reading stdout: {}", e),
@@ -1064,13 +1312,14 @@ pub async fn apply_tweak(
                     {
                         use tauri::Manager;
                         if let Some(state) = app_handle.try_state::<Mutex<crate::modules::utils::process_manager::ProcessManager>>() {
-                             let mut mgr = state.lock().unwrap();
-                             mgr.unregister(&id_clone);
+                             if let Ok(mut mgr) = state.lock() {
+                                 mgr.unregister(&id_clone);
+                             }
                         }
                     }
 
                     if !output.status.success() {
-                        let stderr = String::from_utf8_lossy(&output.stderr);
+                        let stderr = strip_str(&String::from_utf8_lossy(&output.stderr));
                          let _ = app_handle.emit("tweak-output", serde_json::json!({
                                     "id": id_clone,
                                     "type": "stderr",
@@ -1171,48 +1420,45 @@ pub async fn apply_tweak(
                     match file_op {
                         FileOp::Delete { path } => {
                             println!("  -> FileOp Delete: {}", path);
-                            let p = std::path::Path::new(&path);
-                            if p.is_dir() {
-                                fs::remove_dir_all(&path)
+                            let safe = safe_path_existing(&path)?;
+                            if safe.is_dir() {
+                                fs::remove_dir_all(&safe)
                                     .map_err(|e| format!("Failed to delete directory {}: {}", path, e))?;
                             } else {
-                                fs::remove_file(&path)
+                                fs::remove_file(&safe)
                                     .map_err(|e| format!("Failed to delete file {}: {}", path, e))?;
                             }
                         }
                         FileOp::Copy { src, dest } => {
                             println!("  -> FileOp Copy: {} -> {}", src, dest);
-                            if let Some(parent) = std::path::Path::new(&dest).parent() {
+                            let safe_src = safe_path_existing(&src)?;
+                            let safe_dest = safe_path_new(&dest)?;
+                            if let Some(parent) = safe_dest.parent() {
                                 fs::create_dir_all(parent)
                                     .map_err(|e| format!("Failed to create dest dir: {}", e))?;
                             }
-                            fs::copy(&src, &dest)
+                            fs::copy(&safe_src, &safe_dest)
                                 .map_err(|e| format!("Failed to copy {} to {}: {}", src, dest, e))?;
                         }
                         FileOp::Move { src, dest } => {
                             println!("  -> FileOp Move: {} -> {}", src, dest);
-                            if let Some(parent) = std::path::Path::new(&dest).parent() {
+                            let safe_src = safe_path_existing(&src)?;
+                            let safe_dest = safe_path_new(&dest)?;
+                            if let Some(parent) = safe_dest.parent() {
                                 fs::create_dir_all(parent)
                                     .map_err(|e| format!("Failed to create dest dir: {}", e))?;
                             }
-                            fs::rename(&src, &dest)
+                            fs::rename(&safe_src, &safe_dest)
                                 .map_err(|e| format!("Failed to move {} to {}: {}", src, dest, e))?;
                         }
                         FileOp::Write { path, content } => {
                             println!("  -> FileOp Write: {}", path);
-                            // Expand environment variables in path
-                            let path = path
-                                .replace("%APPDATA%", &std::env::var("APPDATA").unwrap_or_default())
-                                .replace("%LOCALAPPDATA%", &std::env::var("LOCALAPPDATA").unwrap_or_default())
-                                .replace("%ProgramData%", &std::env::var("ProgramData").unwrap_or_default())
-                                .replace("%ProgramFiles%", &std::env::var("ProgramFiles").unwrap_or_default())
-                                .replace("%UserProfile%", &std::env::var("USERPROFILE").unwrap_or_default())
-                                .replace("%Home%", &std::env::var("USERPROFILE").unwrap_or_default());
-                            if let Some(parent) = std::path::Path::new(&path).parent() {
+                            let safe = safe_path_new(&path)?;
+                            if let Some(parent) = safe.parent() {
                                 fs::create_dir_all(parent)
                                     .map_err(|e| format!("Failed to create parent dir: {}", e))?;
                             }
-                            fs::write(&path, &content)
+                            fs::write(&safe, &content)
                                 .map_err(|e| format!("Failed to write file {}: {}", path, e))?;
                         }
                     }
@@ -1277,7 +1523,7 @@ pub async fn apply_tweak(
                         .map_err(|e| format!("MsiRemoveNet error: {}", e))?;
                     println!("  -> MsiRemoveNet Success");
                 }
-                TweakOperation::NetworkInterfacesSet { key, value } => {
+                    TweakOperation::NetworkInterfacesSet { key, value: _ } => {
                     println!("  -> NetworkInterfacesSet: key={}", key);
                     use crate::modules::registry::operations::apply_network_interface_tweak;
                     apply_network_interface_tweak(op)
@@ -1333,25 +1579,25 @@ pub fn kill_tweak_process(
     id: String,
     proc_mgr: State<Mutex<crate::modules::utils::process_manager::ProcessManager>>,
 ) -> Result<(), String> {
-    // We need to look up the PID
     let pid = {
         let mgr = proc_mgr.lock().map_err(|e| e.to_string())?;
         mgr.get_pid(&id)
     };
-
     if let Some(pid) = pid {
-        println!(
-            "[PROCESS KILL] Killing process PID {} for tweak {}",
-            pid, id
-        );
-        let _ = Command::new("taskkill")
-            .args(&["/F", "/PID", &pid.to_string(), "/T"])
+        println!("[PROCESS KILL] Killing PID {} for tweak: {}", pid, id);
+        // BUG-M2 fix: propagate taskkill errors instead of silently ignoring
+        let output = Command::new("taskkill")
+            .args(["/F", "/PID", &pid.to_string(), "/T"])
             .creation_flags(0x08000000)
-            .output();
+            .output()
+            .map_err(|e| format!("taskkill spawn failed: {}", e))?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!("taskkill failed (PID {}): {}", pid, stderr.trim()));
+        }
     } else {
-        println!("[PROCESS KILL] No active PID found for tweak {}", id);
+        println!("[PROCESS KILL] No active PID found for tweak: {}", id);
     }
-
     Ok(())
 }
 
@@ -1382,7 +1628,7 @@ pub async fn undo_tweak(
     };
 
     let backup_path = crate::modules::utils::dirs::get_backup_dir()
-        .unwrap_or_else(|_| std::path::PathBuf::from("backups"));
+        .map_err(|e| format!("Cannot determine backup directory: {}", e))?;
 
     let id_clone = id.clone();
     let app_clone = app.clone();
@@ -1466,19 +1712,34 @@ pub async fn undo_tweak(
                     }
                     TweakOperation::Powershell { script } => {
                         println!("  -> Revert PowerShell: {}", script);
+                        use std::io::Write;
                         use std::process::Stdio;
-                        let output = Command::new("powershell")
+
+                        // SECURITY FIX: Use RemoteSigned + pass script via stdin
+                        let mut child = Command::new("powershell")
                             .args([
                                 "-NoProfile",
+                                "-NonInteractive",
                                 "-ExecutionPolicy",
-                                "Bypass",
+                                "RemoteSigned",
                                 "-Command",
-                                script,
+                                "-",
                             ])
-                            .creation_flags(0x08000000)
+                            .stdin(Stdio::piped())
                             .stdout(Stdio::piped())
                             .stderr(Stdio::piped())
-                            .output()
+                            .creation_flags(0x08000000)
+                            .spawn()
+                            .map_err(|e| format!("Revert PowerShell spawn failed: {}", e))?;
+
+                        // Write script to stdin (not CLI arg)
+                        if let Some(mut stdin) = child.stdin.take() {
+                            writeln!(stdin, "{}", script)
+                                .map_err(|e| format!("Failed to write script to stdin: {}", e))?;
+                        }
+
+                        let output = child
+                            .wait_with_output()
                             .map_err(|e| format!("Revert PowerShell failed: {}", e))?;
 
                         if !output.stdout.is_empty() {
@@ -1552,16 +1813,32 @@ pub async fn undo_tweak(
                     }
                     TweakOperation::Command { cmd, args } => {
                         println!("  -> Revert Command: {} {:?}", cmd, args);
+                        validate_command(&cmd)?;
                         let output = Command::new(cmd)
                             .args(args)
                             .creation_flags(0x08000000)
                             .output()
                             .map_err(|e| format!("Revert command exec failed: {}", e))?;
                         if !output.status.success() {
-                            eprintln!(
-                                "Warning: Revert command returned non-zero: {:?}",
-                                output.status.code()
-                            );
+                            let stdout = String::from_utf8_lossy(&output.stdout);
+                            let stderr = String::from_utf8_lossy(&output.stderr);
+                            let combined = format!("{}{}", stdout, stderr).to_lowercase();
+
+                            if combined.contains("element not found")
+                                || combined.contains("value is protected")
+                            {
+                                eprintln!(
+                                    "  -> Non-fatal: {} {:?} -> {}",
+                                    cmd,
+                                    args,
+                                    combined.trim()
+                                );
+                            } else {
+                                eprintln!(
+                                    "Warning: Revert command returned non-zero: {:?}",
+                                    output.status.code()
+                                );
+                            }
                         }
                     }
                     TweakOperation::NetAdapterProperty { property, value } => {
@@ -1630,23 +1907,21 @@ pub async fn undo_tweak(
                             eprintln!("Warning: Revert MsiRemoveNet failed: {}", e);
                         }
                     }
-                    TweakOperation::NetworkInterfacesSet { key, value } => {
+                    TweakOperation::NetworkInterfacesSet { key, value: _ } => {
                         println!("  -> Revert NetworkInterfacesSet: key={}", key);
-                        if let Ok(op) = serde_json::from_str::<TweakOperation>(&format!(
-                            r#"{{"NetworkInterfacesDelete":{{"key":"{}"}}}}"#,
-                            key
-                        )) {
-                            let _ =
-                                crate::modules::registry::operations::apply_network_interface_tweak(
-                                    &op,
-                                );
+                        // BUG-H4 fix: construct enum variant directly — no JSON string injection
+                        let revert_op =
+                            TweakOperation::NetworkInterfacesDelete { key: key.clone() };
+                        if let Err(e) =
+                            crate::modules::registry::operations::apply_network_interface_tweak(
+                                &revert_op,
+                            )
+                        {
+                            eprintln!("Warning: Revert NetworkInterfacesSet failed: {}", e);
                         }
                     }
                     TweakOperation::NetworkInterfacesDelete { key: _ } => {
                         println!("  -> Revert NetworkInterfacesDelete: cannot restore, skipping");
-                    }
-                    TweakOperation::Powershell { script: _ } => {
-                        println!("  -> Skipping revert for Powershell operation (not reversible)");
                     }
                     _ => {
                         println!("  -> Skipped unknown revert op: {:?}", op);
@@ -1680,4 +1955,389 @@ pub async fn undo_tweak(
     );
 
     Ok(())
+}
+
+// ─── AI Commands ───────────────────────────────────────────────────────────────
+
+use crate::modules::ai::{gemini, profiler, prompts, AnalysisResult, ChatMessage, DiagnosisResult};
+
+#[tauri::command]
+pub fn save_gemini_key(key: String) -> Result<(), String> {
+    if key.trim().is_empty() {
+        return Err("API key cannot be empty".to_string());
+    }
+    if !key.starts_with("AIza") {
+        return Err("Invalid Gemini API key format (must start with AIza)".to_string());
+    }
+    gemini::save_api_key(key.trim())
+}
+
+#[tauri::command]
+pub fn get_gemini_key_status() -> bool {
+    gemini::get_api_key().is_ok()
+}
+
+#[tauri::command]
+pub fn delete_gemini_key() -> Result<(), String> {
+    gemini::delete_api_key()
+}
+
+#[tauri::command]
+pub async fn ai_analyze(
+    ctx: State<'_, Mutex<TweakContext>>,
+    state: State<'_, Mutex<AppState>>,
+    app: tauri::AppHandle,
+) -> Result<AnalysisResult, String> {
+    let profile = profiler::scan_system_profile_from_state(Some(app))?;
+    let memory = AiMemoryStore::load();
+    let memory_ctx = memory.to_prompt_context();
+
+    let startup_items =
+        tokio::task::spawn_blocking(crate::modules::startup::scan_all_startup_items)
+            .await
+            .unwrap_or_default();
+    let startup_json = serde_json::to_string(&startup_items).unwrap_or_default();
+
+    let tweaks_summary = {
+        let context = ctx.lock().map_err(|e| e.to_string())?;
+        let st = state.lock().map_err(|e| e.to_string())?;
+        let mut tweaks: Vec<_> = context
+            .tweaks
+            .iter()
+            .map(|t| {
+                serde_json::json!({
+                    "id":              t.id,
+                    "name":            t.name,
+                    "description":     t.description,
+                    "risk_level":      format!("{:?}", t.warning_level),
+                    "category":        format!("{:?}", t.category),
+                    "currently_applied": st.applied_tweaks.contains(&t.id),
+                    "requires_restart": t.requires_restart,
+                })
+            })
+            .collect();
+        tweaks.sort_by(|a, b| {
+            let ca = a["category"].as_str().unwrap_or("");
+            let cb = b["category"].as_str().unwrap_or("");
+            ca.cmp(cb).then(
+                a["id"]
+                    .as_str()
+                    .unwrap_or("")
+                    .cmp(b["id"].as_str().unwrap_or("")),
+            )
+        });
+        tweaks
+    };
+
+    let prompt = prompts::build_analyze_prompt(
+        &serde_json::to_string_pretty(&profile).map_err(|e| e.to_string())?,
+        &serde_json::to_string(&tweaks_summary).map_err(|e| e.to_string())?,
+    );
+
+    let prompt = format!(
+        "{}\n\nSTARTUP ITEMS (for context — suspicious ones may affect performance):\n{}\n\nAI MEMORY:\n{}",
+        prompt,
+        &startup_json[..startup_json.len().min(3000)],
+        memory_ctx
+    );
+
+    let (ctx_user, ctx_model) = prompts::build_context_injection(
+        &serde_json::to_string_pretty(&profile).map_err(|e| e.to_string())?,
+        &serde_json::to_string(&tweaks_summary).map_err(|e| e.to_string())?,
+        &memory_ctx,
+    );
+
+    let raw = gemini::call_gemini(
+        vec![
+            ("user".to_string(), ctx_user),
+            ("model".to_string(), ctx_model),
+            ("user".to_string(), prompt),
+        ],
+        true,
+    )
+    .await?;
+
+    let raw_trimmed = raw.trim();
+    let result: AnalysisResult = if raw_trimmed.starts_with('[') {
+        serde_json::from_str::<Vec<AnalysisResult>>(raw_trimmed)
+            .map_err(|e| {
+                format!(
+                    "Failed to parse Gemini response: {}\nRaw: {}",
+                    e,
+                    &raw[..400.min(raw.len())]
+                )
+            })?
+            .into_iter()
+            .next()
+            .ok_or_else(|| {
+                format!(
+                    "Empty array in Gemini response\nRaw: {}",
+                    &raw[..400.min(raw.len())]
+                )
+            })?
+    } else {
+        serde_json::from_str(&raw).map_err(|e| {
+            format!(
+                "Failed to parse Gemini response: {}\nRaw: {}",
+                e,
+                &raw[..400.min(raw.len())]
+            )
+        })?
+    };
+
+    if let Ok(_) = serde_json::from_str::<AnalysisResult>(&raw) {
+        let mut mem = AiMemoryStore::load();
+        mem.add(MemoryKind::Recommendation {
+            scan_summary: result.system_summary.clone(),
+            add: result.add.iter().map(|r| r.id.clone()).collect(),
+            remove: result.remove.iter().map(|r| r.id.clone()).collect(),
+            applied: vec![],
+        });
+        mem.last_system_summary = Some(result.system_summary.clone());
+        let _ = mem.save();
+    }
+
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn ai_chat(
+    message: String,
+    history: Vec<ChatMessage>,
+    session_id: String,
+    ctx: State<'_, Mutex<TweakContext>>,
+    state: State<'_, Mutex<AppState>>,
+    app: tauri::AppHandle,
+) -> Result<String, String> {
+    let profile = profiler::scan_system_profile_from_state(Some(app))?;
+    let memory = AiMemoryStore::load();
+    let memory_ctx = memory.to_prompt_context();
+
+    let applied_summary = {
+        let context = ctx.lock().map_err(|e| e.to_string())?;
+        let st = state.lock().map_err(|e| e.to_string())?;
+        context
+            .tweaks
+            .iter()
+            .filter(|t| st.applied_tweaks.contains(&t.id))
+            .map(|t| serde_json::json!({"id": t.id, "name": t.name}))
+            .collect::<Vec<_>>()
+    };
+
+    let (ctx_user, ctx_model) = prompts::build_context_injection(
+        &serde_json::to_string_pretty(&profile).map_err(|e| e.to_string())?,
+        &serde_json::to_string(&applied_summary).map_err(|e| e.to_string())?,
+        &memory_ctx,
+    );
+
+    let mut messages = vec![
+        ("user".to_string(), ctx_user),
+        ("model".to_string(), ctx_model),
+    ];
+    let history_clone: Vec<_> = history
+        .iter()
+        .map(|m| (m.role.clone(), m.content.clone()))
+        .collect();
+    for msg in history_clone {
+        messages.push(msg);
+    }
+    messages.push(("user".to_string(), message.clone()));
+
+    let response = gemini::call_gemini(messages, false).await?;
+
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let title = message.chars().take(60).collect::<String>();
+    let mut all_messages: Vec<AiChatMessage> = history
+        .into_iter()
+        .map(|m| AiChatMessage {
+            role: m.role,
+            content: m.content,
+            timestamp: now,
+        })
+        .collect();
+    all_messages.push(AiChatMessage {
+        role: "user".to_string(),
+        content: message,
+        timestamp: now,
+    });
+    all_messages.push(AiChatMessage {
+        role: "model".to_string(),
+        content: response.clone(),
+        timestamp: now,
+    });
+
+    let session = ChatSession {
+        id: session_id,
+        title,
+        started_at: now,
+        messages: all_messages,
+    };
+    let _ = save_chat_session(&session);
+
+    Ok(response)
+}
+
+#[tauri::command]
+pub async fn ai_diagnose(
+    problem: String,
+    ctx: State<'_, Mutex<TweakContext>>,
+    state: State<'_, Mutex<AppState>>,
+    app: tauri::AppHandle,
+) -> Result<DiagnosisResult, String> {
+    let profile = profiler::scan_system_profile_from_state(Some(app))?;
+
+    let applied_detail = {
+        let context = ctx.lock().map_err(|e| e.to_string())?;
+        let st = state.lock().map_err(|e| e.to_string())?;
+        context
+            .tweaks
+            .iter()
+            .filter(|t| st.applied_tweaks.contains(&t.id))
+            .map(|t| {
+                serde_json::json!({
+                    "id":          t.id,
+                    "name":        t.name,
+                    "description": t.description,
+                    "category":    format!("{:?}", t.category),
+                    "risk_level":  format!("{:?}", t.warning_level),
+                })
+            })
+            .collect::<Vec<_>>()
+    };
+
+    let prompt = prompts::build_diagnose_prompt(
+        &serde_json::to_string_pretty(&profile).map_err(|e| e.to_string())?,
+        &serde_json::to_string(&applied_detail).map_err(|e| e.to_string())?,
+        &problem,
+    );
+
+    let raw = gemini::call_gemini(vec![("user".to_string(), prompt)], true).await?;
+
+    let raw_trimmed = raw.trim();
+    let result: DiagnosisResult = if raw_trimmed.starts_with('[') {
+        serde_json::from_str::<Vec<DiagnosisResult>>(raw_trimmed)
+            .map_err(|e| {
+                format!(
+                    "Failed to parse diagnosis: {}\nRaw: {}",
+                    e,
+                    &raw[..400.min(raw.len())]
+                )
+            })?
+            .into_iter()
+            .next()
+            .ok_or_else(|| {
+                format!(
+                    "Empty array in diagnosis response\nRaw: {}",
+                    &raw[..400.min(raw.len())]
+                )
+            })?
+    } else {
+        serde_json::from_str(&raw).map_err(|e| {
+            format!(
+                "Failed to parse diagnosis: {}\nRaw: {}",
+                e,
+                &raw[..400.min(raw.len())]
+            )
+        })?
+    };
+    Ok(result)
+}
+
+// ── MEMORY ──────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn get_ai_memory_context() -> String {
+    AiMemoryStore::load().to_prompt_context()
+}
+
+#[tauri::command]
+pub fn record_ai_memory(kind_json: String) -> Result<(), String> {
+    let kind: MemoryKind =
+        serde_json::from_str(&kind_json).map_err(|e| format!("Invalid memory kind JSON: {}", e))?;
+    let mut store = AiMemoryStore::load();
+    store.add(kind);
+    store.save()
+}
+
+#[tauri::command]
+pub fn get_full_ai_memory() -> Result<String, String> {
+    let store = AiMemoryStore::load();
+    serde_json::to_string_pretty(&store).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn clear_ai_memory() -> Result<(), String> {
+    let mut store = AiMemoryStore::default();
+    store.save()
+}
+
+// ── CHAT PERSISTENCE ───────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn save_chat(session_json: String) -> Result<(), String> {
+    let session: ChatSession =
+        serde_json::from_str(&session_json).map_err(|e| format!("Invalid session JSON: {}", e))?;
+    save_chat_session(&session)
+}
+
+#[tauri::command]
+pub fn list_chats() -> Vec<ChatSessionMeta> {
+    list_chat_sessions()
+}
+
+#[tauri::command]
+pub fn load_chat(id: String) -> Result<ChatSession, String> {
+    load_chat_session(&id)
+}
+
+#[tauri::command]
+pub fn delete_chat(id: String) -> Result<(), String> {
+    delete_chat_session(&id)
+}
+
+// ── STARTUP AI ───────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn ai_scan_startup(
+    items: Vec<StartupItem>,
+) -> Result<crate::modules::ai::startup::StartupScanResult, String> {
+    scan_startup_with_ai(items).await
+}
+
+#[tauri::command]
+pub async fn ai_apply_startup_recommendations(
+    recommendations_json: String,
+) -> Result<Vec<String>, String> {
+    let recs: Vec<StartupRecommendation> = serde_json::from_str(&recommendations_json)
+        .map_err(|e| format!("Invalid recs JSON: {}", e))?;
+
+    let mut results: Vec<String> = Vec::new();
+    let mut memory = AiMemoryStore::load();
+
+    for rec in &recs {
+        if rec.action == "disable" {
+            let result = tokio::task::spawn_blocking({
+                let id = rec.item_id.clone();
+                move || toggle_item(id, false)
+            })
+            .await
+            .map_err(|e| e.to_string())?;
+
+            let outcome = if result.is_ok() { "success" } else { "failed" };
+            results.push(format!("{}: {}", rec.item_id, outcome));
+
+            memory.add(MemoryKind::StartupAction {
+                item_id: rec.item_id.clone(),
+                item_name: rec.item_id.clone(),
+                action: "disabled".to_string(),
+                reason: rec.reason.clone(),
+            });
+        }
+    }
+
+    memory.save()?;
+    Ok(results)
 }

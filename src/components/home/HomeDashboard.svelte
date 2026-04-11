@@ -15,7 +15,9 @@
         MonitorUp,
         MemoryStick,
         Gauge,
+        Sparkles,
     } from "lucide-svelte";
+    import { activeCategory } from "$lib/stores";
 
     import type { SystemStats } from "$lib/systemStore";
     import { systemStats, refreshStatsIfNeeded } from "$lib/systemStore";
@@ -161,6 +163,16 @@
         </div>
     </div>
 
+    <!-- AI Advisor CTA -->
+    <button class="ai-cta" on:click={() => ($activeCategory = "AiAdvisor")}>
+        <Sparkles size={18} />
+        <div class="ai-cta-text">
+            <span class="ai-cta-title">AI Advisor</span>
+            <span class="ai-cta-sub">Scan your system and get personalized recommendations</span>
+        </div>
+        <span class="ai-cta-arrow">→</span>
+    </button>
+
     <!-- Main Grid Layout -->
     <div class="main-grid">
         <!-- Left Column: System Stats -->
@@ -191,14 +203,14 @@
                         <span class="stat-label">RAM</span>
                         <span class="stat-value"
                             >{Math.round(
-                                (stats.ram_usage / stats.ram_total) * 100,
+                                (stats.ram_total > 0 ? stats.ram_usage / stats.ram_total : 0) * 100,
                             )}%</span
                         >
                     </div>
                     <div class="mini-bar">
                         <div
                             class="mini-fill"
-                            style="width: {(stats.ram_usage / stats.ram_total) *
+                            style="width: {(stats.ram_total > 0 ? stats.ram_usage / stats.ram_total : 0) *
                                 100}%"
                         ></div>
                     </div>
@@ -227,11 +239,11 @@
             <!-- Storage Drives -->
             <h2>Storage</h2>
             <div class="drives-list">
-                {#each stats.disks.sort( (a, b) => a.mount_point.localeCompare(b.mount_point), ) as disk}
+                {#each stats.disks.sort( (a, b) => a.mountpoint.localeCompare(b.mountpoint), ) as disk}
                     <div class="drive-row">
                         <HardDrive size={14} />
                         <span class="drive-label"
-                            >{disk.name || "Disk"} ({disk.mount_point})</span
+                            >{disk.name || "Disk"} ({disk.mountpoint})</span
                         >
                         <span class="drive-space"
                             >{formatBytes(disk.available_space)} free</span
@@ -239,14 +251,15 @@
                         <div class="drive-bar">
                             <div
                                 class="drive-fill"
-                                class:warning={(disk.total_space -
-                                    disk.available_space) /
-                                    disk.total_space >
+                                class:warning={disk.total_space > 0 &&
+                                    (disk.total_space - disk.available_space) /
+                                        disk.total_space >
                                     0.9}
-                                style="width: {((disk.total_space -
-                                    disk.available_space) /
-                                    disk.total_space) *
-                                    100}%"
+                                style="width: {disk.total_space > 0
+                                    ? ((disk.total_space - disk.available_space) /
+                                        disk.total_space) *
+                                        100
+                                    : 0}%"
                             ></div>
                         </div>
                     </div>
@@ -428,7 +441,7 @@
         width: 44px;
         height: 44px;
         border-radius: 10px;
-        background: rgba(96, 205, 255, 0.1);
+        background: rgba(var(--accent-rgb), 0.10);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -533,7 +546,7 @@
         padding: 24px 16px;
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 14px;
+        border-radius: var(--radius-card);
         color: var(--text-primary);
         cursor: pointer;
         transition: all 0.2s;
@@ -652,4 +665,31 @@
         background: rgba(239, 68, 68, 0.1);
         color: #ef4444;
     }
+
+    /* AI CTA Button */
+    .ai-cta {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        width: 100%;
+        padding: 14px 18px;
+        background: var(--layer-card);
+        border: var(--border-glass);
+        border-left: 2px solid var(--accent-color);
+        border-radius: var(--radius-card);
+        color: var(--text-color);
+        cursor: pointer;
+        transition: background 0.18s, border-color 0.18s;
+        text-align: left;
+    }
+
+    .ai-cta:hover {
+        background: var(--layer-hover);
+        border-left-color: var(--accent-hover, var(--accent-color));
+    }
+
+    .ai-cta :global(svg) { color: var(--accent-color); flex-shrink: 0; }
+    .ai-cta-title  { display: block; font-size: 14px; font-weight: 600; color: var(--text-color); }
+    .ai-cta-sub    { display: block; font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .ai-cta-arrow  { font-size: 14px; color: var(--text-muted); margin-left: auto; }
 </style>

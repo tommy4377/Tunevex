@@ -17,7 +17,7 @@ export interface CompactorState {
 }
 
 const initialState: CompactorState = {
-    path: "C:\\Games",
+    path: "",  // Empty by default - user must select a folder
     isScanning: false,
     isCompressing: false,
     scanResult: null,

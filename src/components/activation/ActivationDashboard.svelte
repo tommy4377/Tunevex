@@ -4,6 +4,7 @@
     import { listen } from "@tauri-apps/api/event";
     import type { Tweak } from "$lib/types";
     import TerminalModal from "../TerminalModal.svelte";
+    import Button from "../ui/Button.svelte";
     import {
         Layout,
         Monitor,
@@ -14,6 +15,18 @@
     } from "lucide-svelte";
 
     export let allTweaks: Tweak[] = [];
+
+    function getButtonVariant(tweakId: string): "primary" | "ghost" | "danger" {
+        if (tweakId.includes("remove")) return "danger";
+        if (tweakId.includes("check")) return "ghost";
+        return "primary";
+    }
+
+    function getButtonLabel(tweakId: string): string {
+        if (tweakId.includes("check")) return "Status";
+        if (tweakId.includes("remove")) return "Deactivate";
+        return "Activate";
+    }
 
     // Split tweaks into groups
     $: windowsTweaks = allTweaks.filter(
@@ -66,14 +79,8 @@
         } catch (e) {
             modalLogs = [...modalLogs, `Error: ${e}`];
         } finally {
-            processingId = null;
+        processingId = null;
         }
-    }
-
-    function getIcon(id: string) {
-        if (id.includes("check")) return Monitor;
-        if (id.includes("remove")) return ShieldAlert;
-        return Key;
     }
 </script>
 
@@ -97,22 +104,13 @@
                             <h3>{t.name}</h3>
                             <p>{t.description}</p>
                         </div>
-                        <button
-                            class="btn"
-                            class:danger={t.id.includes("remove")}
-                            class:primary={!t.id.includes("remove") &&
-                                !t.id.includes("check")}
+                        <Button
+                            variant={getButtonVariant(t.id)}
                             on:click={() => execute(t)}
                             disabled={!!processingId}
                         >
-                            {#if t.id.includes("check")}
-                                Status
-                            {:else if t.id.includes("remove")}
-                                Deactivate
-                            {:else}
-                                Activate
-                            {/if}
-                        </button>
+                            {getButtonLabel(t.id)}
+                        </Button>
                     </div>
                 {/each}
             </div>
@@ -131,22 +129,13 @@
                             <h3>{t.name}</h3>
                             <p>{t.description}</p>
                         </div>
-                        <button
-                            class="btn"
-                            class:danger={t.id.includes("remove")}
-                            class:primary={!t.id.includes("remove") &&
-                                !t.id.includes("check")}
+                        <Button
+                            variant={getButtonVariant(t.id)}
                             on:click={() => execute(t)}
                             disabled={!!processingId}
                         >
-                            {#if t.id.includes("check")}
-                                Status
-                            {:else if t.id.includes("remove")}
-                                Deactivate
-                            {:else}
-                                Activate
-                            {/if}
-                        </button>
+                            {getButtonLabel(t.id)}
+                        </Button>
                     </div>
                 {/each}
             </div>
@@ -183,7 +172,7 @@
         font-size: 28px;
         font-weight: 700;
         margin-bottom: 8px;
-        background: linear-gradient(to right, #fff, #aaa);
+        background: linear-gradient(to right, var(--text-color), var(--text-muted));
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
@@ -275,52 +264,5 @@
         margin: 0;
         line-height: 1.4;
         max-width: 300px;
-    }
-
-    .btn {
-        padding: 10px 20px;
-        border-radius: 12px;
-        border: 1px solid var(--border-color);
-        background: rgba(255, 255, 255, 0.05);
-        color: var(--text-color);
-        cursor: pointer;
-        font-size: 13px;
-        font-weight: 600;
-        transition: all 0.2s;
-        min-width: 120px;
-        text-align: center;
-    }
-
-    .btn:hover {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: var(--text-color);
-    }
-
-    .btn.primary {
-        background: var(--accent-color);
-        border-color: var(--accent-color);
-        color: white;
-    }
-
-    .btn.primary:hover {
-        background: var(--accent-hover);
-        border-color: var(--accent-hover);
-    }
-
-    .btn.danger {
-        color: #ef4444;
-        border-color: rgba(239, 68, 68, 0.3);
-        background: rgba(239, 68, 68, 0.1);
-    }
-
-    .btn.danger:hover {
-        background: rgba(239, 68, 68, 0.2);
-        border-color: #ef4444;
-    }
-
-    .btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        transform: none !important;
     }
 </style>

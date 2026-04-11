@@ -1,7 +1,7 @@
 <script lang="ts">
     import { invoke } from "@tauri-apps/api/core";
     import { fade } from "svelte/transition";
-    import { Moon, Folder, Menu } from "lucide-svelte";
+    import { Moon, Folder, Menu, Layout } from "lucide-svelte";
     import { Card, CardGrid, BackButton } from "../ui";
     import TweakCard from "../TweakCard.svelte";
     import type { Tweak } from "$lib/types";
@@ -23,12 +23,25 @@
             t.id.includes("extension") ||
             t.id.includes("compact") ||
             t.id.includes("hidden") ||
-            t.id.includes("system_files"),
+            t.id.includes("system_files") ||
+            t.id.includes("jpeg") ||
+            t.id.includes("home_namespace") ||
+            t.id.includes("menu_show_delay") ||
+            t.id.includes("launch_to_this_pc") ||
+            t.id.includes("icon_cache") ||
+            t.id.includes("auto_end_tasks") ||
+            t.id.includes("aero_shake") ||
+            t.id.includes("seconds_clock") ||
+            t.id.includes("enthusiast") ||
+            t.id.includes("no_resolve") ||
+            t.id.includes("printscreen"),
     );
 
     $: appearanceTweaks = uiTweaks.filter(
-        (t) => t.id.includes("dark_mode") || t.id.includes("theme"),
+        (t) => t.id.includes("dark_mode") || t.id.includes("theme") || t.id.includes("dynamic_lighting"),
     );
+
+    $: taskbarTweaks = uiTweaks.filter((t) => t.id.includes("taskbar") || t.id.includes("auto_end_tasks") || t.id.includes("seconds_clock"));
 
     const sectionsMeta = [
         {
@@ -51,6 +64,13 @@
             title: "Appearance",
             desc: "Dark mode and visual themes.",
             tweaks: () => appearanceTweaks,
+        },
+        {
+            id: "taskbar",
+            icon: Layout,
+            title: "Taskbar",
+            desc: "Taskbar and system tray settings.",
+            tweaks: () => taskbarTweaks,
         },
     ] as const;
 
@@ -103,7 +123,7 @@
 
 <div class="ui-dashboard" in:fade>
     {#if currentView === "dashboard"}
-        <CardGrid>
+        <CardGrid columns="repeat(2, 1fr)">
             {#each sections.filter((s) => s.tweaks().length > 0) as section}
                 <Card
                     icon={section.icon}

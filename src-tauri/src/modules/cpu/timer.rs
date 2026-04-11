@@ -189,6 +189,44 @@ pub fn get_timer_tweaks() -> Vec<Tweak> {
         },
 
         // ============================================
+        // DPC Latency Optimizer
+        // ============================================
+        Tweak {
+            id: "cpu_dpc_latency".to_string(),
+            category: TweakCategory::CpuPerformance,
+            name: "Optimize DPC Latency".to_string(),
+            description: "Disables ACPI wakeup reasons that can spike DPC latency to 500-2000µs.
+
+Reduces audio glitches and frametime spikes caused by ACPI.sys interrupt deferral.
+WARNING: May affect sleep/wake on laptops."
+                .to_string(),
+            warning_level: WarningLevel::Careful,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle, enabled: false,
+            revert_operations: Some(vec![
+                TweakOperation::RegistryDelete {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Services\\ACPI\\Parameters".to_string(),
+                    key: "DisableWakeupReasonForDPCLatency".to_string(),
+                },
+            ]),
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Services\\ACPI\\Parameters".to_string(),
+                key: "DisableWakeupReasonForDPCLatency".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Services\\ACPI\\Parameters".to_string(),
+                    key: "DisableWakeupReasonForDPCLatency".to_string(),
+                    value: RegistryValue::DWord(1),
+                },
+            ],
+        },
+
+        // ============================================
         // Legacy Boot Menu
         // ============================================
         Tweak {

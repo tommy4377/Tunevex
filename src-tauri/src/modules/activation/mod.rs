@@ -79,18 +79,18 @@ try {
             operations: vec![TweakOperation::Powershell {
                 script: r#"
 $ErrorActionPreference = "Stop"
-$url = "https://raw.githubusercontent.com/massgravel/Microsoft-Activation-Scripts/da0b2800d9c783e63af33a6178267ac2201adb2a/MAS/All-In-One-Version-KL/MAS_AIO.cmd"
+$url = "https://raw.githubusercontent.com/massgravel/Microsoft-Activation-Scripts/refs/heads/master/MAS/All-In-One-Version-KL/MAS_AIO.cmd"
 $path = "$env:LOCALAPPDATA\Tunevex\mas\mas_aio.cmd"
 
-if (!(Test-Path $path)) {
-    Write-Host "Downloading MAS Script (first run)..." -ForegroundColor Cyan
-    New-Item -ItemType Directory -Force (Split-Path $path) | Out-Null
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest -Uri $url -OutFile $path
-    Write-Host "Download complete." -ForegroundColor Green
-} else {
-    Write-Host "Using cached MAS script..." -ForegroundColor Green
+# Force re-download: delete stale cache before downloading
+if (Test-Path $path) {
+    Remove-Item $path -Force
 }
+Write-Host "Downloading latest MAS script..." -ForegroundColor Cyan
+New-Item -ItemType Directory -Force (Split-Path $path) | Out-Null
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+Invoke-WebRequest -Uri $url -OutFile $path
+Write-Host "Download complete." -ForegroundColor Green
 
 Write-Host "Starting MAS (HWID)..." -ForegroundColor Green
 $process = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$path`" /HWID" -PassThru -NoNewWindow -Wait
@@ -183,18 +183,18 @@ if (-not $found) { Write-Host "Office not installed." -ForegroundColor Gray }
             operations: vec![TweakOperation::Powershell {
                 script: r#"
 $ErrorActionPreference = "Stop"
-$url = "https://raw.githubusercontent.com/massgravel/Microsoft-Activation-Scripts/da0b2800d9c783e63af33a6178267ac2201adb2a/MAS/All-In-One-Version-KL/MAS_AIO.cmd"
+$url = "https://raw.githubusercontent.com/massgravel/Microsoft-Activation-Scripts/refs/heads/master/MAS/All-In-One-Version-KL/MAS_AIO.cmd"
 $path = "$env:LOCALAPPDATA\Tunevex\mas\mas_ohook.cmd"
 
-if (!(Test-Path $path)) {
-    Write-Host "Downloading MAS Script (first run)..." -ForegroundColor Cyan
-    New-Item -ItemType Directory -Force (Split-Path $path) | Out-Null
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest -Uri $url -OutFile $path
-    Write-Host "Download complete." -ForegroundColor Green
-} else {
-    Write-Host "Using cached MAS script..." -ForegroundColor Green
+# Force re-download: delete stale cache before downloading
+if (Test-Path $path) {
+    Remove-Item $path -Force
 }
+Write-Host "Downloading latest MAS script..." -ForegroundColor Cyan
+New-Item -ItemType Directory -Force (Split-Path $path) | Out-Null
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+Invoke-WebRequest -Uri $url -OutFile $path
+Write-Host "Download complete." -ForegroundColor Green
 
 Write-Host "Starting MAS (Ohook)..." -ForegroundColor Green
 $process = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$path`" /Ohook" -PassThru -NoNewWindow -Wait

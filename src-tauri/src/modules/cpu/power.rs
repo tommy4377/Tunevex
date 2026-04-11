@@ -48,7 +48,15 @@ pub fn get_power_tweaks() -> Vec<Tweak> {
             // We attempt activation of the well-known GUID first; if it already
             // exists powercfg returns it directly. If not, duplicate creates it.
             operations: vec![
-                // Step 1: try activating the well-known GUID (works if plan already exists)
+                // Step 1: duplicate the Ultimate Performance scheme (creates if missing)
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec![
+                        "/duplicatescheme".to_string(),
+                        "e9a42b02-d5df-448d-aa00-03f14749eb61".to_string(),
+                    ],
+                },
+                // Step 2: activate the (now existing) Ultimate Performance scheme
                 TweakOperation::Command {
                     cmd: "powercfg".to_string(),
                     args: vec![
@@ -355,62 +363,6 @@ pub fn get_power_tweaks() -> Vec<Tweak> {
         },
 
         // ============================================
-        // Atlas Power Scheme (comprehensive)
-        // ============================================
-        Tweak {
-            id: "cpu_atlas_power_scheme".to_string(),
-            category: TweakCategory::CpuPerformance,
-            name: "Create Ultimate Power Scheme".to_string(),
-            description: "Creates custom Ultimate Power Scheme based on ultimate performance with all power-saving disabled.".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: false,
-            tweak_type: TweakType::Toggle,
-            enabled: false,
-            revert_operations: Some(vec![
-                TweakOperation::Command {
-                    cmd: "powercfg".to_string(),
-                    args: vec![
-                        "-setactive".to_string(),
-                        "381b4222-f694-41f0-9685-ff5bb260df2e".to_string(),
-                    ],
-                },
-            ]),
-            // Check: custom GUID 11111111-… is active
-            check: Some(TweakCheck::CommandOutputContains {
-                cmd: "powercfg".to_string(),
-                args: vec!["/getactivescheme".to_string()],
-                contains: "11111111-1111-1111-1111-111111111111".to_string(),
-            }),
-            operations: vec![
-                // Duplicate Ultimate Performance into our fixed GUID, then activate
-                TweakOperation::Command {
-                    cmd: "powercfg".to_string(),
-                    args: vec![
-                        "/duplicatescheme".to_string(),
-                        "e9a42b02-d5df-448d-aa00-03f14749eb61".to_string(),
-                        "11111111-1111-1111-1111-111111111111".to_string(),
-                    ],
-                },
-                TweakOperation::Command {
-                    cmd: "powercfg".to_string(),
-                    args: vec![
-                        "/setactive".to_string(),
-                        "11111111-1111-1111-1111-111111111111".to_string(),
-                    ],
-                },
-                TweakOperation::Command {
-                    cmd: "powercfg".to_string(),
-                    args: vec![
-                        "/changename".to_string(),
-                        "scheme_current".to_string(),
-                        "Ultimate Power Scheme".to_string(),
-                        "Optimized for latency and performance".to_string(),
-                    ],
-                },
-            ],
-        },
-
-        // ============================================
         // USB 3 Link Power Management
         // ============================================
         Tweak {
@@ -643,6 +595,14 @@ pub fn get_power_tweaks() -> Vec<Tweak> {
             tweak_type: TweakType::Toggle,
             enabled: false,
             revert_operations: Some(vec![
+                // Delete the custom power plan created by duplicatescheme
+                TweakOperation::Command {
+                    cmd: "powercfg".to_string(),
+                    args: vec![
+                        "/deletescheme".to_string(),
+                        "11111111-1111-1111-1111-111111111111".to_string(),
+                    ],
+                },
                 // Best effort: restore Balanced plan
                 TweakOperation::Command {
                     cmd: "powercfg".to_string(),
@@ -657,6 +617,12 @@ pub fn get_power_tweaks() -> Vec<Tweak> {
                     path: "SYSTEM\\CurrentControlSet\\Control\\Storage".to_string(),
                     key: "StorageD3InModernStandby".to_string(),
                     value: RegistryValue::DWord(1),
+                },
+                // Restore IdlePowerMode (delete to return to default)
+                TweakOperation::RegistryDelete {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Services\\stornvme\\Parameters\\Device".to_string(),
+                    key: "IdlePowerMode".to_string(),
                 },
             ]),
             // Check: StorageD3InModernStandby == 0 (storage D3 disabled)

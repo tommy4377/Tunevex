@@ -4,58 +4,57 @@
 */
 
 :root {
-  /* 1. Base Transparency - CRITICAL for Acrylic to show through */
+  /* 1. Layers */
   --bg-transparent: rgba(0, 0, 0, 0);
+  --layer-card:     rgba(255, 255, 255, 0.03);
+  --layer-hover:    rgba(255, 255, 255, 0.06);
+  --layer-nav:      rgba(0, 0, 0, 0.2);
 
-  /* 2. Content Layers - semi-transparent glass surfaces */
-  --layer-card: rgba(255, 255, 255, 0.03);
-  --layer-hover: rgba(255, 255, 255, 0.06);
-  --layer-nav: rgba(0, 0, 0, 0.2);
-
-  /* 3. Typography - Segoe UI Variable for Windows 11 */
-  --font-base: "Segoe UI Variable Text", "Segoe UI", sans-serif;
-  --text-primary: #ffffff;
-  --text-color: #ffffff;
+  /* 2. Typography */
+  --font-base:      "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  --text-primary:   #ffffff;
+  --text-color:     #ffffff;
   --text-secondary: rgba(255, 255, 255, 0.75);
-  --text-muted: rgba(255, 255, 255, 0.5);
-  --border-color: rgba(255, 255, 255, 0.08);
+  --text-muted:     rgba(255, 255, 255, 0.45);
+  --border-color:   rgba(255, 255, 255, 0.08);
 
-  /* 4. Accents - Neon Cyan for high contrast on dark glass */
-  --accent: #60cdff;
-  --accent-hover: #99ebff;
-  --success: #6ccf8e;
-  --danger: #ff6b6b;
-  --warning: #facc15;
+  /* 3. Accent — Soft Indigo (replaces neon cyan) */
+  --accent:       #818cf8;
+  --accent-hover: #a5b4fc;
+  --accent-color: #818cf8;
+  --accent-rgb:   129, 140, 248;
 
-  /* 5. Borders - Thin, crisp glass edges */
-  --border-glass: 1px solid rgba(255, 255, 255, 0.08);
-  --border-active: 1px solid rgba(96, 205, 255, 0.3);
+  /* 4. Semantic colors */
+  --success: #34d399;
+  --danger:  #f87171;
+  --warning: #fbbf24;
 
-  /* 6. Dimensions */
-  --radius-window: 12px;
-  --radius-card: 8px;
-  --radius-sm: 4px;
-  --radius-lg: 16px;
+  /* 5. Borders */
+  --border-glass:  1px solid rgba(255, 255, 255, 0.08);
+  --border-active: 1px solid rgba(129, 140, 248, 0.35);
+
+  /* 6. Radius — unified scale */
+  --radius-sm:     6px;    /* Button, small chips                */
+  --radius-md:     8px;    /* inputs, select, row items          */
+  --radius-card:   10px;   /* Card, panels                       */
+  --radius-lg:     14px;   /* Home columns, modals               */
+  --radius-window: 12px;   /* app window border                  */
+  --radius-pill:   999px;  /* Badge only                         */
 
   /* 7. Toggle states */
-  --toggle-off-bg: rgba(255, 255, 255, 0.05);
-  --toggle-off-border: rgba(255, 255, 255, 0.1);
-  --toggle-off-color: rgba(255, 255, 255, 0.5);
-  --toggle-on-bg: rgba(96, 205, 255, 0.2);
-  --toggle-on-border: #60cdff;
-  --toggle-on-color: #60cdff;
-  --toggle-on-glow: 0 0 12px rgba(96, 205, 255, 0.3);
+  --toggle-off-bg:     rgba(255, 255, 255, 0.05);
+  --toggle-off-border: rgba(255, 255, 255, 0.10);
+  --toggle-off-color:  rgba(255, 255, 255, 0.45);
+  --toggle-on-bg:      rgba(129, 140, 248, 0.18);
+  --toggle-on-border:  #818cf8;
+  --toggle-on-color:   #a5b4fc;
+  --toggle-on-glow:    0 0 10px rgba(129, 140, 248, 0.25);
 
-  /* 8. Button variants */
-  --btn-safe-bg: rgba(20, 184, 166, 0.15);
-  --btn-safe-border: rgba(20, 184, 166, 0.3);
-  --btn-safe-color: #5eead4;
-  --btn-safe-hover-bg: rgba(20, 184, 166, 0.25);
-
-  /* 9. For rgba usage */
-  --accent-rgb: 96, 205, 255;
-  --accent-color: #60cdff;
-  --accent-hover: #99ebff;
+  /* 8. Button safe (teal) */
+  --btn-safe-bg:       rgba(52, 211, 153, 0.12);
+  --btn-safe-border:   rgba(52, 211, 153, 0.28);
+  --btn-safe-color:    #6ee7b7;
+  --btn-safe-hover-bg: rgba(52, 211, 153, 0.22);
 }
 
 /* GLOBAL RESET */

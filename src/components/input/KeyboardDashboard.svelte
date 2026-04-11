@@ -51,6 +51,8 @@
 
     .tweaks-wrapper {
         flex: 1;
-        overflow: hidden;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-bottom: 24px;
     }
 </style>

@@ -133,6 +133,10 @@ pub async fn compress_folder(
         let mut skipped = 0;
         let mut bytes_processed: u64 = 0;
 
+        // PERFORMANCE FIX: Batch IPC events to avoid event flood
+        const BATCH_SIZE: usize = 50;
+        let mut batch: Vec<String> = Vec::with_capacity(BATCH_SIZE);
+
         let walker = walkdir::WalkDir::new(&path_clone).into_iter();
 
         for entry in walker.filter_map(|e| e.ok()) {
@@ -150,23 +154,32 @@ pub async fn compress_folder(
                 }
 
                 if let Some(path_str) = entry.path().to_str() {
-                    let _ = app_clone.emit("compactor-file", path_str.to_string());
+                    batch.push(path_str.to_string());
                 }
 
                 match compress_file(entry.path(), algo) {
                     Ok(_) => {
                         count += 1;
                         bytes_processed += file_size;
-                        if count % 5 == 0 {
-                            let _ = app_clone.emit("compactor-progress", count);
-                            let _ = app_clone.emit("compactor-bytes", bytes_processed);
-                        }
                     }
                     Err(_) => {
                         skipped += 1;
                     }
                 }
+
+                // Emit batch when full
+                if batch.len() >= BATCH_SIZE {
+                    let _ = app_clone.emit("compactor-file-batch", &batch);
+                    let _ = app_clone.emit("compactor-progress", count);
+                    let _ = app_clone.emit("compactor-bytes", bytes_processed);
+                    batch.clear();
+                }
             }
+        }
+
+        // Flush remaining batch
+        if !batch.is_empty() {
+            let _ = app_clone.emit("compactor-file-batch", &batch);
         }
 
         let _ = app_clone.emit("compactor-progress", count);
@@ -200,20 +213,33 @@ pub async fn decompress_folder(
     let count = tokio::task::spawn_blocking(move || -> usize {
         let mut count = 0;
 
+        // PERFORMANCE FIX: Batch IPC events
+        const BATCH_SIZE: usize = 50;
+        let mut batch: Vec<String> = Vec::with_capacity(BATCH_SIZE);
+
         let walker = walkdir::WalkDir::new(&path_clone).into_iter();
 
         for entry in walker.filter_map(|e| e.ok()) {
             if entry.file_type().is_file() {
                 if let Some(path_str) = entry.path().to_str() {
-                    let _ = app_clone.emit("compactor-file", path_str.to_string());
+                    batch.push(path_str.to_string());
                 }
                 if decompress_file(entry.path()).is_ok() {
                     count += 1;
-                    if count % 5 == 0 {
-                        let _ = app_clone.emit("compactor-progress", count);
-                    }
+                }
+
+                // Emit batch when full
+                if batch.len() >= BATCH_SIZE {
+                    let _ = app_clone.emit("compactor-file-batch", &batch);
+                    let _ = app_clone.emit("compactor-progress", count);
+                    batch.clear();
                 }
             }
+        }
+
+        // Flush remaining batch
+        if !batch.is_empty() {
+            let _ = app_clone.emit("compactor-file-batch", &batch);
         }
 
         let _ = app_clone.emit("compactor-progress", count);

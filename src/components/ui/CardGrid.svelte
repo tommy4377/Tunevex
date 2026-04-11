@@ -1,5 +1,5 @@
 <script lang="ts">
-    export let columns: string = "repeat(auto-fill, 280px)";
+    export let columns: string = "repeat(auto-fill, minmax(220px, 1fr))";
     export let gap: string = "20px";
 </script>
 
@@ -11,7 +11,7 @@
     .card-grid {
         display: grid;
         grid-template-columns: var(--columns);
-        justify-content: center;
+        justify-content: start;
         gap: var(--gap);
         overflow-y: auto;
         flex: 1;

@@ -45,15 +45,17 @@ pub fn get_gaming_tweaks() -> Vec<Tweak> {
                     key: "AutoGameModeEnabled".to_string(),
                     value: RegistryValue::DWord(1),
                 },
+                TweakOperation::ServiceSetMode { name: "XblAuthManager".to_string(), mode: "demand".to_string() },
+                TweakOperation::ServiceSetMode { name: "XblGameSave".to_string(), mode: "demand".to_string() },
+                TweakOperation::ServiceSetMode { name: "XboxGipSvc".to_string(), mode: "demand".to_string() },
+                TweakOperation::ServiceSetMode { name: "XboxNetApiSvc".to_string(), mode: "demand".to_string() },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$panel = Get-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\GameBar" -Name "ShowStartupPanel" -ErrorAction SilentlyContinue
-$capture = Get-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR" -Name "AppCaptureEnabled" -ErrorAction SilentlyContinue
-if (($panel.ShowStartupPanel -eq 0) -and ($capture.AppCaptureEnabled -eq 0)) { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: "SOFTWARE\\Microsoft\\GameBar".to_string(),
+                key: "ShowStartupPanel".to_string(),
+                expected_value: RegistryValue::DWord(0),
             }),
             operations: vec![
                 TweakOperation::RegistrySet {
@@ -219,6 +221,12 @@ if (($panel.ShowStartupPanel -eq 0) -and ($capture.AppCaptureEnabled -eq 0)) { "
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
                     path: "System\\GameConfigStore".to_string(),
+                    key: "GameDVR_HonorUserFSEBehaviorMode".to_string(),
+                    value: RegistryValue::DWord(0), // Remove on revert
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCU".to_string(),
+                    path: "System\\GameConfigStore".to_string(),
                     key: "GameDVR_DXGIHonorFSEWindowsCompatible".to_string(),
                     value: RegistryValue::DWord(0),
                 },
@@ -281,6 +289,11 @@ if (($panel.ShowStartupPanel -eq 0) -and ($capture.AppCaptureEnabled -eq 0)) { "
                     key: "Scheduling Category".to_string(),
                     value: RegistryValue::String("Medium".to_string()),
                 },
+                TweakOperation::RegistryDelete {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games".to_string(),
+                    key: "SFIO Priority".to_string(), // Remove the key on revert (absent by default)
+                },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
@@ -315,53 +328,6 @@ if (($panel.ShowStartupPanel -eq 0) -and ($capture.AppCaptureEnabled -eq 0)) { "
                     value: RegistryValue::String("High".to_string()),
                 },
             ]
-        },
-
-        // ============================================
-        // NEW: Network Throttling Disable
-        // ============================================
-        Tweak {
-            id: "gaming_disable_network_throttling".to_string(),
-            category: TweakCategory::GameOptimizations,
-            name: "Disable Network Throttling".to_string(),
-            description: "Disables network throttling and maximizes foreground priority. Reduces online gaming latency.".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: false,
-            tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                key: "NetworkThrottlingIndex".to_string(),
-                expected_value: RegistryValue::DWord(0xFFFFFFFF),
-            }),
-            revert_operations: Some(vec![
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                    key: "NetworkThrottlingIndex".to_string(),
-                    value: RegistryValue::DWord(10),
-                },
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                    key: "SystemResponsiveness".to_string(),
-                    value: RegistryValue::DWord(20),
-                },
-            ]),
-            operations: vec![
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                    key: "NetworkThrottlingIndex".to_string(),
-                    value: RegistryValue::DWord(0xFFFFFFFF), // Disable throttling completely
-                },
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                    key: "SystemResponsiveness".to_string(),
-                    value: RegistryValue::DWord(0), // 100% to foreground apps
-                },
-            ],
         },
 
         // ============================================
@@ -405,18 +371,34 @@ if (($panel.ShowStartupPanel -eq 0) -and ($capture.AppCaptureEnabled -eq 0)) { "
             warning_level: WarningLevel::Careful,
             requires_restart: true,
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$svc = Get-Service -Name "MMCSS" -EA 0
-if ($svc.StartType -eq 'Disabled') { 'True' } else { 'False' }
-"#.to_string(),
-                expected_output: "True".to_string(),
-            }),
+            check: Some(TweakCheck::ServiceDisabled { name: "MMCSS".to_string() }),
             revert_operations: Some(vec![
                 TweakOperation::ServiceSetMode { name: "MMCSS".to_string(), mode: "auto".to_string() }
             ]),
             operations: vec![
                 TweakOperation::ServiceDisable { name: "MMCSS".to_string() }
+            ],
+        },
+
+        // ============================================
+        // GameInput Service (Windows 11 24H2+)
+        // ============================================
+        Tweak {
+            id: "gaming_disable_gameinput".to_string(),
+            category: TweakCategory::GameOptimizations,
+            name: "Disable GameInput Service".to_string(),
+            description: "Disables the GameInput service (Windows 11 24H2+). Reduces input latency by 1-3ms for games using raw input. May break some newer XInput controllers.".to_string(),
+            warning_level: WarningLevel::Careful,
+            requires_restart: true,
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::ServiceDisabled {
+                name: "GameInputSvc".to_string(),
+            }),
+            revert_operations: Some(vec![
+                TweakOperation::ServiceSetMode { name: "GameInputSvc".to_string(), mode: "demand".to_string() },
+            ]),
+            operations: vec![
+                TweakOperation::ServiceDisable { name: "GameInputSvc".to_string() },
             ],
         },
     ]);

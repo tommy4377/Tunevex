@@ -31,7 +31,7 @@ pub fn get_service_tweaks() -> Vec<Tweak> {
                 TweakOperation::ServiceSetMode { name: "BITS".to_string(), mode: "auto".to_string() },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::ServiceDisabled { name: "BITS".to_string() }),
+            check: Some(TweakCheck::ServiceMode { name: "BITS".to_string(), mode: "demand".to_string() }),
             operations: vec![
                 TweakOperation::ServiceSetMode { name: "BITS".to_string(), mode: "demand".to_string() },
             ]

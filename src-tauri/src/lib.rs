@@ -11,12 +11,12 @@ use crate::modules::gaming::get_gaming_tweaks;
 use crate::modules::gpu::get_gpu_tweaks;
 // use crate::modules::hardware::get_hardware_tweaks; // Removed
 use crate::modules::input::get_input_tweaks;
+use crate::modules::interface::get_interface_tweaks;
 use crate::modules::network::get_network_tweaks;
 use crate::modules::privacy::get_privacy_tweaks;
 use crate::modules::security::get_security_tweaks;
+use crate::modules::startup::boot::get_boot_tweaks;
 use crate::modules::storage::get_storage_tweaks;
-// use crate::modules::startup::get_startup_tweaks;
-use crate::modules::interface::get_interface_tweaks;
 use crate::modules::system::get_system_tweaks;
 use std::sync::Mutex;
 
@@ -30,7 +30,7 @@ pub fn run() {
     all_tweaks.extend(get_debloat_tweaks());
     all_tweaks.extend(get_display_tweaks());
     all_tweaks.extend(get_system_tweaks());
-    // all_tweaks.extend(get_startup_tweaks()); // Startup is now a separate manager
+    all_tweaks.extend(get_boot_tweaks()); // Boot configuration tweaks
     all_tweaks.extend(get_gaming_tweaks());
     all_tweaks.extend(get_gpu_tweaks());
     all_tweaks.extend(get_input_tweaks());
@@ -48,6 +48,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_http::init())
         .manage(Mutex::new(TweakContext { tweaks: all_tweaks }))
         .manage(Mutex::new(app_state))
         .manage(Mutex::new(
@@ -85,7 +86,23 @@ pub fn run() {
             crate::modules::system::maintenance::empty_recycle_bin,
             crate::modules::system::maintenance::clear_temp_files,
             crate::modules::system::maintenance::flush_dns_cache,
-            crate::modules::system::maintenance::reset_network
+            crate::modules::system::maintenance::reset_network,
+            commands::save_gemini_key,
+            commands::get_gemini_key_status,
+            commands::delete_gemini_key,
+            commands::ai_analyze,
+            commands::ai_chat,
+            commands::ai_diagnose,
+            commands::get_ai_memory_context,
+            commands::record_ai_memory,
+            commands::get_full_ai_memory,
+            commands::clear_ai_memory,
+            commands::save_chat,
+            commands::list_chats,
+            commands::load_chat,
+            commands::delete_chat,
+            commands::ai_scan_startup,
+            commands::ai_apply_startup_recommendations,
         ])
         .setup(|app| {
             {

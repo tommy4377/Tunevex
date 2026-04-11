@@ -192,9 +192,9 @@
     }
 
     .optimize-btn.safe {
-        background: #10b981;
-        color: white;
-        border: none;
+        background: var(--btn-safe-bg);
+        color: var(--btn-safe-color);
+        border: 1px solid var(--btn-safe-border);
         padding: 6px 12px;
         border-radius: 6px;
         font-weight: 500;
@@ -202,7 +202,7 @@
         font-size: 13px;
     }
     .optimize-btn.safe:hover {
-        background: #059669;
+        background: var(--btn-safe-hover-bg);
     }
     .dns-section {
         flex: 1;
@@ -242,7 +242,7 @@
     }
 
     .benchmark-btn:hover {
-        background: #4eb0fa; /* Brighter accent */
+        background: var(--accent-hover);
     }
 
     .benchmark-btn:disabled {
@@ -264,7 +264,7 @@
         background: rgba(255, 255, 255, 0.03);
         border: var(--border-glass);
         padding: 12px 16px;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         display: flex;
         align-items: center;
         gap: 16px;
@@ -278,8 +278,8 @@
     }
 
     .result-row.selected {
-        border-color: var(--accent);
-        background: rgba(59, 130, 246, 0.1);
+        border-color: var(--accent-color);
+        background: rgba(var(--accent-rgb), 0.10);
     }
 
     .info {

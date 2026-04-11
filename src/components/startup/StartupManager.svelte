@@ -14,9 +14,11 @@
         Building,
         AlertTriangle,
         Circle,
+        Sparkles,
+        Check,
     } from "lucide-svelte";
 
-    type StartupCategory = string; // Backend uses strings now (Logon, Service etc)
+    type StartupCategory = string;
 
     interface StartupItem {
         id: string;
@@ -38,6 +40,13 @@
     let loading = true;
     let searchTerm = "";
     let selectedCategory = "all";
+
+    let scanResult: any = null;
+    let scanning = false;
+    let applying = false;
+    let applyResults: string[] = [];
+    let scanError = "";
+    let selectedRecs: Set<string> = new Set();
 
     // Category definitions with counts and icon components
     const categoryIcons: Record<string, typeof List> = {
@@ -128,6 +137,56 @@
     // Truncate helper
     function truncate(str: string, max: number): string {
         return str.length > max ? str.slice(0, max) + "..." : str;
+    }
+
+    async function runAiScan() {
+        scanning = true;
+        scanError = "";
+        scanResult = null;
+        try {
+            scanResult = await invoke<any>("ai_scan_startup", { items });
+            selectedRecs = new Set(
+                scanResult.recommendations
+                    .filter((r: any) => r.action === "disable" && r.priority !== "low")
+                    .map((r: any) => r.item_id)
+            );
+        } catch (e) {
+            scanError = e as string;
+        } finally {
+            scanning = false;
+        }
+    }
+
+    async function applySelected() {
+        applying = true;
+        const toApply = scanResult.recommendations.filter(
+            (r: any) => r.action === "disable" && selectedRecs.has(r.item_id)
+        );
+        try {
+            applyResults = await invoke<string[]>("ai_apply_startup_recommendations", {
+                recommendationsJson: JSON.stringify(toApply),
+            });
+            for (const rec of toApply) {
+                await invoke("record_ai_memory", {
+                    kindJson: JSON.stringify({
+                        type: "StartupAction",
+                        item_id: rec.item_id,
+                        item_name: rec.item_id,
+                        action: "disabled",
+                        reason: rec.reason,
+                    }),
+                });
+            }
+            await refresh();
+        } catch (e) {
+            scanError = e as string;
+        } finally {
+            applying = false;
+        }
+    }
+
+    function priorityColor(p: string) {
+        return p === "high" ? "#f87171" : p === "medium" ? "#fbbf24" : "#34d399";
     }
 </script>
 
@@ -252,6 +311,82 @@
             {/each}
         </div>
     {/if}
+
+    <div class="ai-scan-section">
+        <div class="ai-scan-header">
+            <Sparkles size={14} />
+            <span>AI Startup Scan</span>
+            <button class="scan-btn" on:click={runAiScan} disabled={scanning || applying}>
+                {#if scanning}
+                    Analyzing…
+                {:else}
+                    Scan &amp; Recommend
+                {/if}
+            </button>
+        </div>
+
+        {#if scanError}
+            <div class="scan-error">{scanError}</div>
+        {/if}
+
+        {#if scanResult}
+            <p class="scan-summary">{scanResult.summary}</p>
+
+            <div class="rec-list">
+                {#each scanResult.recommendations.filter((r: any) => r.action !== "keep") as rec}
+                    <div
+                        class="rec-row"
+                        class:selected={selectedRecs.has(rec.item_id)}
+                        class:investigate={rec.action === "investigate"}
+                        role="checkbox"
+                        aria-checked={selectedRecs.has(rec.item_id)}
+                        tabindex="0"
+                        on:click={() => {
+                            if (selectedRecs.has(rec.item_id)) selectedRecs.delete(rec.item_id);
+                            else selectedRecs.add(rec.item_id);
+                            selectedRecs = selectedRecs;
+                        }}
+                    >
+                        <div class="rec-check" class:checked={selectedRecs.has(rec.item_id)}>
+                            {#if selectedRecs.has(rec.item_id)}<Check size={9} />{/if}
+                        </div>
+                        <div class="rec-body">
+                            <div class="rec-header">
+                                <span class="rec-id">{rec.item_id.split("\\").pop() ?? rec.item_id}</span>
+                                <span class="rec-action" style="color: {rec.action === 'investigate' ? '#fbbf24' : '#f87171'}">
+                                    {rec.action}
+                                </span>
+                                <span class="rec-prio" style="color: {priorityColor(rec.priority)}">
+                                    {rec.priority}
+                                </span>
+                            </div>
+                            <p class="rec-reason">{rec.reason}</p>
+                        </div>
+                    </div>
+                {/each}
+            </div>
+
+            {#if scanResult.recommendations.some((r: any) => r.action === "disable")}
+                <div class="apply-bar">
+                    <span class="sel-count">{selectedRecs.size} selected</span>
+                    <button class="apply-btn" on:click={applySelected}
+                            disabled={applying || selectedRecs.size === 0}>
+                        {#if applying}
+                            Applying…
+                        {:else}
+                            Apply Selected
+                        {/if}
+                    </button>
+                </div>
+            {/if}
+
+            {#if applyResults.length > 0}
+                <div class="apply-results">
+                    {#each applyResults as r}<div class="result-line">{r}</div>{/each}
+                </div>
+            {/if}
+        {/if}
+    </div>
 </div>
 
 <style>
@@ -522,5 +657,80 @@
         to {
             transform: rotate(360deg);
         }
+    }
+
+    .ai-scan-section {
+        margin-top: 24px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 16px 20px;
+        display: flex; flex-direction: column; gap: 12px;
+    }
+    .ai-scan-header {
+        display: flex; align-items: center; gap: 8px;
+        color: var(--accent-color); font-size: 13px; font-weight: 600;
+    }
+    .ai-scan-header span { flex: 1; }
+    .scan-btn {
+        display: flex; align-items: center; gap: 6px;
+        background: rgba(129,140,248,0.12);
+        border: 1px solid rgba(129,140,248,0.2);
+        border-radius: 6px; padding: 5px 12px;
+        color: var(--accent-color); font-size: 12px; cursor: pointer;
+        transition: background 0.15s;
+    }
+    .scan-btn:hover:not(:disabled) { background: rgba(129,140,248,0.2); }
+    .scan-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .scan-summary { font-size: 12px; color: var(--text-secondary); margin: 0; line-height: 1.5; }
+    .rec-list { display: flex; flex-direction: column; gap: 6px; }
+    .rec-row {
+        display: flex; align-items: flex-start; gap: 10px;
+        padding: 9px 12px; background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.06); border-radius: 8px;
+        cursor: pointer; user-select: none; transition: border-color 0.15s, background 0.15s;
+    }
+    .rec-row:hover      { background: var(--bg-hover); }
+    .rec-row.selected   { border-color: rgba(248,113,113,0.25); background: rgba(248,113,113,0.04); }
+    .rec-row.investigate { border-left: 2px solid #fbbf24; }
+    .rec-check {
+        width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px;
+        border-radius: 3px; border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(255,255,255,0.04);
+        display: flex; align-items: center; justify-content: center;
+        transition: all 0.12s; color: white;
+    }
+    .rec-check.checked  { background: #f87171; border-color: #f87171; }
+    .rec-body           { flex: 1; min-width: 0; }
+    .rec-header         { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 3px; }
+    .rec-id             { font-size: 11px; font-family: monospace; color: var(--text-secondary); }
+    .rec-action         { font-size: 10px; font-weight: 700; text-transform: uppercase; }
+    .rec-prio           { font-size: 10px; font-weight: 600; }
+    .rec-reason         { margin: 0; font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+    .apply-bar          {
+        display: flex; align-items: center; justify-content: flex-end; gap: 12px;
+        border-top: 1px solid var(--border-color); padding-top: 10px;
+    }
+    .sel-count          { font-size: 11px; color: var(--text-muted); }
+    .apply-btn          {
+        display: flex; align-items: center; gap: 6px;
+        background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.25);
+        border-radius: 6px; padding: 5px 14px;
+        color: #f87171; font-size: 12px; cursor: pointer;
+    }
+    .apply-btn:hover:not(:disabled) { background: rgba(248,113,113,0.22); }
+    .apply-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .apply-results      {
+        font-size: 11px; font-family: monospace;
+        color: var(--text-muted); background: rgba(0,0,0,0.2);
+        border-radius: 6px; padding: 8px 12px;
+        display: flex; flex-direction: column; gap: 2px;
+    }
+    .result-line::before { content: "→ "; color: var(--accent-color); }
+    .scan-error         {
+        font-size: 12px; color: #f87171;
+        background: rgba(248,113,113,0.08);
+        border: 1px solid rgba(248,113,113,0.2);
+        border-radius: 6px; padding: 8px 12px;
     }
 </style>

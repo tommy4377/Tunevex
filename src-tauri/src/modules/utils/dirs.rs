@@ -1,17 +1,39 @@
 use std::path::PathBuf;
 
 pub fn get_app_dir() -> Result<PathBuf, String> {
-    let app_data = std::env::var("APPDATA")
-        .map_err(|_| "APPDATA environment variable not found".to_string())?;
-
-    let tommy_dir = PathBuf::from(app_data).join("Tunevex");
-
-    if !tommy_dir.exists() {
-        std::fs::create_dir_all(&tommy_dir)
-            .map_err(|e| format!("Failed to create config directory: {}", e))?;
+    if let Ok(program_data) = std::env::var("PROGRAMDATA") {
+        let dir = PathBuf::from(program_data).join("Tunevex");
+        if ensure_writable_dir(&dir) {
+            return Ok(dir);
+        }
     }
+    if let Ok(app_data) = std::env::var("APPDATA") {
+        let dir = PathBuf::from(app_data).join("Tunevex");
+        if ensure_writable_dir(&dir) {
+            return Ok(dir);
+        }
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            let dir = parent.join("TunevexData");
+            if ensure_writable_dir(&dir) {
+                return Ok(dir);
+            }
+        }
+    }
+    Err("Cannot find a writable directory for Tunevex data.".to_string())
+}
 
-    Ok(tommy_dir)
+fn ensure_writable_dir(dir: &PathBuf) -> bool {
+    if !dir.exists() {
+        if std::fs::create_dir_all(dir).is_err() {
+            return false;
+        }
+    }
+    let test = dir.join(".writetest");
+    let ok = std::fs::write(&test, "ok").is_ok();
+    let _ = std::fs::remove_file(&test);
+    ok
 }
 
 pub fn get_state_path() -> Result<PathBuf, String> {
@@ -19,23 +41,13 @@ pub fn get_state_path() -> Result<PathBuf, String> {
 }
 
 pub fn get_backup_dir() -> Result<PathBuf, String> {
-    let backup_dir = get_app_dir()?.join("backups");
-
-    if !backup_dir.exists() {
-        std::fs::create_dir_all(&backup_dir)
-            .map_err(|e| format!("Failed to create backup directory: {}", e))?;
-    }
-
-    Ok(backup_dir)
+    let dir = get_app_dir()?.join("backups");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
 }
 
 pub fn get_logs_dir() -> Result<PathBuf, String> {
-    let logs_dir = get_app_dir()?.join("logs");
-
-    if !logs_dir.exists() {
-        std::fs::create_dir_all(&logs_dir)
-            .map_err(|e| format!("Failed to create logs directory: {}", e))?;
-    }
-
-    Ok(logs_dir)
+    let dir = get_app_dir()?.join("logs");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
 }

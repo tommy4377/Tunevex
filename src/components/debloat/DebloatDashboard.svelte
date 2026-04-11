@@ -1,17 +1,18 @@
 <script lang="ts">
     import { fade } from "svelte/transition";
-    import { Package, Puzzle, Globe } from "lucide-svelte";
+    import { Package, Puzzle, Globe, Server } from "lucide-svelte";
     import { onMount, onDestroy } from "svelte";
     import { listen } from "@tauri-apps/api/event";
     import { Card, CardGrid, BackButton } from "../ui";
     import AppsSection from "./AppsSection.svelte";
     import FeaturesSection from "./FeaturesSection.svelte";
     import EdgeSection from "./EdgeSection.svelte";
+    import ServicesSection from "./ServicesSection.svelte";
     import type { Tweak } from "$lib/types";
 
     export let allTweaks: Tweak[] = [];
 
-    let currentView: "dashboard" | "apps" | "features" | "edge" = "dashboard";
+    let currentView: "dashboard" | "apps" | "features" | "edge" | "services" = "dashboard";
 
     // Filters
     $: appsTweaks = allTweaks.filter(
@@ -51,6 +52,12 @@
         (t) =>
             t.category === "DebloatTelemetry" &&
             t.id.startsWith("debloat_edge_"),
+    );
+
+    $: servicesTweaks = allTweaks.filter(
+        (t) =>
+            t.category === "DebloatTelemetry" &&
+            (t.id.includes("_services") || t.id.includes("_tasks")),
     );
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -94,6 +101,13 @@
                 status="{edgeTweaks.length} tweaks"
                 onclick={() => (currentView = "edge")}
             />
+            <Card
+                icon={Server}
+                title="Services & Tasks"
+                description="Disable unnecessary services and scheduled tasks."
+                status="{servicesTweaks.length} tweaks"
+                onclick={() => (currentView = "services")}
+            />
         </CardGrid>
     {:else}
         <div class="detail-view" in:fade>
@@ -105,6 +119,8 @@
                 <FeaturesSection tweaks={featuresTweaks} />
             {:else if currentView === "edge"}
                 <EdgeSection tweaks={edgeTweaks} />
+            {:else if currentView === "services"}
+                <ServicesSection tweaks={servicesTweaks} />
             {/if}
         </div>
     {/if}

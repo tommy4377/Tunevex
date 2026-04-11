@@ -261,8 +261,7 @@ if (Test-Path "$env:SystemRoot\System32\OneDriveSetup.exe") {
     & "$env:SystemRoot\SysWOW64\OneDriveSetup.exe" /uninstall
 }
 
-# Remove leftover folders
-Remove-Item "$env:USERPROFILE\OneDrive" -Recurse -Force -EA 0
+# Remove leftover folders (skip USERPROFILE\OneDrive - it's the synced folder with user data!)
 Remove-Item "$env:LOCALAPPDATA\Microsoft\OneDrive" -Recurse -Force -EA 0
 Remove-Item "$env:PROGRAMDATA\Microsoft OneDrive" -Recurse -Force -EA 0
 Remove-Item "C:\OneDriveTemp" -Recurse -Force -EA 0
@@ -877,96 +876,6 @@ Set-Service -Name "edgeupdate" -StartupType Disabled -EA 0
 Set-Service -Name "edgeupdatem" -StartupType Disabled -EA 0
 
 Write-Host "`nEdge removal complete! Restart recommended." -ForegroundColor Green
-"#.to_string(),
-                }
-            ]
-        },
-        
-        // ============================================
-        // DANGEROUS: Disable Windows Defender
-        // ============================================
-        Tweak {
-            id: "debloat_disable_defender".to_string(),
-            category: TweakCategory::SecurityPrivacy,
-            name: "Disable Windows Defender".to_string(),
-            description: "DANGEROUS: Disables Windows Defender real-time protection and services via registry policies. Does NOT remove files. Requires reboot.".to_string(),
-            warning_level: WarningLevel::Dangerous,
-            requires_restart: true,
-            revert_operations: Some(vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Write-Host "Re-enabling Windows Defender..." -ForegroundColor Yellow
-
-# Remove policy overrides
-$policies = @(
-    "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender",
-    "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection",
-    "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Spynet"
-)
-foreach ($path in $policies) {
-    if (Test-Path $path) { Remove-Item $path -Recurse -Force -EA 0 }
-}
-
-# Re-enable services
-$services = @("WinDefend", "WdNisSvc", "SecurityHealthService")
-foreach ($svc in $services) {
-    Set-Service -Name $svc -StartupType Automatic -EA 0
-    Start-Service -Name $svc -EA 0
-}
-
-# Enable real-time protection
-Set-MpPreference -DisableRealtimeMonitoring $false -EA 0
-
-Write-Host "Defender re-enabled. Please reboot." -ForegroundColor Green
-"#.to_string(),
-                }
-            ]),
-            tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(crate::modules::types::TweakCheck::Powershell {
-                script: r#"
-$disabled = Get-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" -Name "DisableAntiSpyware" -EA 0
-if ($disabled -and $disabled.DisableAntiSpyware -eq 1) { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
-            }),
-            operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Write-Host "Disabling Windows Defender..." -ForegroundColor Yellow
-
-# Set main policy
-$path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender"
-if (!(Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
-Set-ItemProperty -Path $path -Name "DisableAntiSpyware" -Value 1 -Type DWord -Force
-Set-ItemProperty -Path $path -Name "DisableAntiVirus" -Value 1 -Type DWord -Force
-Set-ItemProperty -Path $path -Name "ServiceKeepAlive" -Value 0 -Type DWord -Force
-
-# Disable real-time protection
-$rtPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection"
-if (!(Test-Path $rtPath)) { New-Item -Path $rtPath -Force | Out-Null }
-Set-ItemProperty -Path $rtPath -Name "DisableRealtimeMonitoring" -Value 1 -Type DWord -Force
-Set-ItemProperty -Path $rtPath -Name "DisableBehaviorMonitoring" -Value 1 -Type DWord -Force
-Set-ItemProperty -Path $rtPath -Name "DisableOnAccessProtection" -Value 1 -Type DWord -Force
-Set-ItemProperty -Path $rtPath -Name "DisableIOAVProtection" -Value 1 -Type DWord -Force
-Set-ItemProperty -Path $rtPath -Name "DisableScanOnRealtimeEnable" -Value 1 -Type DWord -Force
-
-# Disable SpyNet/MAPS
-$spyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Spynet"
-if (!(Test-Path $spyPath)) { New-Item -Path $spyPath -Force | Out-Null }
-Set-ItemProperty -Path $spyPath -Name "SpynetReporting" -Value 0 -Type DWord -Force
-Set-ItemProperty -Path $spyPath -Name "SubmitSamplesConsent" -Value 2 -Type DWord -Force
-
-# Disable services
-$services = @("WinDefend", "WdNisSvc", "SecurityHealthService")
-foreach ($svc in $services) {
-    Stop-Service -Name $svc -Force -EA 0
-    Set-Service -Name $svc -StartupType Disabled -EA 0
-}
-
-# Try to disable via MpPreference
-Set-MpPreference -DisableRealtimeMonitoring $true -EA 0
-
-Write-Host "Defender disabled. Please reboot." -ForegroundColor Green
 "#.to_string(),
                 }
             ]

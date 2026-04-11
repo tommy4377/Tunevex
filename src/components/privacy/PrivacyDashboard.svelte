@@ -158,7 +158,7 @@
 
 <div class="privacy-container">
     {#if currentView === "dashboard"}
-        <CardGrid>
+        <CardGrid columns="repeat(3, 1fr)" gap="16px">
             {#each sections.filter((s) => s.tweaks().length > 0) as section}
                 <Card
                     icon={section.icon}
@@ -217,8 +217,10 @@
 
     .tweaks-wrapper {
         flex: 1;
-        overflow: hidden;
+        overflow-y: auto;
+        overflow-x: hidden;
         display: flex;
         flex-direction: column;
+        padding-bottom: 24px;
     }
 </style>

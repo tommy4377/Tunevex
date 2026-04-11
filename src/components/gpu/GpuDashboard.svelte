@@ -1,6 +1,6 @@
 <script lang="ts">
     import { fade } from "svelte/transition";
-    import { Rocket, Zap, Info } from "lucide-svelte";
+    import { Rocket, Zap, Info, Monitor } from "lucide-svelte";
     import { invoke } from "@tauri-apps/api/core";
     import {
         Card,
@@ -14,7 +14,7 @@
 
     export let allTweaks: Tweak[] = [];
 
-    let currentView: "dashboard" | "general" | "msi" = "dashboard";
+    let currentView: "dashboard" | "general" | "msi" | "vendor" = "dashboard";
 
     // Filters
     $: schedulingTweaks = allTweaks.filter(
@@ -28,6 +28,14 @@
 
     $: msiTweaks = allTweaks.filter(
         (t) => t.category === "GpuOptimization" && t.id.includes("msi"),
+    );
+
+    $: vendorTweaks = allTweaks.filter(
+        (t) =>
+            t.category === "GpuOptimization" &&
+            (t.id.includes("nvidia") ||
+                t.id.includes("amd") ||
+                t.id.includes("tdr")),
     );
 
     async function applySafeTweaks(tweaks: Tweak[]) {
@@ -62,6 +70,13 @@
                 status="{msiTweaks.length} tweaks"
                 onclick={() => (currentView = "msi")}
             />
+            <Card
+                icon={Monitor}
+                title="Vendor Tweaks"
+                description="NVIDIA, AMD, and TDR settings."
+                status="{vendorTweaks.length} tweaks"
+                onclick={() => (currentView = "vendor")}
+            />
         </div>
     {:else}
         <div class="detail-view" in:fade>
@@ -94,6 +109,15 @@
                     />
                     <div class="tweaks-wrapper">
                         <TweakList tweaks={msiTweaks} showHeader={false} />
+                    </div>
+                {:else if currentView === "vendor"}
+                    <SectionHeader
+                        icon={Monitor}
+                        title="Vendor Tweaks"
+                        description="NVIDIA, AMD, and TDR specific settings."
+                    />
+                    <div class="tweaks-wrapper">
+                        <TweakList tweaks={vendorTweaks} showHeader={false} />
                     </div>
                 {/if}
             </div>
@@ -145,5 +169,8 @@
         max-width: 600px;
         margin: 0 auto;
         width: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-bottom: 24px;
     }
 </style>

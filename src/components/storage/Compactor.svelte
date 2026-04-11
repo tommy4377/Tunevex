@@ -972,7 +972,7 @@
     .folder-card {
         background: var(--bg-secondary);
         border: 1px solid var(--border-color);
-        border-radius: 12px;
+        border-radius: var(--radius-card);
         padding: 16px;
         transition: all 0.2s ease;
         display: flex;
@@ -1112,14 +1112,14 @@
     .progress-bar-track {
         height: 8px;
         background: rgba(0, 0, 0, 0.3);
-        border-radius: 10px;
+        border-radius: var(--radius-pill);
         overflow: hidden;
     }
 
     .progress-bar-fill {
         height: 100%;
-        background: linear-gradient(90deg, var(--accent-color), #60a5fa);
-        border-radius: 10px;
+        background: linear-gradient(90deg, var(--accent-color), var(--accent-hover));
+        border-radius: var(--radius-pill);
         transition: width 0.3s ease;
     }
 

@@ -3,6 +3,7 @@
     import { invoke } from "@tauri-apps/api/core";
     import { listen } from "@tauri-apps/api/event";
     import { Loader2 } from "lucide-svelte";
+    import Badge from "./ui/Badge.svelte";
     import type { Tweak } from "$lib/types";
 
     export let tweak: Tweak;
@@ -22,37 +23,18 @@
             dispatch("toggle");
         } catch (e) {
             console.error("Failed to toggle tweak:", e);
-            // Optionally dispatch error event
         } finally {
             isApplying = false;
         }
     }
 
-    function getWarningColor(level: string) {
-        switch (level) {
-            case "Safe":
-                return "#22c55e";
-            case "Careful":
-                return "#f59e0b";
-            case "Dangerous":
-                return "#ef4444";
-            default:
-                return "#64748b";
-        }
-    }
+    $: badgeLevel = tweak.warning_level?.toLowerCase() as "safe" | "careful" | "dangerous" | "default";
 </script>
 
 <div class="tweak-card" class:enabled={tweak.enabled}>
     <div class="header">
         <span class="name">{tweak.name}</span>
-        <span
-            class="warning-badge"
-            style="background: {getWarningColor(
-                tweak.warning_level,
-            )}20; color: {getWarningColor(tweak.warning_level)}"
-        >
-            {tweak.warning_level}
-        </span>
+        <Badge level={badgeLevel} />
     </div>
 
     <p class="description">{tweak.description}</p>
@@ -119,15 +101,6 @@
         color: var(--text-color);
         line-height: 1.3;
         flex: 1;
-    }
-
-    .warning-badge {
-        font-size: 11px;
-        font-weight: 600;
-        padding: 4px 10px;
-        border-radius: 20px;
-        white-space: nowrap;
-        flex-shrink: 0;
     }
 
     .description {

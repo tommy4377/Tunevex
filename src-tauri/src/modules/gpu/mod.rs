@@ -15,5 +15,7 @@ pub fn get_gpu_tweaks() -> Vec<Tweak> {
     tweaks.extend(msi::get_gpu_msi_tweaks());
     // Hardware-specific (Nvidia/AMD) - auto-detected
     tweaks.extend(vendor::get_vendor_gpu_tweaks());
+    // Shader cache tweak
+    tweaks.extend(vendor::get_shader_cache_tweak());
     tweaks
 }

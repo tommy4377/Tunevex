@@ -17,6 +17,7 @@
   import GpuDashboard from "../components/gpu/GpuDashboard.svelte";
   import SystemDashboard from "../components/system/SystemDashboard.svelte";
   import InputDashboard from "../components/input/InputDashboard.svelte";
+  import AiDashboard from "../components/ai/AiDashboard.svelte";
 
   import UIDashboard from "../components/ui/UIDashboard.svelte";
   import TweakList from "../components/TweakList.svelte";
@@ -46,6 +47,7 @@
     InterfaceUx: "InterfaceUx",
     Activation: "Activation",
     Home: "Home",
+    AiAdvisor: "AiAdvisor",
   };
 
   let checkQueue: string[] = [];
@@ -62,7 +64,7 @@
 
   async function checkCategoryNow(cat: string) {
     const rustCategory = categoryMap[cat];
-    if (!rustCategory || checkedCategories.has(cat) || cat === "Home") return;
+    if (!rustCategory || checkedCategories.has(cat) || cat === "Home" || cat === "AiAdvisor") return;
 
     checkedCategories.add(cat);
     try {
@@ -87,31 +89,26 @@
     isChecking = false;
   }
 
-  onMount(async () => {
-    try {
-      tweaks = await invoke("get_tweaks_fast");
-      loading = false;
+onMount(async () => {
+  try {
+    tweaks = await invoke<Tweak[]>('get_tweaks_fast');
+    loading = false;
 
-      unlistenCheckResult = await listen<{ id: string; enabled: boolean }>(
-        "tweak-check-result",
-        (event: any) => {
-          const { id, enabled } = event.payload;
-          tweaks = tweaks.map((t) => (t.id === id ? { ...t, enabled } : t));
-        },
-      );
+    unlistenCheckResult = await listen<{id: string, enabled: boolean}>('tweak-check-result', (event) => {
+      const { id, enabled } = event.payload;
+      tweaks = tweaks.map(t => t.id === id ? { ...t, enabled } : t);
+    });
 
-      const startCategory = currentCat || "Home";
-      await checkCategoryNow(startCategory);
+    // ✅ Check SOLO la categoria attuale, niente background queue
+    const startCategory = currentCat || 'Home';
+    await checkCategoryNow(startCategory);
 
-      const allCategories = Object.keys(categoryMap);
-      checkQueue = allCategories.filter((c) => c !== startCategory);
-      processBackgroundQueue();
-    } catch (e: any) {
-      console.error("Failed to load tweaks:", e);
-      error = e.toString();
-      loading = false;
-    }
-  });
+    // ❌ RIMOSSO: processBackgroundQueue() — era il colpevole
+  } catch (e: any) {
+    error = e.toString();
+    loading = false;
+  }
+});
 
   onDestroy(() => {
     if (unlistenCheckResult) unlistenCheckResult();
@@ -163,6 +160,8 @@
         <UIDashboard allTweaks={tweaks} />
       {:else if currentCat === "Activation"}
         <ActivationDashboard allTweaks={tweaks} />
+      {:else if currentCat === "AiAdvisor"}
+        <AiDashboard />
       {:else}
         <TweakList bind:tweaks />
       {/if}

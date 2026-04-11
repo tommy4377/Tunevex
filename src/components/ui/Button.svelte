@@ -3,9 +3,10 @@
         "primary";
     export let disabled: boolean = false;
     export let loading: boolean = false;
+    export let onclick: (() => void) | undefined = undefined;
 </script>
 
-<button class="btn {variant}" class:loading {disabled} on:click>
+<button class="btn {variant}" class:loading {disabled} onclick={onclick}>
     {#if loading}
         <span class="spinner"></span>
     {/if}
@@ -23,47 +24,29 @@
         font-size: 13px;
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all 0.18s ease;
         border: none;
         white-space: nowrap;
     }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-    .btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
+    .btn.primary { background: var(--accent-color); color: white; }
+    .btn.primary:hover:not(:disabled) { background: var(--accent-hover); }
 
-    /* Primary - Accent Blue */
-    .btn.primary {
-        background: var(--accent-color);
-        color: white;
-    }
-    .btn.primary:hover:not(:disabled) {
-        background: var(--accent-hover);
-    }
-
-    /* Accent - Azure with glow (for special actions) */
     .btn.accent {
         background: var(--toggle-on-bg);
         border: 1px solid var(--toggle-on-border);
         color: var(--toggle-on-color);
-        box-shadow: var(--toggle-on-glow);
     }
-    .btn.accent:hover:not(:disabled) {
-        background: rgba(96, 205, 255, 0.3);
-    }
+    .btn.accent:hover:not(:disabled) { background: rgba(129, 140, 248, 0.28); }
 
-    /* Safe - Muted Teal (mica-consistent) */
     .btn.safe {
         background: var(--btn-safe-bg);
         border: 1px solid var(--btn-safe-border);
         color: var(--btn-safe-color);
     }
-    .btn.safe:hover:not(:disabled) {
-        background: var(--btn-safe-hover-bg);
-    }
+    .btn.safe:hover:not(:disabled) { background: var(--btn-safe-hover-bg); }
 
-    /* Ghost - Transparent */
     .btn.ghost {
         background: transparent;
         color: var(--text-muted);
@@ -71,35 +54,19 @@
     }
     .btn.ghost:hover:not(:disabled) {
         color: var(--text-color);
-        border-color: var(--text-muted);
+        border-color: rgba(255, 255, 255, 0.2);
     }
 
-    /* Danger - Red */
-    .btn.danger {
-        background: var(--danger-color);
-        color: white;
-    }
-    .btn.danger:hover:not(:disabled) {
-        background: #dc2626;
-    }
+    .btn.danger { background: var(--danger); color: white; }
+    .btn.danger:hover:not(:disabled) { background: #ef4444; }
 
-    /* Loading Spinner */
     .spinner {
-        width: 14px;
-        height: 14px;
+        width: 14px; height: 14px;
         border: 2px solid rgba(255, 255, 255, 0.3);
         border-top-color: white;
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
     }
-
-    @keyframes spin {
-        to {
-            transform: rotate(360deg);
-        }
-    }
-
-    .loading {
-        pointer-events: none;
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading { pointer-events: none; }
 </style>

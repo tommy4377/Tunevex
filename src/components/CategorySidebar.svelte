@@ -20,6 +20,7 @@
         Palette,
         Key,
         Home,
+        Sparkles,
     } from "lucide-svelte";
 
     const categories: { id: TweakCategory; label: string; icon: any }[] = [

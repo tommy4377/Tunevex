@@ -48,42 +48,56 @@ May improve disk-heavy gaming (open world games with streaming)."
             }],
         },
         // ============================================
-        // Disable Paging Executive
+        // Set Fixed Page File Size (4GB)
         // ============================================
         Tweak {
-            id: "mem_disable_paging_executive".to_string(),
+            id: "mem_fixed_pagefile".to_string(),
             category: TweakCategory::System,
-            name: "Keep Kernel in RAM".to_string(),
-            description: "Prevents Windows kernel and drivers from being paged to disk.
+            name: "Set Fixed Page File (4GB)".to_string(),
+            description:
+                "Sets a fixed 4GB page file to prevent dynamic resizing I/O stalls during gaming.
 
-Keeps critical system code in RAM for faster access.
-Requires 4GB+ RAM. Reduces disk I/O during gaming."
-                .to_string(),
-            warning_level: WarningLevel::Safe,
+WARNING: Requires at least 4GB free disk space on system drive."
+                    .to_string(),
+            warning_level: WarningLevel::Careful,
             requires_restart: true,
-            tweak_type: TweakType::Toggle,
+            tweak_type: TweakType::Action,
             enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management"
-                    .to_string(),
-                key: "DisablePagingExecutive".to_string(),
-                expected_value: RegistryValue::DWord(1),
-            }),
-            revert_operations: Some(vec![TweakOperation::RegistrySet {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management"
-                    .to_string(),
-                key: "DisablePagingExecutive".to_string(),
-                value: RegistryValue::DWord(0),
-            }]),
-            operations: vec![TweakOperation::RegistrySet {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management"
-                    .to_string(),
-                key: "DisablePagingExecutive".to_string(),
-                value: RegistryValue::DWord(1),
-            }],
+            check: None,
+            revert_operations: Some(vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management"
+                        .to_string(),
+                    key: "AutoSetup".to_string(),
+                    value: RegistryValue::DWord(0),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management"
+                        .to_string(),
+                    key: "PagingFiles".to_string(),
+                    value: RegistryValue::MultiString(vec!["C:\\pagefile.sys 0 0".to_string()]),
+                },
+            ]),
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management"
+                        .to_string(),
+                    key: "AutoSetup".to_string(),
+                    value: RegistryValue::DWord(0),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management"
+                        .to_string(),
+                    key: "PagingFiles".to_string(),
+                    value: RegistryValue::MultiString(vec![
+                        "C:\\pagefile.sys 4096 4096".to_string()
+                    ]),
+                },
+            ],
         },
         // ============================================
         // Disable Memory Compression

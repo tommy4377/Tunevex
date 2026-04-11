@@ -17,9 +17,8 @@ pub fn get_system_tweaks() -> Vec<Tweak> {
     tweaks.extend(memory::get_memory_tweaks());
     // Services
     tweaks.extend(services::get_service_tweaks());
-    // Note: Maintenance actions are commands, not tweaks in the list, but we can expose a getter if needed.
-    // However, the user wants them as buttons in Home, so we exported specific commands.
-    // tweaks.extend(maintenance::get_maintenance_tweaks());
+    // Maintenance tweaks
+    tweaks.extend(maintenance::get_system_tweaks());
     tweaks.extend(msi::get_system_msi_tweaks());
     tweaks
 }

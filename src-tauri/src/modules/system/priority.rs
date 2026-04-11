@@ -7,45 +7,12 @@ use crate::modules::types::{
 };
 
 pub fn get_priority_tweaks() -> Vec<Tweak> {
+    // Note: Win32PrioritySeparation tweak consolidated to cpu/scheduling.rs (cpu_win32_priority)
+    // Keeping sys_priority_separation would create duplicate conflict on same registry key
+    // ============================================
+    // IRQ8 Priority (Real Time Clock)
+    // ============================================
     vec![
-        // ============================================
-        // Win32PrioritySeparation
-        // ============================================
-        Tweak {
-            id: "sys_priority_separation".to_string(),
-            category: TweakCategory::System,
-            name: "Optimize Process Scheduling".to_string(),
-            description: "Sets Win32PrioritySeparation to 26 (short quantum, foreground priority boost).
-
-This gives foreground applications (games) more responsive scheduling.
-Value 26 = Short quantum, variable, high foreground boost.
-Default Windows value is typically 2 (long quantum, no boost).".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: false,
-            tweak_type: TweakType::Toggle,
-            enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\PriorityControl".to_string(),
-                key: "Win32PrioritySeparation".to_string(),
-                expected_value: RegistryValue::DWord(26),
-            }),
-            revert_operations: Some(vec![TweakOperation::RegistrySet {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\PriorityControl".to_string(),
-                key: "Win32PrioritySeparation".to_string(),
-                value: RegistryValue::DWord(2), // Windows default
-            }]),
-            operations: vec![TweakOperation::RegistrySet {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\PriorityControl".to_string(),
-                key: "Win32PrioritySeparation".to_string(),
-                value: RegistryValue::DWord(26),
-            }],
-        },
-        // ============================================
-        // IRQ8 Priority (Real Time Clock)
-        // ============================================
         Tweak {
             id: "sys_irq8_priority".to_string(),
             category: TweakCategory::System,
@@ -166,7 +133,7 @@ Default is 20% reserved for background. Setting to 0 gives games more CPU time.
 Note: May slightly affect background task performance.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            tweak_type: TweakType::Toggle,
+            tweak_type: TweakType::Action,
             enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKLM".to_string(),
@@ -174,12 +141,7 @@ Note: May slightly affect background task performance.".to_string(),
                 key: "SystemResponsiveness".to_string(),
                 expected_value: RegistryValue::DWord(0),
             }),
-            revert_operations: Some(vec![TweakOperation::RegistrySet {
-                root_key: "HKLM".to_string(),
-                path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
-                key: "SystemResponsiveness".to_string(),
-                value: RegistryValue::DWord(20), // Windows default
-            }]),
+            revert_operations: None,
             operations: vec![TweakOperation::RegistrySet {
                 root_key: "HKLM".to_string(),
                 path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile".to_string(),
@@ -219,6 +181,65 @@ May slightly increase CPU usage but improves audio/video smoothness.".to_string(
                 key: "NoLazyMode".to_string(),
                 value: RegistryValue::DWord(1),
             }],
+        },
+
+        // ============================================
+        // GPU MMCSS Priority Boost
+        // ============================================
+        Tweak {
+            id: "sys_gpu_mmcss_priority".to_string(),
+            category: TweakCategory::System,
+            name: "Boost GPU in MMCSS".to_string(),
+            description: "Registers GPU scheduling task in MMCSS to ensure the scheduler gives it the same priority boost as audio/game threads.
+
+Adds GPU Priority 8 to DisplayPostProcessing task for better GPU scheduling."
+                .to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle, enabled: false,
+            revert_operations: Some(vec![
+                TweakOperation::RegistryDelete {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\DisplayPostProcessing".to_string(),
+                    key: "GPU Priority".to_string(),
+                },
+                TweakOperation::RegistryDelete {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\DisplayPostProcessing".to_string(),
+                    key: "Priority".to_string(),
+                },
+                TweakOperation::RegistryDelete {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\DisplayPostProcessing".to_string(),
+                    key: "Scheduling Category".to_string(),
+                },
+            ]),
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\DisplayPostProcessing".to_string(),
+                key: "GPU Priority".to_string(),
+                expected_value: RegistryValue::DWord(8),
+            }),
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\DisplayPostProcessing".to_string(),
+                    key: "GPU Priority".to_string(),
+                    value: RegistryValue::DWord(8),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\DisplayPostProcessing".to_string(),
+                    key: "Priority".to_string(),
+                    value: RegistryValue::DWord(8),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKLM".to_string(),
+                    path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\DisplayPostProcessing".to_string(),
+                    key: "Scheduling Category".to_string(),
+                    value: RegistryValue::String("High".to_string()),
+                },
+            ],
         },
     ]
 }

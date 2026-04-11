@@ -63,26 +63,8 @@
         height: 100%;
         width: 100%;
         overflow: hidden;
-    }
-
-    /* Gradient overlay for sheen */
-    .card::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 1px;
-        background: linear-gradient(
-            90deg,
-            transparent 0%,
-            rgba(255, 255, 255, 0.1) 20%,
-            rgba(255, 255, 255, 0.2) 50%,
-            rgba(255, 255, 255, 0.1) 80%,
-            transparent 100%
-        );
-        opacity: 0.5;
-        pointer-events: none;
+        min-height: 140px;
+        max-height: 180px;
     }
 
     .clickable {
@@ -99,14 +81,13 @@
 
     .card-icon {
         color: var(--accent-color);
-        margin-bottom: 12px; /* REDUCED from 16px */
-        filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.3));
-        transition: transform 0.3s ease;
+        margin-bottom: 12px;
+        transition: transform 0.3s ease, color 0.2s;
     }
 
     .card:hover .card-icon {
-        transform: scale(1.1);
-        color: #60a5fa; /* Lighter blue on hover */
+        transform: scale(1.08);
+        color: var(--accent-hover);
     }
 
     h3 {
@@ -128,6 +109,7 @@
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        word-break: break-word;
     }
 
     .status {

@@ -219,12 +219,17 @@ pub enum TweakCheck {
     ScheduledTaskDisabled { name: String },
     /// Returns true if the specified service is disabled
     ServiceDisabled { name: String },
+    /// Returns true if the specified service is set to the expected startup mode
+    /// (auto, manual, demand, disabled, etc.)
+    ServiceMode { name: String, mode: String },
     /// Returns true if all specified services are disabled
     MultiServiceDisabled { names: Vec<String> },
     /// Check if MSI is enabled globally for all PCI device classes at the specified priority.
     MsiEnabledGlobally { priority: u32 },
     /// Check if MSI is enabled on all network adapters at the specified priority.
     MsiEnabledOnNet { priority: u32 },
+    /// Returns true if all specified scheduled tasks are disabled
+    MultiScheduledTaskDisabled { names: Vec<String> },
     /// Check if a registry value exists on ALL network interfaces with the expected value.
     /// Returns true only when ALL interfaces have the value.
     NetworkInterfacesCheck {
@@ -255,20 +260,23 @@ pub struct Tweak {
     pub category: TweakCategory,
     pub name: String,
     pub description: String,
+    #[serde(default)]
     pub warning_level: WarningLevel,
     #[serde(default)]
-    pub tweak_type: TweakType, // Defaults to Toggle
+    pub tweak_type: TweakType,
+    #[serde(default)]
     pub operations: Vec<TweakOperation>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub revert_operations: Option<Vec<TweakOperation>>, // Operations to undo the tweak (optional)
-    pub check: Option<TweakCheck>, // Defines how to check if enabled
+    pub revert_operations: Option<Vec<TweakOperation>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub check: Option<TweakCheck>,
+    #[serde(default)]
     pub requires_restart: bool,
     #[serde(default)]
     pub enabled: bool,
 }
 
 impl Tweak {
-    /// Create a new Tweak with default revert_operations (None)
     pub fn new(
         id: impl Into<String>,
         category: TweakCategory,
