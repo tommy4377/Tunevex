@@ -1890,7 +1890,7 @@ pub async fn ai_analyze(
     let tweaks_summary = {
         let context = ctx.lock().map_err(|e| e.to_string())?;
         let st = state.lock().map_err(|e| e.to_string())?;
-        context.tweaks
+        let mut tweaks: Vec<_> = context.tweaks
             .iter()
             .map(|t| serde_json::json!({
                 "id":              t.id,
@@ -1899,8 +1899,17 @@ pub async fn ai_analyze(
                 "risk_level":      format!("{:?}", t.warning_level),
                 "category":        format!("{:?}", t.category),
                 "currently_applied": st.applied_tweaks.contains(&t.id),
+                "requires_restart": t.requires_restart,
             }))
-            .collect::<Vec<_>>()
+            .collect();
+        tweaks.sort_by(|a, b| {
+            let ca = a["category"].as_str().unwrap_or("");
+            let cb = b["category"].as_str().unwrap_or("");
+            ca.cmp(cb).then(
+                a["id"].as_str().unwrap_or("").cmp(b["id"].as_str().unwrap_or(""))
+            )
+        });
+        tweaks
     };
 
     let prompt = prompts::build_analyze_prompt(

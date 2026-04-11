@@ -26,44 +26,30 @@ Rules:
 
 pub fn build_analyze_prompt(profile_json: &str, tweaks_json: &str) -> String {
     format!(
-        r#"Analyze this Windows system and return optimization recommendations.
+        r#"You are a Windows optimization expert. Analyze this system EXHAUSTIVELY.
 
 SYSTEM PROFILE:
 {}
 
-ALL AVAILABLE TWEAKS (each has: id, name, description, risk_level, category, currently_applied):
+ALL AVAILABLE TWEAKS (sorted by category then id — evaluate every single one):
 {}
 
-Your task:
-1. Identify tweaks to ADD — not yet applied, would genuinely benefit THIS specific system
-2. Identify tweaks to REMOVE — currently applied but useless or harmful for this system
-   (e.g. Intel-specific tweak on an AMD system, laptop tweak on a desktop, etc.)
-3. Identify conflicts between currently applied tweaks
-4. Write a 2-3 sentence honest assessment of the system's current state
+INSTRUCTIONS — follow exactly, no exceptions:
+1. Go through EVERY tweak in the list above one by one. Do not skip any.
+2. For each tweak decide: ADD (not applied, beneficial for this hardware), REMOVE (applied but counterproductive), or ignore.
+3. Only ADD tweaks genuinely useful for THIS specific CPU/GPU/RAM/connection.
+4. Only REMOVE tweaks that are applied AND actively harmful (e.g. Intel tweak on AMD, laptop tweak on desktop, conflicting pair).
+5. Only report CONFLICTS between tweaks that are BOTH currently_applied=true AND directly interfere.
+6. Be deterministic: same system data must always produce the same output.
+7. system_summary: 2-3 sentences referencing actual values (CPU model, RAM GB, GPU name).
+8. If ram_gb is 0 the profiler failed — skip all RAM-specific recommendations.
 
-Respond with ONLY a JSON object — no markdown code fences, no explanations. No array wrapper.
+Respond with ONLY valid JSON, no markdown fences, no extra text:
 {{
   "system_summary": "string",
-  "add": [
-    {{
-      "id": "string",
-      "priority": "high|medium|low",
-      "reason": "one sentence referencing actual system data"
-    }}
-  ],
-  "remove": [
-    {{
-      "id": "string",
-      "priority": "high|medium|low",
-      "reason": "why it is counterproductive on this system"
-    }}
-  ],
-  "conflicts": [
-    {{
-      "tweak_ids": ["string"],
-      "issue": "what the conflict causes"
-    }}
-  ]
+  "add":       [{{"id":"string","priority":"high|medium|low","reason":"one sentence with specific hardware data"}}],
+  "remove":    [{{"id":"string","priority":"high|medium|low","reason":"why counterproductive on this exact hardware"}}],
+  "conflicts": [{{"tweak_ids":["string","string"],"issue":"what the conflict causes"}}]
 }}"#,
         profile_json, tweaks_json
     )

@@ -3,6 +3,31 @@ use std::process::Command;
 use tauri::Manager;
 use winreg::{enums::*, RegKey};
 
+#[repr(C)]
+struct MemoryStatusEx {
+    dw_length: u32,
+    dw_memory_load: u32,
+    ull_total_phys: u64,
+    ull_avail_phys: u64,
+    ull_total_page_file: u64,
+    ull_avail_page_file: u64,
+    ull_total_virtual: u64,
+    ull_avail_virtual: u64,
+    ull_avail_extended_virtual: u64,
+}
+
+impl MemoryStatusEx {
+    fn zeroed() -> Self {
+        let mut s: Self = unsafe { std::mem::zeroed() };
+        s.dw_length = std::mem::size_of::<Self>() as u32;
+        s
+    }
+}
+
+extern "system" {
+    fn GlobalMemoryStatusEx(lp_buffer: *mut MemoryStatusEx) -> i32;
+}
+
 pub fn scan_system_profile() -> Result<SystemProfile, String> {
     scan_system_profile_from_state(None)
 }
@@ -176,20 +201,36 @@ pub struct DiagnosticFlags {
 }
 
 fn get_ram_gb() -> u32 {
-    let out = Command::new("wmic")
+    unsafe {
+        let mut ms = MemoryStatusEx::zeroed();
+        if GlobalMemoryStatusEx(&mut ms) != 0 {
+            return (ms.ull_total_phys / 1_073_741_824) as u32;
+        }
+    }
+    Command::new("wmic")
         .args(["ComputerSystem", "get", "TotalPhysicalMemory"])
         .output()
-        .ok();
-    out.and_then(|o| {
-        let s = String::from_utf8_lossy(&o.stdout);
-        s.lines()
-            .nth(1)?
-            .trim()
-            .parse::<u64>()
-            .ok()
-            .map(|b| (b / (1024 * 1024 * 1024)) as u32)
-    })
-    .unwrap_or(0)
+        .ok()
+        .and_then(|o| {
+            let s = String::from_utf8_lossy(&o.stdout);
+            s.lines()
+                .nth(1)?
+                .trim()
+                .parse::<u64>()
+                .ok()
+                .map(|b| (b / 1_073_741_824) as u32)
+        })
+        .unwrap_or(0)
+}
+
+fn get_ram_usage_pct() -> f32 {
+    unsafe {
+        let mut ms = MemoryStatusEx::zeroed();
+        if GlobalMemoryStatusEx(&mut ms) != 0 {
+            return ms.dw_memory_load as f32;
+        }
+    }
+    0.0
 }
 
 fn get_gpu_name(hklm: &RegKey) -> String {
