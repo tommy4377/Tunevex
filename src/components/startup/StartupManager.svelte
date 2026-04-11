@@ -17,6 +17,7 @@
         Sparkles,
         Check,
     } from "lucide-svelte";
+    import StartupScanReport from "./StartupScanReport.svelte";
 
     type StartupCategory = string;
 
@@ -49,6 +50,7 @@
     let selectedRecs: Set<string> = new Set();
     let selectedRec: any = null;
     let showRecDetail = false;
+    let view: "items" | "scan" = "items";
 
     // Category definitions with counts and icon components
     const categoryIcons: Record<string, typeof List> = {
@@ -152,6 +154,7 @@
                     .filter((r: any) => r.action === "disable" && r.priority !== "low")
                     .map((r: any) => r.item_id)
             );
+            view = "scan";
         } catch (e) {
             scanError = e as string;
         } finally {
@@ -241,164 +244,176 @@
         </div>
     </div>
 
-    {#if loading}
-        <div class="loading-state">
-            <div class="spinner"></div>
-            <p>Scanning startup entries...</p>
-        </div>
-    {:else if filteredItems.length === 0}
-        <div class="empty-state">
-            <p>No startup items found for this filter.</p>
-            <button on:click={refresh}>
-                <RefreshCw size={14} />
-                Refresh
-            </button>
-        </div>
+    {#if view === "scan" && scanResult}
+        <StartupScanReport
+            {scanResult}
+            allItems={items}
+            onBack={() => view = "items"}
+            onRefresh={runAiScan}
+        />
     {:else}
-        <div class="items-grid">
-            {#each filteredItems as item}
-                <div
-                    class="startup-item"
-                    class:safe={item.safety_rating === "Safe"}
-                    class:careful={item.safety_rating === "Careful"}
-                    class:dangerous={item.safety_rating === "Dangerous"}
-                    class:unknown={item.safety_rating === "Unknown"}
-                    class:disabled={!item.enabled}
-                >
-                    <div class="toggle-container">
-                        <label class="toggle-switch">
-                            <input
-                                type="checkbox"
-                                checked={item.enabled}
-                                on:change={() => toggleItem(item)}
-                            />
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-
-                    <div class="content">
-                        <div class="header-line">
-                            <span class="name" title={item.name}
-                                >{item.name}</span
-                            >
-                            <!-- Safety Badge -->
-                            <div
-                                class="safety-badge {item.safety_rating.toLowerCase()}"
-                                title="Safety Rating"
-                            >
-                                <Circle size={8} />
-                                {item.safety_rating}
-                            </div>
-                        </div>
-
-                        <div class="details">
-                            <div class="subcategory">
-                                <MapPin size={12} />
-                                {item.subcategory}
-                            </div>
-
-                            <div class="command" title={item.command}>
-                                {truncate(item.command, 60)}
-                            </div>
-
-                            {#if item.publisher}
-                                <div class="publisher">
-                                    <Building size={12} />
-                                    {truncate(item.publisher, 40)}
-                                </div>
-                            {/if}
-
-                            <!-- File Missing Warning -->
-                            {#if !item.file_exists && item.source !== "Service"}
-                                <div class="warning-badge">
-                                    <AlertTriangle size={12} />
-                                    File not found
-                                </div>
-                            {/if}
-                        </div>
-                    </div>
-
-                    <div class="category-badge">{item.category}</div>
-                </div>
-            {/each}
-        </div>
-    {/if}
-
-    <div class="ai-scan-section">
-        <div class="ai-scan-header">
-            <Sparkles size={14} />
-            <span>AI Startup Scan</span>
-            <button class="scan-btn" on:click={runAiScan} disabled={scanning || applying}>
-                {#if scanning}
-                    Analyzing…
-                {:else}
-                    Scan &amp; Recommend
-                {/if}
-            </button>
-        </div>
-
-        {#if scanError}
-            <div class="scan-error">{scanError}</div>
-        {/if}
-
-        {#if scanResult}
-            <p class="scan-summary">{scanResult.summary}</p>
-
-            <div class="rec-list">
-                {#each scanResult.recommendations.filter((r: any) => r.action !== "keep") as rec}
+        {#if loading}
+            <div class="loading-state">
+                <div class="spinner"></div>
+                <p>Scanning startup entries...</p>
+            </div>
+        {:else if filteredItems.length === 0}
+            <div class="empty-state">
+                <p>No startup items found for this filter.</p>
+                <button on:click={refresh}>
+                    <RefreshCw size={14} />
+                    Refresh
+                </button>
+            </div>
+        {:else}
+            <div class="items-grid">
+                {#each filteredItems as item}
                     <div
-                        class="rec-row"
-                        class:selected={selectedRecs.has(rec.item_id)}
-                        class:investigate={rec.action === "investigate"}
+                        class="startup-item"
+                        class:safe={item.safety_rating === "Safe"}
+                        class:careful={item.safety_rating === "Careful"}
+                        class:dangerous={item.safety_rating === "Dangerous"}
+                        class:unknown={item.safety_rating === "Unknown"}
+                        class:disabled={!item.enabled}
                     >
-                        <div class="rec-check" class:checked={selectedRecs.has(rec.item_id)} on:click={() => {
-                            if (selectedRecs.has(rec.item_id)) selectedRecs.delete(rec.item_id);
-                            else selectedRecs.add(rec.item_id);
-                            selectedRecs = selectedRecs;
-                        }} role="checkbox" aria-checked={selectedRecs.has(rec.item_id)} tabindex="0">
-                            {#if selectedRecs.has(rec.item_id)}<Check size={9} />{/if}
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input
+                                    type="checkbox"
+                                    checked={item.enabled}
+                                    on:change={() => toggleItem(item)}
+                                />
+                                <span class="slider"></span>
+                            </label>
                         </div>
-                        <div class="rec-body" on:click={() => openRecDetail(rec)} role="button" tabindex="0" on:keydown={(e) => e.key === "Enter" && openRecDetail(rec)}>
-                            <div class="rec-header">
-                                <span class="rec-id">{rec.item_id.split("\\").pop() ?? rec.item_id}</span>
-                                <span class="rec-name">{rec.item_name || rec.item_id.split("\\").pop()}</span>
-                                <span class="rec-action" style="color: {rec.action === 'investigate' ? '#fbbf24' : '#f87171'}">
-                                    {rec.action}
-                                </span>
-                                <span class="rec-prio" style="color: {priorityColor(rec.priority)}">
-                                    {rec.priority}
-                                </span>
+
+                        <div class="content">
+                            <div class="header-line">
+                                <span class="name" title={item.name}
+                                    >{item.name}</span
+                                >
+                                <!-- Safety Badge -->
+                                <div
+                                    class="safety-badge {item.safety_rating.toLowerCase()}"
+                                    title="Safety Rating"
+                                >
+                                    <Circle size={8} />
+                                    {item.safety_rating}
+                                </div>
                             </div>
-                            <p class="rec-reason">{rec.reason}</p>
+
+                            <div class="details">
+                                <div class="subcategory">
+                                    <MapPin size={12} />
+                                    {item.subcategory}
+                                </div>
+
+                                <div class="command" title={item.command}>
+                                    {truncate(item.command, 60)}
+                                </div>
+
+                                {#if item.publisher}
+                                    <div class="publisher">
+                                        <Building size={12} />
+                                        {truncate(item.publisher, 40)}
+                                    </div>
+                                {/if}
+
+                                <!-- File Missing Warning -->
+                                {#if !item.file_exists && item.source !== "Service"}
+                                    <div class="warning-badge">
+                                        <AlertTriangle size={12} />
+                                        File not found
+                                    </div>
+                                {/if}
+                            </div>
                         </div>
-                        <button class="rec-info-btn" on:click={() => openRecDetail(rec)} title="View details">
-                            <Sparkles size={12} />
-                        </button>
+
+                        <div class="category-badge">{item.category}</div>
                     </div>
                 {/each}
             </div>
-
-            {#if scanResult.recommendations.some((r: any) => r.action === "disable")}
-                <div class="apply-bar">
-                    <span class="sel-count">{selectedRecs.size} selected</span>
-                    <button class="apply-btn" on:click={applySelected}
-                            disabled={applying || selectedRecs.size === 0}>
-                        {#if applying}
-                            Applying…
-                        {:else}
-                            Apply Selected
-                        {/if}
-                    </button>
-                </div>
-            {/if}
-
-            {#if applyResults.length > 0}
-                <div class="apply-results">
-                    {#each applyResults as r}<div class="result-line">{r}</div>{/each}
-                </div>
-            {/if}
         {/if}
-    </div>
+
+        <div class="ai-scan-section">
+            <div class="ai-scan-header">
+                <Sparkles size={14} />
+                <span>AI Startup Scan</span>
+                <button class="scan-btn" on:click={runAiScan} disabled={scanning || applying}>
+                    {#if scanning}
+                        Analyzing…
+                    {:else}
+                        Scan &amp; Recommend
+                    {/if}
+                </button>
+            </div>
+
+            {#if scanError}
+                <div class="scan-error">{scanError}</div>
+            {/if}
+
+            {#if scanResult}
+                <p class="scan-summary">{scanResult.summary}</p>
+                <p class="scan-hint">Click "View Full Report" below to see all findings.</p>
+                <div class="rec-list">
+                    {#each scanResult.recommendations.filter((r: any) => r.action !== "keep") as rec}
+                        <div
+                            class="rec-row"
+                            class:selected={selectedRecs.has(rec.item_id)}
+                            class:investigate={rec.action === "investigate"}
+                        >
+                            <div class="rec-check" class:checked={selectedRecs.has(rec.item_id)} on:click={() => {
+                                if (selectedRecs.has(rec.item_id)) selectedRecs.delete(rec.item_id);
+                                else selectedRecs.add(rec.item_id);
+                                selectedRecs = selectedRecs;
+                            }} role="checkbox" aria-checked={selectedRecs.has(rec.item_id)} tabindex="0">
+                                {#if selectedRecs.has(rec.item_id)}<Check size={9} />{/if}
+                            </div>
+                            <div class="rec-body" on:click={() => openRecDetail(rec)} role="button" tabindex="0" on:keydown={(e) => e.key === "Enter" && openRecDetail(rec)}>
+                                <div class="rec-header">
+                                    <span class="rec-id">{rec.item_id.split("\\").pop() ?? rec.item_id}</span>
+                                    <span class="rec-name">{rec.item_name || rec.item_id.split("\\").pop()}</span>
+                                    <span class="rec-action" style="color: {rec.action === 'investigate' ? '#fbbf24' : '#f87171'}">
+                                        {rec.action}
+                                    </span>
+                                    <span class="rec-prio" style="color: {priorityColor(rec.priority)}">
+                                        {rec.priority}
+                                    </span>
+                                </div>
+                                <p class="rec-reason">{rec.reason}</p>
+                            </div>
+                            <button class="rec-info-btn" on:click={() => openRecDetail(rec)} title="View details">
+                                <Sparkles size={12} />
+                            </button>
+                        </div>
+                    {/each}
+                </div>
+
+                {#if scanResult.recommendations.some((r: any) => r.action === "disable")}
+                    <div class="apply-bar">
+                        <button class="report-link-btn" on:click={() => view = "scan"}>
+                            View Full Report ({scanResult.recommendations.length} items)
+                        </button>
+                        <span class="sel-count">{selectedRecs.size} selected</span>
+                        <button class="apply-btn" on:click={applySelected}
+                                disabled={applying || selectedRecs.size === 0}>
+                            {#if applying}
+                                Applying…
+                            {:else}
+                                Apply Selected
+                            {/if}
+                        </button>
+                    </div>
+                {/if}
+
+                {#if applyResults.length > 0}
+                    <div class="apply-results">
+                        {#each applyResults as r}<div class="result-line">{r}</div>{/each}
+                    </div>
+                {/if}
+            {/if}
+        </div>
+    {/if}
 
     {#if showRecDetail && selectedRec}
         <div class="rec-modal-backdrop" on:click={closeRecDetail} role="button" tabindex="-1" on:keydown={(e) => e.key === "Escape" && closeRecDetail()}>
@@ -871,4 +886,11 @@
     }
     .modal-toggle-btn:hover { background: rgba(129,140,248,0.2); }
     .modal-toggle-btn.selected { background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.25); color: #f87171; }
+    .scan-hint { font-size: 11px; color: var(--text-muted); margin: 0 0 8px 0; font-style: italic; }
+    .report-link-btn {
+        background: rgba(129,140,248,0.1); border: 1px solid rgba(129,140,248,0.2);
+        border-radius: 6px; padding: 5px 12px; color: var(--accent-color);
+        font-size: 12px; cursor: pointer; transition: background 0.15s;
+    }
+    .report-link-btn:hover { background: rgba(129,140,248,0.2); }
 </style>
