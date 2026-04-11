@@ -41,7 +41,7 @@ Your task:
 3. Identify conflicts between currently applied tweaks
 4. Write a 2-3 sentence honest assessment of the system's current state
 
-Return ONLY valid JSON matching this exact schema:
+Respond with ONLY a JSON object — no markdown code fences, no explanations. No array wrapper.
 {{
   "system_summary": "string",
   "add": [
@@ -88,7 +88,7 @@ CURRENTLY APPLIED TWEAKS (these are the only changes made to the system):
 Analyze which applied tweaks could be causing or contributing to this problem.
 Consider interactions between tweaks, not just individual ones.
 
-Return ONLY valid JSON:
+Respond with ONLY a JSON object — no markdown code fences, no explanations.
 {{
   "likely_causes": [
     {{

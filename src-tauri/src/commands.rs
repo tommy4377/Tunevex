@@ -1903,8 +1903,16 @@ pub async fn ai_analyze(
     )
     .await?;
 
-    serde_json::from_str::<AnalysisResult>(&raw)
-        .map_err(|e| format!("Failed to parse Gemini response: {}\nRaw: {}", e, &raw[..200.min(raw.len())]))
+    let raw_trimmed = raw.trim();
+    let result: AnalysisResult = if raw_trimmed.starts_with('[') {
+        serde_json::from_str::<Vec<AnalysisResult>>(raw_trimmed)
+            .map_err(|e| format!("Failed to parse Gemini response: {}\nRaw: {}", e, &raw[..400.min(raw.len())]))?
+            .into_iter().next()
+            .ok_or_else(|| format!("Empty array in Gemini response\nRaw: {}", &raw[..400.min(raw.len())]))?
+    } else {
+        serde_json::from_str(&raw).map_err(|e| format!("Failed to parse Gemini response: {}\nRaw: {}", e, &raw[..400.min(raw.len())]))?
+    };
+    Ok(result)
 }
 
 #[tauri::command]
@@ -1981,6 +1989,14 @@ pub async fn ai_diagnose(
     )
     .await?;
 
-    serde_json::from_str::<DiagnosisResult>(&raw)
-        .map_err(|e| format!("Failed to parse diagnosis: {}", e))
+    let raw_trimmed = raw.trim();
+    let result: DiagnosisResult = if raw_trimmed.starts_with('[') {
+        serde_json::from_str::<Vec<DiagnosisResult>>(raw_trimmed)
+            .map_err(|e| format!("Failed to parse diagnosis: {}\nRaw: {}", e, &raw[..400.min(raw.len())]))?
+            .into_iter().next()
+            .ok_or_else(|| format!("Empty array in diagnosis response\nRaw: {}", &raw[..400.min(raw.len())]))?
+    } else {
+        serde_json::from_str(&raw).map_err(|e| format!("Failed to parse diagnosis: {}\nRaw: {}", e, &raw[..400.min(raw.len())]))?
+    };
+    Ok(result)
 }
