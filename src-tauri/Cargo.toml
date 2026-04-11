@@ -40,6 +40,13 @@ pelite = "0.10"
 sysinfo = "0.37"
 strip-ansi-escapes = "0.2"
 
+# AI Dependencies
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+keyring = { version = "3", features = ["windows-native"] }
+
+# HTTP plugin for Tauri
+tauri-plugin-http = "2"
+
 # Windows Dependencies (Now Mandatory)
 winreg = "0.52"
 window-vibrancy = "0.5"

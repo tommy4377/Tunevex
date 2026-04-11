@@ -1839,3 +1839,145 @@ pub async fn undo_tweak(
 
     Ok(())
 }
+
+// ─── AI Commands ───────────────────────────────────────────────────────────────
+
+use crate::modules::ai::{
+    AnalysisResult, ChatMessage, DiagnosisResult,
+    gemini, prompts, profiler,
+};
+
+#[tauri::command]
+pub fn save_gemini_key(key: String) -> Result<(), String> {
+    if key.trim().is_empty() {
+        return Err("API key cannot be empty".to_string());
+    }
+    if !key.starts_with("AIza") {
+        return Err("Invalid Gemini API key format (must start with AIza)".to_string());
+    }
+    gemini::save_api_key(key.trim())
+}
+
+#[tauri::command]
+pub fn get_gemini_key_status() -> bool {
+    gemini::get_api_key().is_ok()
+}
+
+#[tauri::command]
+pub fn delete_gemini_key() -> Result<(), String> {
+    gemini::delete_api_key()
+}
+
+#[tauri::command]
+pub async fn ai_analyze(
+    ctx: State<'_, Mutex<TweakContext>>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<AnalysisResult, String> {
+    let profile = profiler::scan_system_profile()?;
+
+    let tweaks_summary = {
+        let context = ctx.lock().map_err(|e| e.to_string())?;
+        let st = state.lock().map_err(|e| e.to_string())?;
+        context.tweaks
+            .iter()
+            .map(|t| serde_json::json!({
+                "id":              t.id,
+                "name":            t.name,
+                "description":     t.description,
+                "risk_level":      format!("{:?}", t.warning_level),
+                "category":        format!("{:?}", t.category),
+                "currently_applied": st.applied_tweaks.contains(&t.id),
+            }))
+            .collect::<Vec<_>>()
+    };
+
+    let prompt = prompts::build_analyze_prompt(
+        &serde_json::to_string_pretty(&profile).map_err(|e| e.to_string())?,
+        &serde_json::to_string(&tweaks_summary).map_err(|e| e.to_string())?,
+    );
+
+    let raw = gemini::call_gemini(
+        vec![("user".to_string(), prompt)],
+        true,
+    )
+    .await?;
+
+    serde_json::from_str::<AnalysisResult>(&raw)
+        .map_err(|e| format!("Failed to parse Gemini response: {}\nRaw: {}", e, &raw[..200.min(raw.len())]))
+}
+
+#[tauri::command]
+pub async fn ai_chat(
+    message: String,
+    history: Vec<ChatMessage>,
+    ctx: State<'_, Mutex<TweakContext>>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<String, String> {
+    let profile = profiler::scan_system_profile()?;
+
+    let applied_summary = {
+        let context = ctx.lock().map_err(|e| e.to_string())?;
+        let st = state.lock().map_err(|e| e.to_string())?;
+        context.tweaks
+            .iter()
+            .filter(|t| st.applied_tweaks.contains(&t.id))
+            .map(|t| serde_json::json!({"id": t.id, "name": t.name}))
+            .collect::<Vec<_>>()
+    };
+
+    let (ctx_user, ctx_model) = prompts::build_context_injection(
+        &serde_json::to_string_pretty(&profile).map_err(|e| e.to_string())?,
+        &serde_json::to_string(&applied_summary).map_err(|e| e.to_string())?,
+    );
+
+    let mut messages = vec![
+        ("user".to_string(),  ctx_user),
+        ("model".to_string(), ctx_model),
+    ];
+    for msg in history {
+        messages.push((msg.role, msg.content));
+    }
+    messages.push(("user".to_string(), message));
+
+    gemini::call_gemini(messages, false).await
+}
+
+#[tauri::command]
+pub async fn ai_diagnose(
+    problem: String,
+    ctx: State<'_, Mutex<TweakContext>>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<DiagnosisResult, String> {
+    let profile = profiler::scan_system_profile()?;
+
+    let applied_detail = {
+        let context = ctx.lock().map_err(|e| e.to_string())?;
+        let st = state.lock().map_err(|e| e.to_string())?;
+        context.tweaks
+            .iter()
+            .filter(|t| st.applied_tweaks.contains(&t.id))
+            .map(|t| serde_json::json!({
+                "id":          t.id,
+                "name":        t.name,
+                "description": t.description,
+                "category":    format!("{:?}", t.category),
+                "risk_level":  format!("{:?}", t.warning_level),
+            }))
+            .collect::<Vec<_>>()
+    };
+
+    let prompt = prompts::build_diagnose_prompt(
+        &serde_json::to_string_pretty(&profile).map_err(|e| e.to_string())?,
+        &serde_json::to_string(&applied_detail).map_err(|e| e.to_string())?,
+        &problem,
+    );
+
+    let raw = gemini::call_gemini(
+        vec![("user".to_string(), prompt)],
+        true,
+    )
+    .await?;
+
+    serde_json::from_str::<DiagnosisResult>(&raw)
+        .map_err(|e| format!("Failed to parse diagnosis: {}", e))
+}

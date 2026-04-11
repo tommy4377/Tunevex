@@ -17,6 +17,7 @@
   import GpuDashboard from "../components/gpu/GpuDashboard.svelte";
   import SystemDashboard from "../components/system/SystemDashboard.svelte";
   import InputDashboard from "../components/input/InputDashboard.svelte";
+  import AiDashboard from "../components/ai/AiDashboard.svelte";
 
   import UIDashboard from "../components/ui/UIDashboard.svelte";
   import TweakList from "../components/TweakList.svelte";
@@ -46,6 +47,7 @@
     InterfaceUx: "InterfaceUx",
     Activation: "Activation",
     Home: "Home",
+    AiAdvisor: "AiAdvisor",
   };
 
   let checkQueue: string[] = [];
@@ -62,7 +64,7 @@
 
   async function checkCategoryNow(cat: string) {
     const rustCategory = categoryMap[cat];
-    if (!rustCategory || checkedCategories.has(cat) || cat === "Home") return;
+    if (!rustCategory || checkedCategories.has(cat) || cat === "Home" || cat === "AiAdvisor") return;
 
     checkedCategories.add(cat);
     try {
@@ -158,6 +160,8 @@ onMount(async () => {
         <UIDashboard allTweaks={tweaks} />
       {:else if currentCat === "Activation"}
         <ActivationDashboard allTweaks={tweaks} />
+      {:else if currentCat === "AiAdvisor"}
+        <AiDashboard />
       {:else}
         <TweakList bind:tweaks />
       {/if}

@@ -3,9 +3,10 @@
         "primary";
     export let disabled: boolean = false;
     export let loading: boolean = false;
+    export let onclick: (() => void) | undefined = undefined;
 </script>
 
-<button class="btn {variant}" class:loading {disabled} on:click>
+<button class="btn {variant}" class:loading {disabled} onclick={onclick}>
     {#if loading}
         <span class="spinner"></span>
     {/if}

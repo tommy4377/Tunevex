@@ -49,6 +49,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_http::init())
         .manage(Mutex::new(TweakContext { tweaks: all_tweaks }))
         .manage(Mutex::new(app_state))
         .manage(Mutex::new(
@@ -86,7 +87,13 @@ pub fn run() {
             crate::modules::system::maintenance::empty_recycle_bin,
             crate::modules::system::maintenance::clear_temp_files,
             crate::modules::system::maintenance::flush_dns_cache,
-            crate::modules::system::maintenance::reset_network
+            crate::modules::system::maintenance::reset_network,
+            commands::save_gemini_key,
+            commands::get_gemini_key_status,
+            commands::delete_gemini_key,
+            commands::ai_analyze,
+            commands::ai_chat,
+            commands::ai_diagnose,
         ])
         .setup(|app| {
             {
