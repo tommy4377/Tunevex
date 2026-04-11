@@ -45,7 +45,7 @@
       <h2>Connect Gemini AI</h2>
       <p>
         Get a free API key at
-        <a href="https://aistudio.google.com/app/apikey" target="_blank">
+        <a href="https://aistudio.google.com/app/apikey" target="_blank" class="subtle-link">
           aistudio.google.com
         </a>
         — no billing required.
@@ -125,6 +125,8 @@
   .setup-icon { color: var(--accent-color); }
   .setup-card h2 { font-size: 22px; font-weight: 700; margin: 0; }
   .setup-card p { color: var(--text-muted); font-size: 14px; margin: 0; }
+  .subtle-link { color: var(--accent-color); text-decoration: none; opacity: 0.85; transition: opacity 0.15s; }
+  .subtle-link:hover { opacity: 1; text-decoration: underline; }
   .security-note {
     background: rgba(var(--accent-rgb), 0.08);
     border: 1px solid rgba(var(--accent-rgb), 0.2);
