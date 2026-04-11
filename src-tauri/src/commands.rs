@@ -3,6 +3,14 @@ use crate::modules::registry::operations::apply_registry_tweak;
 use crate::modules::types::{RegistryValue, Tweak, TweakCheck, TweakOperation};
 use crate::modules::utils::privileges::is_admin;
 use crate::modules::utils::state::AppState;
+use crate::modules::ai::memory::{
+    AiMemoryStore, MemoryKind, ChatSession, ChatMessage as AiChatMessage,
+    save_chat_session, list_chat_sessions, load_chat_session,
+    delete_chat_session, ChatSessionMeta,
+};
+use crate::modules::ai::startup::{scan_startup_with_ai, StartupRecommendation};
+use crate::modules::startup::types::StartupItem;
+use crate::modules::startup::toggle_item;
 use std::os::windows::process::CommandExt;
 use std::process::Command;
 use std::sync::Mutex;
@@ -1886,6 +1894,13 @@ pub async fn ai_analyze(
     app: tauri::AppHandle,
 ) -> Result<AnalysisResult, String> {
     let profile = profiler::scan_system_profile_from_state(Some(app))?;
+    let memory = AiMemoryStore::load();
+    let memory_ctx = memory.to_prompt_context();
+
+    let startup_items = tokio::task::spawn_blocking(
+        crate::modules::startup::scan_all_startup_items
+    ).await.unwrap_or_default();
+    let startup_json = serde_json::to_string(&startup_items).unwrap_or_default();
 
     let tweaks_summary = {
         let context = ctx.lock().map_err(|e| e.to_string())?;
@@ -1917,8 +1932,25 @@ pub async fn ai_analyze(
         &serde_json::to_string(&tweaks_summary).map_err(|e| e.to_string())?,
     );
 
+    let prompt = format!(
+        "{}\n\nSTARTUP ITEMS (for context — suspicious ones may affect performance):\n{}\n\nAI MEMORY:\n{}",
+        prompt,
+        &startup_json[..startup_json.len().min(3000)],
+        memory_ctx
+    );
+
+    let (ctx_user, ctx_model) = prompts::build_context_injection(
+        &serde_json::to_string_pretty(&profile).map_err(|e| e.to_string())?,
+        &serde_json::to_string(&tweaks_summary).map_err(|e| e.to_string())?,
+        &memory_ctx,
+    );
+
     let raw = gemini::call_gemini(
-        vec![("user".to_string(), prompt)],
+        vec![
+            ("user".to_string(), ctx_user),
+            ("model".to_string(), ctx_model),
+            ("user".to_string(), prompt),
+        ],
         true,
     )
     .await?;
@@ -1932,6 +1964,19 @@ pub async fn ai_analyze(
     } else {
         serde_json::from_str(&raw).map_err(|e| format!("Failed to parse Gemini response: {}\nRaw: {}", e, &raw[..400.min(raw.len())]))?
     };
+
+    if let Ok(_) = serde_json::from_str::<AnalysisResult>(&raw) {
+        let mut mem = AiMemoryStore::load();
+        mem.add(MemoryKind::Recommendation {
+            scan_summary: result.system_summary.clone(),
+            add: result.add.iter().map(|r| r.id.clone()).collect(),
+            remove: result.remove.iter().map(|r| r.id.clone()).collect(),
+            applied: vec![],
+        });
+        mem.last_system_summary = Some(result.system_summary.clone());
+        let _ = mem.save();
+    }
+
     Ok(result)
 }
 
@@ -1939,11 +1984,14 @@ pub async fn ai_analyze(
 pub async fn ai_chat(
     message: String,
     history: Vec<ChatMessage>,
+    session_id: String,
     ctx: State<'_, Mutex<TweakContext>>,
     state: State<'_, Mutex<AppState>>,
     app: tauri::AppHandle,
 ) -> Result<String, String> {
     let profile = profiler::scan_system_profile_from_state(Some(app))?;
+    let memory = AiMemoryStore::load();
+    let memory_ctx = memory.to_prompt_context();
 
     let applied_summary = {
         let context = ctx.lock().map_err(|e| e.to_string())?;
@@ -1958,18 +2006,54 @@ pub async fn ai_chat(
     let (ctx_user, ctx_model) = prompts::build_context_injection(
         &serde_json::to_string_pretty(&profile).map_err(|e| e.to_string())?,
         &serde_json::to_string(&applied_summary).map_err(|e| e.to_string())?,
+        &memory_ctx,
     );
 
     let mut messages = vec![
-        ("user".to_string(),  ctx_user),
-        ("model".to_string(), ctx_model),
+        ("user".to_string(),   ctx_user),
+        ("model".to_string(),  ctx_model),
     ];
-    for msg in history {
-        messages.push((msg.role, msg.content));
+    let history_clone: Vec<_> = history.iter().map(|m| (m.role.clone(), m.content.clone())).collect();
+    for msg in history_clone {
+        messages.push(msg);
     }
-    messages.push(("user".to_string(), message));
+    messages.push(("user".to_string(), message.clone()));
 
-    gemini::call_gemini(messages, false).await
+    let response = gemini::call_gemini(messages, false).await?;
+
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let title = message.chars().take(60).collect::<String>();
+    let mut all_messages: Vec<AiChatMessage> = history
+        .into_iter()
+        .map(|m| AiChatMessage {
+            role: m.role,
+            content: m.content,
+            timestamp: now,
+        })
+        .collect();
+    all_messages.push(AiChatMessage {
+        role: "user".to_string(),
+        content: message,
+        timestamp: now,
+    });
+    all_messages.push(AiChatMessage {
+        role: "model".to_string(),
+        content: response.clone(),
+        timestamp: now,
+    });
+
+    let session = ChatSession {
+        id: session_id,
+        title,
+        started_at: now,
+        messages: all_messages,
+    };
+    let _ = save_chat_session(&session);
+
+    Ok(response)
 }
 
 #[tauri::command]
@@ -2019,4 +2103,100 @@ pub async fn ai_diagnose(
         serde_json::from_str(&raw).map_err(|e| format!("Failed to parse diagnosis: {}\nRaw: {}", e, &raw[..400.min(raw.len())]))?
     };
     Ok(result)
+}
+
+// ── MEMORY ──────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn get_ai_memory_context() -> String {
+    AiMemoryStore::load().to_prompt_context()
+}
+
+#[tauri::command]
+pub fn record_ai_memory(kind_json: String) -> Result<(), String> {
+    let kind: MemoryKind = serde_json::from_str(&kind_json)
+        .map_err(|e| format!("Invalid memory kind JSON: {}", e))?;
+    let mut store = AiMemoryStore::load();
+    store.add(kind);
+    store.save()
+}
+
+#[tauri::command]
+pub fn get_full_ai_memory() -> Result<String, String> {
+    let store = AiMemoryStore::load();
+    serde_json::to_string_pretty(&store).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn clear_ai_memory() -> Result<(), String> {
+    let mut store = AiMemoryStore::default();
+    store.save()
+}
+
+// ── CHAT PERSISTENCE ───────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn save_chat(session_json: String) -> Result<(), String> {
+    let session: ChatSession = serde_json::from_str(&session_json)
+        .map_err(|e| format!("Invalid session JSON: {}", e))?;
+    save_chat_session(&session)
+}
+
+#[tauri::command]
+pub fn list_chats() -> Vec<ChatSessionMeta> {
+    list_chat_sessions()
+}
+
+#[tauri::command]
+pub fn load_chat(id: String) -> Result<ChatSession, String> {
+    load_chat_session(&id)
+}
+
+#[tauri::command]
+pub fn delete_chat(id: String) -> Result<(), String> {
+    delete_chat_session(&id)
+}
+
+// ── STARTUP AI ───────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn ai_scan_startup(
+    items: Vec<StartupItem>,
+) -> Result<crate::modules::ai::startup::StartupScanResult, String> {
+    scan_startup_with_ai(items).await
+}
+
+#[tauri::command]
+pub async fn ai_apply_startup_recommendations(
+    recommendations_json: String,
+) -> Result<Vec<String>, String> {
+    let recs: Vec<StartupRecommendation> = serde_json::from_str(&recommendations_json)
+        .map_err(|e| format!("Invalid recs JSON: {}", e))?;
+
+    let mut results: Vec<String> = Vec::new();
+    let mut memory = AiMemoryStore::load();
+
+    for rec in &recs {
+        if rec.action == "disable" {
+            let result = tokio::task::spawn_blocking({
+                let id = rec.item_id.clone();
+                move || toggle_item(id, false)
+            })
+            .await
+            .map_err(|e| e.to_string())?;
+
+            let outcome = if result.is_ok() { "success" } else { "failed" };
+            results.push(format!("{}: {}", rec.item_id, outcome));
+
+            memory.add(MemoryKind::StartupAction {
+                item_id: rec.item_id.clone(),
+                item_name: rec.item_id.clone(),
+                action: "disabled".to_string(),
+                reason: rec.reason.clone(),
+            });
+        }
+    }
+
+    memory.save()?;
+    Ok(results)
 }

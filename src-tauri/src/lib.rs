@@ -94,6 +94,16 @@ pub fn run() {
             commands::ai_analyze,
             commands::ai_chat,
             commands::ai_diagnose,
+            commands::get_ai_memory_context,
+            commands::record_ai_memory,
+            commands::get_full_ai_memory,
+            commands::clear_ai_memory,
+            commands::save_chat,
+            commands::list_chats,
+            commands::load_chat,
+            commands::delete_chat,
+            commands::ai_scan_startup,
+            commands::ai_apply_startup_recommendations,
         ])
         .setup(|app| {
             {

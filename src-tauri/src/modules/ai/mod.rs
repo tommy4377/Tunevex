@@ -1,8 +1,17 @@
 pub mod gemini;
 pub mod profiler;
 pub mod prompts;
+pub mod memory;
+pub mod startup;
 
 pub use profiler::{SystemProfile, DiagnosticFlags};
+pub use memory::{
+    AiMemoryStore, AiMemoryEntry, MemoryKind,
+    ChatSession, ChatMessage, ChatSessionMeta,
+    save_chat_session, list_chat_sessions,
+    load_chat_session, delete_chat_session,
+};
+pub use startup::{StartupRecommendation, StartupScanResult, scan_startup_with_ai};
 
 use serde::{Deserialize, Serialize};
 
@@ -39,10 +48,4 @@ pub struct DiagnosisCause {
     pub tweak_id: String,
     pub confidence: String,
     pub explanation: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ChatMessage {
-    pub role: String,
-    pub content: String,
 }

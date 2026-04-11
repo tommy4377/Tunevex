@@ -1,89 +1,241 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import { onMount } from "svelte";
   import { marked } from "marked";
-  import Button from "../ui/Button.svelte";
+  import { History, Trash2, Plus } from "lucide-svelte";
 
-  marked.setOptions({ breaks: true, gfm: true });
-
-  function md(text: string): string {
-    return marked.parse(text) as string;
+  interface Msg { role: string; content: string; timestamp: number; }
+  interface SessionMeta {
+    id: string; title: string; started_at: number; message_count: number;
   }
 
-  interface Msg { role: "user" | "model"; content: string; }
-  let history: Msg[] = [];
-  let input = "";
+  marked.setOptions({ breaks: true, gfm: true });
+  function md(text: string): string { return marked.parse(text) as string; }
+
+  let messages: Msg[] = [];
+  let sessions: SessionMeta[] = [];
+  let currentSessionId = crypto.randomUUID() as string;
+  let showSidebar = false;
   let loading = false;
-  let chatEl: HTMLDivElement;
+  let message = "";
+  let error = "";
+
+  onMount(async () => {
+    sessions = await invoke<SessionMeta[]>("list_chats");
+  });
 
   async function send() {
-    if (!input.trim() || loading) return;
-    const msg = input.trim();
-    history = [...history, { role: "user", content: msg }];
-    input = "";
+    if (!message.trim() || loading) return;
+    const userMsg: Msg = { role: "user", content: message, timestamp: Date.now() };
+    messages = [...messages, userMsg];
+    const sent = message;
+    message = "";
     loading = true;
+    error = "";
     try {
       const reply = await invoke<string>("ai_chat", {
-        message: msg,
-        history: history.slice(0, -1),
+        message: sent,
+        history: messages.slice(0, -1),
+        sessionId: currentSessionId,
       });
-      history = [...history, { role: "model", content: reply }];
+      messages = [...messages, { role: "model", content: reply, timestamp: Date.now() }];
+      sessions = await invoke<SessionMeta[]>("list_chats");
     } catch (e) {
-      history = [...history, { role: "model", content: `Error: ${e}` }];
+      error = e as string;
     } finally {
       loading = false;
-      setTimeout(() => chatEl?.scrollTo(0, chatEl.scrollHeight), 50);
     }
+  }
+
+  async function loadSession(id: string) {
+    const session = await invoke<any>("load_chat", { id });
+    messages = session.messages;
+    currentSessionId = id;
+    showSidebar = false;
+  }
+
+  async function deleteSession(id: string, e: MouseEvent) {
+    e.stopPropagation();
+    await invoke("delete_chat", { id });
+    sessions = sessions.filter(s => s.id !== id);
+    if (currentSessionId === id) newChat();
+  }
+
+  function newChat() {
+    messages = [];
+    currentSessionId = crypto.randomUUID();
+  }
+
+  function formatDate(ts: number) {
+    return new Date(ts * 1000).toLocaleDateString("en-US", {
+      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
+    });
   }
 </script>
 
-<div class="chat-panel">
-  <div class="messages" bind:this={chatEl}>
-    {#if history.length === 0}
-      <p class="hint">Ask anything — "is my system optimized for gaming?",
-        "why do I have stutters?", "is TCP No Delay safe for me?"</p>
-    {/if}
-    {#each history as msg}
-      <div class="msg {msg.role}">
-        {#if msg.role === 'model'}
-          <div class="msg-content md-body">{@html md(msg.content)}</div>
-        {:else}
-          {msg.content}
+<div class="chat-layout">
+  {#if showSidebar}
+    <div class="history-sidebar">
+      <div class="sidebar-header">
+        <span>Chat History</span>
+        <button class="new-chat-btn" on:click={newChat}>
+          <Plus size={13}/> New
+        </button>
+      </div>
+      <div class="session-list">
+        {#each sessions as s}
+          <div class="session-item" role="button" tabindex="0" on:click={() => loadSession(s.id)} on:keydown={(e) => e.key === "Enter" && loadSession(s.id)}>
+            <div class="session-title">{s.title || "Untitled"}</div>
+            <div class="session-meta">
+              {formatDate(s.started_at)} · {s.message_count} msgs
+            </div>
+            <button class="del-btn" on:click={(e) => deleteSession(s.id, e)}>
+              <Trash2 size={10}/>
+            </button>
+          </div>
+        {/each}
+        {#if sessions.length === 0}
+          <p class="no-sessions">No saved chats yet</p>
         {/if}
       </div>
-    {/each}
-    {#if loading}
-      <div class="msg model typing">Thinking…</div>
+    </div>
+  {/if}
+
+  <div class="chat-main">
+    <div class="chat-topbar">
+      <button class="icon-btn" on:click={() => showSidebar = !showSidebar}
+              title="Chat history">
+        <History size={15}/>
+        {#if sessions.length > 0}
+          <span class="badge">{sessions.length}</span>
+        {/if}
+      </button>
+      <button class="icon-btn" on:click={newChat} title="New chat">
+        <Plus size={15}/>
+      </button>
+    </div>
+
+    <div class="messages">
+      {#if messages.length === 0}
+        <p class="hint">Ask anything — "is my system optimized for gaming?",
+          "why do I have stutters?", "is TCP No Delay safe for me?"</p>
+      {/if}
+      {#each messages as msg}
+        <div class="message {msg.role}">
+          <div class="msg-content md-body">
+            {#if msg.role === 'model'}
+              {@html md(msg.content)}
+            {:else}
+              {msg.content}
+            {/if}
+          </div>
+        </div>
+      {/each}
+      {#if loading}
+        <div class="message model">
+          <div class="msg-content typing">···</div>
+        </div>
+      {/if}
+    </div>
+
+    {#if error}
+      <div class="error-box">{error}</div>
     {/if}
-  </div>
-  <div class="input-row">
-    <input
-      bind:value={input}
-      placeholder="Ask the AI…"
-      onkeydown={(e) => e.key === "Enter" && send()}
-      disabled={loading}
-    />
-    <Button onclick={send} disabled={loading || !input.trim()}>Send</Button>
+
+    <div class="input-row">
+      <textarea
+        bind:value={message}
+        placeholder="Ask anything about your system…"
+        on:keydown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), send())}
+        rows={2}
+      ></textarea>
+      <button on:click={send} disabled={loading || !message.trim()}>Send</button>
+    </div>
   </div>
 </div>
 
 <style>
-  .chat-panel { display: flex; flex-direction: column; height: 100%; gap: 12px; }
+  .chat-layout        { display: flex; height: 100%; overflow: hidden; }
+  .history-sidebar    {
+    width: 220px; flex-shrink: 0;
+    background: var(--layer-card);
+    border-right: var(--border-glass);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .sidebar-header     {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px; font-size: 12px; font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: var(--border-glass);
+  }
+  .new-chat-btn       {
+    display: flex; align-items: center; gap: 4px;
+    background: rgba(129,140,248,0.12); border: 1px solid rgba(129,140,248,0.2);
+    border-radius: var(--radius-sm); padding: 3px 8px;
+    color: var(--accent-color); font-size: 11px; cursor: pointer;
+  }
+  .session-list       { overflow-y: auto; flex: 1; padding: 6px; }
+  .session-item       {
+    width: 100%; text-align: left; background: none;
+    border: 1px solid transparent; border-radius: var(--radius-md);
+    padding: 8px 10px; cursor: pointer; position: relative;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .session-item:hover { background: var(--layer-hover); border-color: rgba(255,255,255,0.08); }
+  .session-title      { font-size: 12px; color: var(--text-color); font-weight: 500;
+                        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                        max-width: 160px; }
+  .session-meta       { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+  .del-btn            {
+    position: absolute; top: 6px; right: 6px;
+    background: none; border: none; color: var(--text-muted);
+    opacity: 0; cursor: pointer; transition: opacity 0.15s;
+    padding: 2px;
+  }
+  .session-item:hover .del-btn { opacity: 1; }
+  .del-btn:hover      { color: var(--danger); }
+  .no-sessions        { font-size: 11px; color: var(--text-muted); text-align: center; padding: 20px; }
+  .chat-main          { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .chat-topbar        { display: flex; gap: 6px; padding: 8px 12px;
+                        border-bottom: var(--border-glass); }
+  .icon-btn           {
+    background: none; border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius-sm); padding: 5px 8px;
+    color: var(--text-muted); cursor: pointer;
+    display: flex; align-items: center; gap: 5px; font-size: 11px;
+    transition: color 0.15s, border-color 0.15s; position: relative;
+  }
+  .icon-btn:hover     { color: var(--accent-color); border-color: var(--accent-color); }
+  .badge              {
+    position: absolute; top: -4px; right: -4px;
+    background: var(--accent-color); color: white;
+    font-size: 9px; border-radius: 999px; padding: 1px 4px; line-height: 1;
+  }
   .messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column;
-    gap: 10px; padding-right: 4px; }
+    gap: 10px; padding: 12px; }
   .hint { color: var(--text-muted); font-size: 13px; text-align: center; margin: auto; }
-  .msg { padding: 10px 14px; border-radius: var(--radius-md);
+  .message { padding: 10px 14px; border-radius: var(--radius-md);
     font-size: 13px; line-height: 1.5; max-width: 85%; white-space: pre-wrap; }
-  .msg.user  { background: rgba(129,140,248,0.15); border: 1px solid rgba(129,140,248,0.25);
+  .message.user  { background: rgba(129,140,248,0.15); border: 1px solid rgba(129,140,248,0.25);
     align-self: flex-end; color: var(--text-color); }
-  .msg.model { background: var(--layer-card); border: var(--border-glass);
+  .message.model { background: var(--layer-card); border: var(--border-glass);
     align-self: flex-start; }
-  .msg-model .msg-content { color: var(--text-secondary); }
-  .typing { opacity: 0.6; font-style: italic; }
-  .input-row { display: flex; gap: 8px; }
-  .input-row input { flex: 1; background: rgba(255,255,255,0.04);
+  .msg-content { color: var(--text-secondary); }
+  .typing { letter-spacing: 4px; color: var(--text-muted); }
+  .error-box { padding: 8px 12px; background: rgba(248,113,113,0.1);
+    border: 1px solid rgba(248,113,113,0.2); border-radius: var(--radius-sm);
+    color: #f87171; font-size: 12px; margin: 0 12px; }
+  .input-row { display: flex; gap: 8px; padding: 12px; border-top: var(--border-glass); }
+  .input-row textarea { flex: 1; background: rgba(255,255,255,0.04);
     border: var(--border-glass); border-radius: var(--radius-md);
-    padding: 9px 13px; color: var(--text-color); font-size: 13px; outline: none; }
-  .input-row input:focus { border-color: var(--accent-color); }
+    padding: 9px 13px; color: var(--text-color); font-size: 13px; outline: none;
+    resize: none; }
+  .input-row textarea:focus { border-color: var(--accent-color); }
+  .input-row button { padding: 9px 18px; background: var(--accent-color);
+    border: none; border-radius: var(--radius-md); color: white;
+    font-size: 13px; cursor: pointer; }
+  .input-row button:disabled { opacity: 0.5; cursor: not-allowed; }
 
   :global(.md-body p)           { margin: 0 0 8px 0; }
   :global(.md-body p:last-child){ margin-bottom: 0; }

@@ -1,9 +1,10 @@
-pub fn build_context_injection(profile_json: &str, applied_json: &str) -> (String, String) {
+pub fn build_context_injection(
+    profile_json: &str,
+    applied_json: &str,
+    memory_ctx: &str,
+) -> (String, String) {
     let user = format!(
-        r#"You are an expert Windows optimization assistant embedded in TommyTweaker,
-a professional system tweaking app built with Tauri and Rust.
-
-You have full access to the user's system state:
+        r#"You are an expert Windows optimization assistant in TommyTweaker.
 
 SYSTEM PROFILE:
 {}
@@ -11,16 +12,21 @@ SYSTEM PROFILE:
 CURRENTLY APPLIED TWEAKS:
 {}
 
+YOUR PAST MEMORY (recent actions, diagnoses, outcomes — use this to avoid repeating mistakes):
+{}
+
 Rules:
-- Always reference specific tweak IDs when discussing them (e.g. "net_tcp_ack_freq")
-- Be honest about risks — do not recommend Dangerous tweaks unless explicitly asked
-- If something could cause instability, say so clearly
+- Always reference specific tweak IDs (e.g. `net_tcp_bbr`)
+- If a diagnosis previously FAILED to resolve an issue, say so explicitly
+- If you previously recommended a tweak and the user applied it, track its outcome
+- Be honest about risks; do not recommend Dangerous tweaks unless explicitly asked
+- If ram_gb is 0 the profiler failed — skip RAM-specific analysis
 - Keep answers concise and technical"#,
-        profile_json, applied_json
+        profile_json, applied_json, memory_ctx
     );
-    let model =
-        "Understood. I have full context of this system and its applied tweaks. Ready to help."
-            .to_string();
+    let model = "Understood. I have full context of this system, its applied tweaks, \
+         and my past memory. Ready to help."
+        .to_string();
     (user, model)
 }
 
