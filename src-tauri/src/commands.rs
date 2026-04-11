@@ -1,6 +1,6 @@
 use crate::modules::registry::backup::RegistryBackup;
 use crate::modules::registry::operations::apply_registry_tweak;
-use crate::modules::types::{RegistryValue, Tweak, TweakCheck, TweakOperation};
+use crate::modules::types::{Tweak, TweakOperation};
 use crate::modules::utils::privileges::is_admin;
 use crate::modules::utils::state::AppState;
 use crate::modules::ai::memory::{
@@ -13,16 +13,9 @@ use crate::modules::startup::types::StartupItem;
 use crate::modules::startup::toggle_item;
 use crate::modules::tweaks::{
     TweakContext, check_tweak_enabled, get_current_windows_build, win11_only_tweaks,
-    helpers::{
-        nic_subkey_paths, set_nic_property, check_nic_property,
-        tcpip_interface_subkeys, set_dns_servers, reset_dns_servers, check_dns_servers_contain,
-        is_tamper_protection_on, check_mp_computer_status, check_defender_exclusion_paths,
-        set_defender_exclusions, control_defender_services,
-        check_msi_enabled_globally, apply_msi_set, apply_msi_remove, check_msi_enabled_on_net,
-        apply_svc_host_split_all,
-        check_command_output_contains, check_registry_key_absent, check_registry_value,
-        check_powershell_output,
-    },
+    set_nic_property, set_dns_servers, reset_dns_servers,
+    control_defender_services, set_defender_exclusions,
+    apply_svc_host_split_all, apply_msi_set, apply_msi_remove,
 };
 use crate::modules::utils::security::{
     validate_command, safe_path_existing, safe_path_new,
@@ -1267,7 +1260,7 @@ pub fn get_full_ai_memory() -> Result<String, String> {
 
 #[tauri::command]
 pub fn clear_ai_memory() -> Result<(), String> {
-    let mut store = AiMemoryStore::default();
+    let store = AiMemoryStore::default();
     store.save()
 }
 
