@@ -1,11 +1,12 @@
 use serde::{Deserialize, Serialize};
-use crate::modules::startup::types::StartupItem;
+use crate::modules::startup::types::{StartupItem, SafetyRating};
 use super::{gemini, profiler};
-use super::memory::AiMemoryStore;
+use super::memory::{AiMemoryStore, MemoryKind};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StartupRecommendation {
     pub item_id: String,
+    pub item_name: String,
     pub action: String,
     pub priority: String,
     pub reason: String,
@@ -17,33 +18,84 @@ pub struct StartupScanResult {
     pub recommendations: Vec<StartupRecommendation>,
 }
 
+#[derive(Serialize)]
+struct StartupItemView<'a> {
+    id: &'a str,
+    name: &'a str,
+    category: &'a str,
+    subcategory: &'a str,
+    command: &'a str,
+    publisher: Option<&'a str>,
+    enabled: bool,
+    file_exists: bool,
+    safety_rating: &'a str,
+}
+
 pub async fn scan_startup_with_ai(
     items: Vec<StartupItem>,
 ) -> Result<StartupScanResult, String> {
     let profile = profiler::scan_system_profile()?;
-    let profile_json = serde_json::to_string_pretty(&profile).map_err(|e| e.to_string())?;
-
     let memory = AiMemoryStore::load();
     let memory_ctx = memory.to_prompt_context();
 
-    let items_json = serde_json::to_string_pretty(&items).map_err(|e| e.to_string())?;
+    let views: Vec<StartupItemView> = items.iter().map(|i| StartupItemView {
+        id: &i.id,
+        name: &i.name,
+        category: &i.category,
+        subcategory: &i.subcategory,
+        command: &i.command,
+        publisher: i.publisher.as_deref(),
+        enabled: i.enabled,
+        file_exists: i.file_exists,
+        safety_rating: match i.safety_rating {
+            SafetyRating::Safe => "Safe",
+            SafetyRating::Careful => "Careful",
+            SafetyRating::Dangerous => "Dangerous",
+            SafetyRating::Unknown => "Unknown",
+            SafetyRating::Critical => "Critical",
+        },
+    }).collect();
 
-    let prompt = build_startup_scan_prompt(&profile_json, &items_json, &memory_ctx);
+    let items_json = serde_json::to_string(&views)
+        .map_err(|e| e.to_string())?;
+
+    if items_json.len() > 200_000 {
+        eprintln!(
+            "[AI Startup] Warning: items_json is {}KB — unusually large startup list",
+            items_json.len() / 1024
+        );
+    }
+
+    let prompt = build_startup_scan_prompt(&serde_json::to_string_pretty(&profile).unwrap_or_default(), &items_json, &memory_ctx);
 
     let messages = vec![
         ("user".to_string(),
          format!("You are an expert Windows optimization assistant in TommyTweaker. \
                   Reply ONLY with valid JSON matching the StartupScanResult schema. \
                   SYSTEM PROFILE:\n{}\n\nPAST AI MEMORY (last actions/diagnoses):\n{}",
-                  profile_json, memory_ctx)),
+                  serde_json::to_string_pretty(&profile).unwrap_or_default(), memory_ctx)),
         ("model".to_string(),
          "Understood. I have the system profile and AI memory. Ready to analyze startup.".to_string()),
         ("user".to_string(), prompt),
     ];
 
     let raw = gemini::call_gemini(messages, true).await?;
-    serde_json::from_str::<StartupScanResult>(&raw)
-        .map_err(|e| format!("Failed to parse startup scan: {}\nRaw: {:.300}", e, raw))
+    let result: StartupScanResult = serde_json::from_str(&raw)
+        .map_err(|e| format!("Failed to parse startup scan: {}\nRaw: {:.300}", e, raw))?;
+
+    let mut mem = AiMemoryStore::load();
+    mem.add(MemoryKind::Recommendation {
+        scan_summary: result.summary.clone(),
+        add: vec![],
+        remove: result.recommendations.iter()
+            .filter(|r| r.action == "disable" || r.action == "investigate")
+            .map(|r| r.item_id.clone())
+            .collect(),
+        applied: vec![],
+    });
+    let _ = mem.save();
+
+    Ok(result)
 }
 
 fn build_startup_scan_prompt(
@@ -76,6 +128,7 @@ Return ONLY valid JSON:
   "recommendations": [
     {{
       "item_id": "exact id string",
+      "item_name": "human readable name",
       "action": "disable|keep|investigate",
       "priority": "high|medium|low",
       "reason": "one sentence referencing specific item data"

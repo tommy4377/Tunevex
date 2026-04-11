@@ -1177,6 +1177,8 @@ pub async fn ai_diagnose(
     app: tauri::AppHandle,
 ) -> Result<DiagnosisResult, String> {
     let profile = profiler::scan_system_profile_from_state(Some(app))?;
+    let memory = AiMemoryStore::load();
+    let memory_ctx = memory.to_prompt_context();
 
     let applied_detail = {
         let context = ctx.lock().map_err(|e| e.to_string())?;
@@ -1194,6 +1196,12 @@ pub async fn ai_diagnose(
             .collect::<Vec<_>>()
     };
 
+    let (ctx_user, ctx_model) = prompts::build_context_injection(
+        &serde_json::to_string_pretty(&profile).map_err(|e| e.to_string())?,
+        &serde_json::to_string(&applied_detail).map_err(|e| e.to_string())?,
+        &memory_ctx,
+    );
+
     let prompt = prompts::build_diagnose_prompt(
         &serde_json::to_string_pretty(&profile).map_err(|e| e.to_string())?,
         &serde_json::to_string(&applied_detail).map_err(|e| e.to_string())?,
@@ -1201,7 +1209,11 @@ pub async fn ai_diagnose(
     );
 
     let raw = gemini::call_gemini(
-        vec![("user".to_string(), prompt)],
+        vec![
+            ("user".to_string(), ctx_user),
+            ("model".to_string(), ctx_model),
+            ("user".to_string(), prompt),
+        ],
         true,
     )
     .await?;
@@ -1215,6 +1227,19 @@ pub async fn ai_diagnose(
     } else {
         serde_json::from_str(&raw).map_err(|e| format!("Failed to parse diagnosis: {}\nRaw: {}", e, &raw[..400.min(raw.len())]))?
     };
+
+    let mut mem = AiMemoryStore::load();
+    mem.add(MemoryKind::Diagnosis {
+        problem: problem.clone(),
+        likely_causes: result.likely_causes.iter()
+            .map(|c| c.tweak_id.clone())
+            .collect(),
+        suggested_fix: result.suggested_fix.clone(),
+        resolved: None,
+        follow_up_notes: None,
+    });
+    let _ = mem.save();
+
     Ok(result)
 }
 
@@ -1303,7 +1328,7 @@ pub async fn ai_apply_startup_recommendations(
 
             memory.add(MemoryKind::StartupAction {
                 item_id: rec.item_id.clone(),
-                item_name: rec.item_id.clone(),
+                item_name: rec.item_name.clone(),
                 action: "disabled".to_string(),
                 reason: rec.reason.clone(),
             });
