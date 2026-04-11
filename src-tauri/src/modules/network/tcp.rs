@@ -190,31 +190,6 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
             ]
         },
         Tweak {
-            id: "net_tcp_ctcp".to_string(),
-            category: TweakCategory::Network,
-            name: "Set Congestion Provider to CUBIC".to_string(),
-            description: "Sets TCP Congestion Provider to 'CUBIC'.".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: false,
-            revert_operations: Some(vec![
-                TweakOperation::Command {
-                    cmd: "netsh".to_string(),
-                    args: vec!["int".into(), "tcp".into(), "set".into(), "supplemental".into(), "template=internet".into(), "congestionprovider=cubic".into()],
-                }
-            ]), tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::CommandOutputContains {
-                cmd: "netsh".to_string(),
-                args: vec!["int".to_string(), "tcp".to_string(), "show".to_string(), "supplemental".to_string()],
-                contains: "CUBIC".to_string(),
-            }),
-            operations: vec![
-                TweakOperation::Command {
-                    cmd: "netsh".to_string(),
-                    args: vec!["int".into(), "tcp".into(), "set".into(), "supplemental".into(), "template=internet".into(), "congestionprovider=cubic".into()],
-}
-            ]
-        },
-        Tweak {
             id: "net_tcp_ecn".to_string(),
             category: TweakCategory::Network,
             name: "Enable TCP ECN Capability".to_string(),
