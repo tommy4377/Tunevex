@@ -362,11 +362,21 @@
                             class:selected={selectedRecs.has(rec.item_id)}
                             class:investigate={rec.action === "investigate"}
                         >
-                            <div class="rec-check" class:checked={selectedRecs.has(rec.item_id)} on:click={() => {
-                                if (selectedRecs.has(rec.item_id)) selectedRecs.delete(rec.item_id);
-                                else selectedRecs.add(rec.item_id);
-                                selectedRecs = selectedRecs;
-                            }} role="checkbox" aria-checked={selectedRecs.has(rec.item_id)} tabindex="0">
+                            <div class="rec-check" class:checked={selectedRecs.has(rec.item_id)}
+                                on:click={() => {
+                                    if (selectedRecs.has(rec.item_id)) selectedRecs.delete(rec.item_id);
+                                    else selectedRecs.add(rec.item_id);
+                                    selectedRecs = selectedRecs;
+                                }}
+                                on:keydown={(e) => {
+                                    if (e.key === " " || e.key === "Enter") {
+                                        e.preventDefault();
+                                        if (selectedRecs.has(rec.item_id)) selectedRecs.delete(rec.item_id);
+                                        else selectedRecs.add(rec.item_id);
+                                        selectedRecs = selectedRecs;
+                                    }
+                                }}
+                                role="checkbox" aria-checked={selectedRecs.has(rec.item_id)} tabindex="0">
                                 {#if selectedRecs.has(rec.item_id)}<Check size={9} />{/if}
                             </div>
                             <div class="rec-body" on:click={() => openRecDetail(rec)} role="button" tabindex="0" on:keydown={(e) => e.key === "Enter" && openRecDetail(rec)}>
@@ -417,7 +427,7 @@
 
     {#if showRecDetail && selectedRec}
         <div class="rec-modal-backdrop" on:click={closeRecDetail} role="button" tabindex="-1" on:keydown={(e) => e.key === "Escape" && closeRecDetail()}>
-            <div class="rec-modal" on:click|stopPropagation role="dialog">
+            <div class="rec-modal" on:click|stopPropagation on:keydown={(e) => e.key === "Escape" && closeRecDetail()} role="dialog" tabindex="-1">
                 <div class="rec-modal-header">
                     <div class="rec-modal-title">
                         <span class="modal-name">{selectedRec.item_name || selectedRec.item_id.split("\\").pop()}</span>

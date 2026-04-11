@@ -299,15 +299,6 @@
         overflow: hidden;
     }
 
-    .badge {
-        font-size: 10px;
-        padding: 3px 8px;
-        border-radius: 12px; /* Pill shape */
-        font-weight: 700;
-        text-transform: uppercase;
-        flex-shrink: 0;
-    }
-
     /* Toggle Button */
     .toggle-btn {
         min-width: 90px;
