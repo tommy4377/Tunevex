@@ -566,9 +566,10 @@ fn apply_msi_set(class: &str, priority: u32) -> Result<(), String> {
     let class_key_path = format!("{}\\{}", PCI_PATH, class);
 
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let class_key = hklm
-        .open_subkey_with_flags(&class_key_path, KEY_READ)
-        .map_err(|e| format!("Failed to open PCI class {}: {}", class, e))?;
+    let class_key = match hklm.open_subkey_with_flags(&class_key_path, KEY_READ) {
+        Ok(k) => k,
+        Err(_) => return Ok(()),
+    };
 
     for dev_name in class_key.enum_keys().flatten() {
         let dev_path = format!("{}\\{}\\{}", PCI_PATH, class, dev_name);
@@ -1157,15 +1158,20 @@ pub async fn apply_tweak(
                         .output()
                         .map_err(|e| format!("Command exec failed: {}", e))?;
 
-                    if !output.stdout.is_empty() {
-                        println!("    [STDOUT] {}", String::from_utf8_lossy(&output.stdout));
-                    }
-                    if !output.stderr.is_empty() {
-                        eprintln!("    [STDERR] {}", String::from_utf8_lossy(&output.stderr));
-                    }
-
                     if !output.status.success() {
-                        return Err(format!("Command returned non-zero code: {:?}", output.status.code()));
+                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        let stderr = String::from_utf8_lossy(&output.stderr);
+                        let combined = format!("{}{}", stdout, stderr).to_lowercase();
+
+                        if combined.contains("element not found") || combined.contains("value is protected") {
+                            eprintln!("  -> Non-fatal: {} {:?} → {}", cmd, args, combined.trim());
+                        } else {
+                            return Err(format!(
+                                "Command returned non-zero {:?}: {}",
+                                output.status.code(),
+                                combined.trim()
+                            ));
+                        }
                     }
                 }
                 TweakOperation::Powershell { script } => {
@@ -1734,10 +1740,15 @@ pub async fn undo_tweak(
                             .output()
                             .map_err(|e| format!("Revert command exec failed: {}", e))?;
                         if !output.status.success() {
-                            eprintln!(
-                                "Warning: Revert command returned non-zero: {:?}",
-                                output.status.code()
-                            );
+                            let stdout = String::from_utf8_lossy(&output.stdout);
+                            let stderr = String::from_utf8_lossy(&output.stderr);
+                            let combined = format!("{}{}", stdout, stderr).to_lowercase();
+
+                            if combined.contains("element not found") || combined.contains("value is protected") {
+                                eprintln!("  -> Non-fatal: {} {:?} -> {}", cmd, args, combined.trim());
+                            } else {
+                                eprintln!("Warning: Revert command returned non-zero: {:?}", output.status.code());
+                            }
                         }
                     }
                     TweakOperation::NetAdapterProperty { property, value } => {
