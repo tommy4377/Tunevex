@@ -298,5 +298,49 @@ pub fn get_context_menu_tweaks() -> Vec<Tweak> {
                 },
             ],
         },
+
+        // ============================================
+        // DANGEROUS - REQUIRES PSEXEC64
+        // ============================================
+        Tweak {
+            id: "ctx_merge_as_trustedinstaller".to_string(),
+            category: TweakCategory::InterfaceUx,
+            name: "Add 'Merge as TrustedInstaller' to Context Menu".to_string(),
+            description: "Adds a context menu option to .reg files that imports them using TrustedInstaller privileges via PsExec64. WARNING: Requires PsExec64.exe in System32. Shows Dangerous warning.".to_string(),
+            warning_level: WarningLevel::Dangerous,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCR".to_string(),
+                path: r"regfile\shell\MergeTI".to_string(),
+                key: "".to_string(),
+                expected_value: RegistryValue::String("Merge as TrustedInstaller".to_string()),
+            }),
+            revert_operations: Some(vec![TweakOperation::Command {
+                cmd: "reg".to_string(),
+                args: vec!["delete".to_string(), r"HKCR\regfile\shell\MergeTI".to_string(), "/f".to_string()],
+            }]),
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKCR".to_string(),
+                    path: r"regfile\shell\MergeTI".to_string(),
+                    key: "".to_string(),
+                    value: RegistryValue::String("Merge as TrustedInstaller".to_string()),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCR".to_string(),
+                    path: r"regfile\shell\MergeTI".to_string(),
+                    key: "HasLUAShield".to_string(),
+                    value: RegistryValue::String("".to_string()),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCR".to_string(),
+                    path: r"regfile\shell\MergeTI\command".to_string(),
+                    key: "".to_string(),
+                    value: RegistryValue::String(r#"cmd.exe /c %WINDIR%\System32\psexec64.exe -s -i regedit.exe /s "%1""#.to_string()),
+                },
+            ],
+        },
     ]
 }
