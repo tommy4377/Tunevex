@@ -192,9 +192,9 @@
     }
 
     .optimize-btn.safe {
-        background: #10b981;
-        color: white;
-        border: none;
+        background: var(--btn-safe-bg);
+        color: var(--btn-safe-color);
+        border: 1px solid var(--btn-safe-border);
         padding: 6px 12px;
         border-radius: 6px;
         font-weight: 500;
@@ -202,7 +202,7 @@
         font-size: 13px;
     }
     .optimize-btn.safe:hover {
-        background: #059669;
+        background: var(--btn-safe-hover-bg);
     }
     .dns-section {
         flex: 1;
