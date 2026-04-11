@@ -2,6 +2,7 @@
     import { invoke } from "@tauri-apps/api/core";
     import type { Tweak, TweakCategory } from "$lib/types";
     import { activeCategory } from "$lib/stores";
+    import Badge from "./ui/Badge.svelte";
 
     export let tweaks: Tweak[] = [];
     export let showHeader = true;
@@ -73,18 +74,7 @@
         }
     }
 
-    function getWarningColor(level: string) {
-        switch (level) {
-            case "Safe":
-                return "#22c55e";
-            case "Careful":
-                return "#f59e0b";
-            case "Dangerous":
-                return "#ef4444";
-            default:
-                return "#64748b";
-        }
-    }
+    $: getBadgeLevel = (level: string) => level?.toLowerCase() as "safe" | "careful" | "dangerous" | "default";
 
     import { onDestroy, onMount } from "svelte";
     import TerminalModal from "./TerminalModal.svelte";
@@ -195,14 +185,7 @@
                 <div class="info">
                     <div class="top-row">
                         <span class="name">{tweak.name}</span>
-                        <span
-                            class="badge"
-                            style="background: {getWarningColor(
-                                tweak.warning_level,
-                            )}20; color: {getWarningColor(tweak.warning_level)}"
-                        >
-                            {tweak.warning_level}
-                        </span>
+                        <Badge level={getBadgeLevel(tweak.warning_level)} />
                     </div>
                     <p class="description">{tweak.description}</p>
                 </div>
