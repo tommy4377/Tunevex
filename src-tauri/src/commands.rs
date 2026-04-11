@@ -1016,7 +1016,7 @@ pub async fn check_category(
         
         // Parallel execution across CPU cores
         let results: Vec<(String, bool)> = tweaks
-            .par_iter()
+            .iter()
             .filter_map(|tweak| {
                 tweak.check.as_ref().map(|check| {
                     (tweak.id.clone(), check_tweak_enabled(check))
