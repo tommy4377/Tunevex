@@ -911,6 +911,16 @@ pub async fn set_startup_item_enabled(id: String, enable: bool) -> Result<(), St
 
 use crate::modules::network::dns_benchmark::{self, DnsBenchmarkResult};
 
+fn get_current_windows_build() -> u32 {
+    use winreg::{enums::*, RegKey};
+    RegKey::predef(HKEY_LOCAL_MACHINE)
+        .open_subkey("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion")
+        .and_then(|k| k.get_value::<String, _>("CurrentBuildNumber"))
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0)
+}
+
 #[tauri::command]
 pub async fn benchmark_dns() -> Result<Vec<DnsBenchmarkResult>, String> {
     tokio::task::spawn_blocking(dns_benchmark::run_benchmark)
@@ -939,8 +949,8 @@ pub async fn get_tweaks(ctx: State<'_, Mutex<TweakContext>>, state: State<'_, Mu
         app_state.applied_tweaks.clone()
     };
 
-    // Move heavy I/O (registry, sc, schtasks) to blocking thread pool
-    tokio::task::spawn_blocking(move ||
+// Move heavy I/O (registry, sc, schtasks) to blocking thread pool
+    tokio::task::spawn_blocking(move||
         tweaks
             .iter()
             .map(|t| {

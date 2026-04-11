@@ -260,20 +260,23 @@ pub struct Tweak {
     pub category: TweakCategory,
     pub name: String,
     pub description: String,
+    #[serde(default)]
     pub warning_level: WarningLevel,
     #[serde(default)]
-    pub tweak_type: TweakType, // Defaults to Toggle
+    pub tweak_type: TweakType,
+    #[serde(default)]
     pub operations: Vec<TweakOperation>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub revert_operations: Option<Vec<TweakOperation>>, // Operations to undo the tweak (optional)
-    pub check: Option<TweakCheck>, // Defines how to check if enabled
+    pub revert_operations: Option<Vec<TweakOperation>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub check: Option<TweakCheck>,
+    #[serde(default)]
     pub requires_restart: bool,
     #[serde(default)]
     pub enabled: bool,
 }
 
 impl Tweak {
-    /// Create a new Tweak with default revert_operations (None)
     pub fn new(
         id: impl Into<String>,
         category: TweakCategory,
