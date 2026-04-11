@@ -50,23 +50,80 @@ pub fn get_state_path() -> Result<PathBuf, String> {
 }
 
 pub fn get_backup_dir() -> Result<PathBuf, String> {
-    let backup_dir = get_app_dir()?.join("backups");
+    let app_dir = get_app_dir()?;
+    let backup_dir = app_dir.join("backups");
 
     if !backup_dir.exists() {
-        std::fs::create_dir_all(&backup_dir)
-            .map_err(|e| format!("Failed to create backup directory: {}", e))?;
+        match std::fs::create_dir_all(&backup_dir) {
+            Ok(_) => {}
+            Err(e) if backup_dir.exists() => {
+                // Admin created it, no write access - use local fallback
+                let local_dir = std::env::current_dir()
+                    .unwrap_or_else(|_| PathBuf::from("."))
+                    .join("tommy_tweaker_data")
+                    .join("backups");
+                std::fs::create_dir_all(&local_dir)
+                    .map_err(|e| format!("Failed to create local backup directory: {}", e))?;
+                return Ok(local_dir);
+            }
+            Err(e) => return Err(format!("Failed to create backup directory: {}", e)),
+        }
     }
 
-    Ok(backup_dir)
+    // Test write access
+    let test_file = backup_dir.join(".write_test");
+    match std::fs::write(&test_file, "test") {
+        Ok(_) => {
+            let _ = std::fs::remove_file(&test_file);
+            Ok(backup_dir)
+        }
+        Err(_) => {
+            // No write access, use local fallback
+            let local_dir = std::env::current_dir()
+                .unwrap_or_else(|_| PathBuf::from("."))
+                .join("tommy_tweaker_data")
+                .join("backups");
+            std::fs::create_dir_all(&local_dir)
+                .map_err(|e| format!("Failed to create local backup directory: {}", e))?;
+            Ok(local_dir)
+        }
+    }
 }
 
 pub fn get_logs_dir() -> Result<PathBuf, String> {
-    let logs_dir = get_app_dir()?.join("logs");
+    let app_dir = get_app_dir()?;
+    let logs_dir = app_dir.join("logs");
 
     if !logs_dir.exists() {
-        std::fs::create_dir_all(&logs_dir)
-            .map_err(|e| format!("Failed to create logs directory: {}", e))?;
+        match std::fs::create_dir_all(&logs_dir) {
+            Ok(_) => {}
+            Err(e) if logs_dir.exists() => {
+                let local_dir = std::env::current_dir()
+                    .unwrap_or_else(|_| PathBuf::from("."))
+                    .join("tommy_tweaker_data")
+                    .join("logs");
+                std::fs::create_dir_all(&local_dir)
+                    .map_err(|e| format!("Failed to create local logs directory: {}", e))?;
+                return Ok(local_dir);
+            }
+            Err(e) => return Err(format!("Failed to create logs directory: {}", e)),
+        }
     }
 
-    Ok(logs_dir)
+    let test_file = logs_dir.join(".write_test");
+    match std::fs::write(&test_file, "test") {
+        Ok(_) => {
+            let _ = std::fs::remove_file(&test_file);
+            Ok(logs_dir)
+        }
+        Err(_) => {
+            let local_dir = std::env::current_dir()
+                .unwrap_or_else(|_| PathBuf::from("."))
+                .join("tommy_tweaker_data")
+                .join("logs");
+            std::fs::create_dir_all(&local_dir)
+                .map_err(|e| format!("Failed to create local logs directory: {}", e))?;
+            Ok(local_dir)
+        }
+    }
 }
