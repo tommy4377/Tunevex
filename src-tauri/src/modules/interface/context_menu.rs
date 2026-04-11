@@ -212,5 +212,91 @@ pub fn get_context_menu_tweaks() -> Vec<Tweak> {
                 value: RegistryValue::String("Troubleshoot Compat".to_string()),
             }],
         },
+
+        // ============================================
+        // MORE CONTEXT MENU TWEAKS
+        // ============================================
+        Tweak {
+            id: "ctx_run_with_priority".to_string(),
+            category: TweakCategory::InterfaceUx,
+            name: "Add 'Run with Priority' to Context Menu".to_string(),
+            description: "Adds a submenu to .exe files to launch them with Realtime, High, Above Normal, or Low CPU priority.".to_string(),
+            warning_level: WarningLevel::Careful,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCR".to_string(),
+                path: r"exefile\shell\Priority".to_string(),
+                key: "".to_string(),
+                expected_value: RegistryValue::String("Run with Priority".to_string()),
+            }),
+            revert_operations: Some(vec![TweakOperation::Command {
+                cmd: "reg".to_string(),
+                args: vec!["delete".to_string(), r"HKCR\exefile\shell\Priority".to_string(), "/f".to_string()],
+            }]),
+            operations: vec![
+                TweakOperation::RegistrySet {
+                    root_key: "HKCR".to_string(),
+                    path: r"exefile\shell\Priority".to_string(),
+                    key: "".to_string(),
+                    value: RegistryValue::String("Run with Priority".to_string()),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCR".to_string(),
+                    path: r"exefile\shell\Priority".to_string(),
+                    key: "SubCommands".to_string(),
+                    value: RegistryValue::String("".to_string()),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCR".to_string(),
+                    path: r"exefile\shell\Priority\shell\01High".to_string(),
+                    key: "".to_string(),
+                    value: RegistryValue::String("High Priority".to_string()),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCR".to_string(),
+                    path: r"exefile\shell\Priority\shell\01High\command".to_string(),
+                    key: "".to_string(),
+                    value: RegistryValue::String(r#"cmd.exe /c start /HIGH "%1" %*"#.to_string()),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCR".to_string(),
+                    path: r"exefile\shell\Priority\shell\02AboveNormal".to_string(),
+                    key: "".to_string(),
+                    value: RegistryValue::String("Above Normal".to_string()),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCR".to_string(),
+                    path: r"exefile\shell\Priority\shell\02AboveNormal\command".to_string(),
+                    key: "".to_string(),
+                    value: RegistryValue::String(r#"cmd.exe /c start /ABOVENORMAL "%1" %*"#.to_string()),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCR".to_string(),
+                    path: r"exefile\shell\Priority\shell\03Realtime".to_string(),
+                    key: "".to_string(),
+                    value: RegistryValue::String("Realtime Priority".to_string()),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCR".to_string(),
+                    path: r"exefile\shell\Priority\shell\03Realtime\command".to_string(),
+                    key: "".to_string(),
+                    value: RegistryValue::String(r#"cmd.exe /c start /REALTIME "%1" %*"#.to_string()),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCR".to_string(),
+                    path: r"exefile\shell\Priority\shell\04Low".to_string(),
+                    key: "".to_string(),
+                    value: RegistryValue::String("Low Priority".to_string()),
+                },
+                TweakOperation::RegistrySet {
+                    root_key: "HKCR".to_string(),
+                    path: r"exefile\shell\Priority\shell\04Low\command".to_string(),
+                    key: "".to_string(),
+                    value: RegistryValue::String(r#"cmd.exe /c start /LOW "%1" %*"#.to_string()),
+                },
+            ],
+        },
     ]
 }

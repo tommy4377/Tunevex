@@ -621,5 +621,92 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 value: RegistryValue::DWord(0),
             }],
         },
+
+        // ============================================
+        // MORE PRIVACY TWEAKS
+        // ============================================
+        Tweak {
+            id: "privacy_disable_uwp_background".to_string(),
+            category: TweakCategory::Privacy,
+            name: "Disable UWP Background Apps".to_string(),
+            description: "Disables UWP apps from running in the background and consuming resources.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".to_string(),
+                path: r"SOFTWARE\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications".to_string(),
+                key: "GlobalUserDisabled".to_string(),
+                expected_value: RegistryValue::DWord(1),
+            }),
+            revert_operations: Some(vec![TweakOperation::RegistrySet {
+                root_key: "HKCU".to_string(),
+                path: r"SOFTWARE\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications".to_string(),
+                key: "GlobalUserDisabled".to_string(),
+                value: RegistryValue::DWord(0),
+            }]),
+            operations: vec![TweakOperation::RegistrySet {
+                root_key: "HKCU".to_string(),
+                path: r"SOFTWARE\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications".to_string(),
+                key: "GlobalUserDisabled".to_string(),
+                value: RegistryValue::DWord(1),
+            }],
+        },
+        Tweak {
+            id: "privacy_block_new_outlook".to_string(),
+            category: TweakCategory::Privacy,
+            name: "Block New Outlook App".to_string(),
+            description: "Prevents the new Outlook for Windows from being installed via Windows Update or Microsoft Store.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Microsoft\Office\ClickToRun\Configuration".to_string(),
+                key: "BypassModernOutlook".to_string(),
+                expected_value: RegistryValue::String("1".to_string()),
+            }),
+            revert_operations: Some(vec![TweakOperation::RegistryDelete {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Microsoft\Office\ClickToRun\Configuration".to_string(),
+                key: "BypassModernOutlook".to_string(),
+            }]),
+            operations: vec![TweakOperation::RegistrySet {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Microsoft\Office\ClickToRun\Configuration".to_string(),
+                key: "BypassModernOutlook".to_string(),
+                value: RegistryValue::String("1".to_string()),
+            }],
+        },
+        Tweak {
+            id: "privacy_disable_app_archiving".to_string(),
+            category: TweakCategory::Privacy,
+            name: "Disable App Archiving".to_string(),
+            description: "Disables Windows 11 automatic app archiving that removes unused apps to save space.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy".to_string(),
+                key: "AppDownloadedBehavior".to_string(),
+                expected_value: RegistryValue::DWord(0),
+            }),
+            revert_operations: Some(vec![TweakOperation::RegistrySet {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy".to_string(),
+                key: "AppDownloadedBehavior".to_string(),
+                value: RegistryValue::DWord(1),
+            }]),
+            operations: vec![TweakOperation::RegistrySet {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy".to_string(),
+                key: "AppDownloadedBehavior".to_string(),
+                value: RegistryValue::DWord(0),
+            }],
+        },
     ]
 }
