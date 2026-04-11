@@ -34,7 +34,7 @@
     bind:value={problemText}
     placeholder="Describe your problem in detail:&#10;• Game stutters every 2 seconds&#10;• WiFi disconnects after sleep&#10;• High DPC latency in LatencyMon&#10;• Audio crackling during load"
     rows={5}
-  />
+  ></textarea>
   <Button onclick={diagnose} disabled={loading || !problemText.trim()}>
     <Search size={13} /> {loading ? "Analyzing…" : "Find Cause"}
   </Button>

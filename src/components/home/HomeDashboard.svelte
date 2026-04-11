@@ -166,7 +166,7 @@
     <!-- AI Advisor CTA -->
     <button class="ai-cta" on:click={() => ($activeCategory = "AiAdvisor")}>
         <Sparkles size={18} />
-        <div>
+        <div class="ai-cta-text">
             <span class="ai-cta-title">AI Advisor</span>
             <span class="ai-cta-sub">Scan your system and get personalized recommendations</span>
         </div>
@@ -685,7 +685,7 @@
         box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
     }
 
-    .ai-cta-content {
+    .ai-cta-text {
         display: flex;
         flex-direction: column;
         align-items: flex-start;
