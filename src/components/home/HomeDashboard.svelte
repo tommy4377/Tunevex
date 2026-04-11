@@ -429,7 +429,7 @@
         width: 44px;
         height: 44px;
         border-radius: 10px;
-        background: rgba(96, 205, 255, 0.1);
+        background: rgba(var(--accent-rgb), 0.10);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -534,7 +534,7 @@
         padding: 24px 16px;
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 14px;
+        border-radius: var(--radius-card);
         color: var(--text-primary);
         cursor: pointer;
         transition: all 0.2s;

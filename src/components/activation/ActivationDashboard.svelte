@@ -172,7 +172,7 @@
         font-size: 28px;
         font-weight: 700;
         margin-bottom: 8px;
-        background: linear-gradient(to right, #fff, #aaa);
+        background: linear-gradient(to right, var(--text-color), var(--text-muted));
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
