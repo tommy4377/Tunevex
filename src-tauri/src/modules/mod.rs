@@ -17,5 +17,6 @@ pub mod security;
 pub mod startup;
 pub mod storage;
 pub mod system;
+pub mod tweaks;
 pub mod types;
 pub mod utils;

@@ -1,7 +1,7 @@
 pub mod commands;
 pub mod modules;
 
-use crate::commands::TweakContext;
+use crate::modules::tweaks::TweakContext;
 use crate::modules::activation::get_activation_tweaks;
 use crate::modules::cpu::get_cpu_tweaks;
 use crate::modules::debloat::get_debloat_tweaks;
