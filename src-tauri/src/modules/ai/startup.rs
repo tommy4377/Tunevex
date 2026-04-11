@@ -81,8 +81,35 @@ pub async fn scan_startup_with_ai(
     ];
 
     let raw = gemini::call_gemini(messages, true).await?;
+
     let result: StartupScanResult = serde_json::from_str(&raw)
-        .map_err(|e| format!("Failed to parse startup scan: {}\nRaw: {:.300}", e, raw))?;
+        .or_else(|_: serde_json::Error| {
+            #[derive(Deserialize)]
+            struct RawRec {
+                item_id: String,
+                #[serde(default)]
+                item_name: Option<String>,
+                action: String,
+                #[serde(default)]
+                priority: Option<String>,
+                #[serde(default)]
+                reason: Option<String>,
+            }
+            let recs: Vec<RawRec> = serde_json::from_str(&raw)
+                .map_err(|e| format!("parse array: {}", e))?;
+            let recommendations = recs.into_iter().map(|r| StartupRecommendation {
+                item_id: r.item_id,
+                item_name: r.item_name.unwrap_or_default(),
+                action: r.action,
+                priority: r.priority.unwrap_or_else(|| "medium".to_string()),
+                reason: r.reason.unwrap_or_default(),
+            }).collect();
+            Ok(StartupScanResult {
+                summary: "AI scan completed — see recommendations below.".to_string(),
+                recommendations,
+            })
+        })
+        .map_err(|e: String| format!("Failed to parse startup scan: {}\nRaw: {:.300}", e, raw))?;
 
     let mut mem = AiMemoryStore::load();
     mem.add(MemoryKind::Recommendation {
