@@ -65,7 +65,6 @@ pub fn get_context_menu_tweaks() -> Vec<Tweak> {
                 TweakOperation::RegistryDelete { root_key: "HKCR".to_string(), path: r"Directory\shell\TakeOwnership".to_string(), key: "IsolatedCommand".to_string() },
             ]),
             operations: vec![
-                // File Context Menu
                 TweakOperation::RegistrySet {
                     root_key: "HKCR".to_string(),
                     path: r"*\shell\TakeOwnership".to_string(),
@@ -96,8 +95,6 @@ pub fn get_context_menu_tweaks() -> Vec<Tweak> {
                     key: "IsolatedCommand".to_string(),
                     value: RegistryValue::String("powershell -WindowStyle Hidden -Command \"Start-Process cmd -ArgumentList '/c takeown /f \\\"%1\\\" && icacls \\\"%1\\\" /grant administrators:F' -Verb RunAs\"".to_string()),
                 },
-
-                // Folder Context Menu
                 TweakOperation::RegistrySet {
                     root_key: "HKCR".to_string(),
                     path: r"Directory\shell\TakeOwnership".to_string(),
@@ -120,7 +117,6 @@ pub fn get_context_menu_tweaks() -> Vec<Tweak> {
                     root_key: "HKCR".to_string(),
                     path: r"Directory\shell\TakeOwnership\command".to_string(),
                     key: "".to_string(),
-                    // For directories we add /r /d y
                     value: RegistryValue::String("powershell -WindowStyle Hidden -Command \"Start-Process cmd -ArgumentList '/c takeown /f \\\"%1\\\" /r /d y && icacls \\\"%1\\\" /grant administrators:F /t' -Verb RunAs\"".to_string()),
                 },
                 TweakOperation::RegistrySet {
@@ -130,6 +126,91 @@ pub fn get_context_menu_tweaks() -> Vec<Tweak> {
                     value: RegistryValue::String("powershell -WindowStyle Hidden -Command \"Start-Process cmd -ArgumentList '/c takeown /f \\\"%1\\\" /r /d y && icacls \\\"%1\\\" /grant administrators:F /t' -Verb RunAs\"".to_string()),
                 },
             ],
+        },
+
+        // ============================================
+        // NEW PART 2 TWEAKS - Remove Context Menu Items
+        // ============================================
+        Tweak {
+            id: "ctx_remove_cast_to_device".to_string(),
+            category: TweakCategory::InterfaceUx,
+            name: "Remove Cast to Device".to_string(),
+            description: "Removes the 'Cast to Device' option from the right-click context menu.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked".to_string(),
+                key: "{7AD84985-87B4-4a16-BE58-8B72A5B390F7}".to_string(),
+                expected_value: RegistryValue::String("Cast to Device".to_string()),
+            }),
+            revert_operations: Some(vec![TweakOperation::RegistryDelete {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked".to_string(),
+                key: "{7AD84985-87B4-4a16-BE58-8B72A5B390F7}".to_string(),
+            }]),
+            operations: vec![TweakOperation::RegistrySet {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked".to_string(),
+                key: "{7AD84985-87B4-4a16-BE58-8B72A5B390F7}".to_string(),
+                value: RegistryValue::String("Cast to Device".to_string()),
+            }],
+        },
+        Tweak {
+            id: "ctx_remove_share".to_string(),
+            category: TweakCategory::InterfaceUx,
+            name: "Remove Share".to_string(),
+            description: "Removes the 'Share' option from the right-click context menu.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked".to_string(),
+                key: "{E2BF9676-5F8F-435C-97EB-11607A5BEDF7}".to_string(),
+                expected_value: RegistryValue::String("Share".to_string()),
+            }),
+            revert_operations: Some(vec![TweakOperation::RegistryDelete {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked".to_string(),
+                key: "{E2BF9676-5F8F-435C-97EB-11607A5BEDF7}".to_string(),
+            }]),
+            operations: vec![TweakOperation::RegistrySet {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked".to_string(),
+                key: "{E2BF9676-5F8F-435C-97EB-11607A5BEDF7}".to_string(),
+                value: RegistryValue::String("Share".to_string()),
+            }],
+        },
+        Tweak {
+            id: "ctx_remove_troubleshoot_compat".to_string(),
+            category: TweakCategory::InterfaceUx,
+            name: "Remove Troubleshoot Compatibility".to_string(),
+            description: "Removes the 'Troubleshoot Compatibility' option from the right-click context menu.".to_string(),
+            warning_level: WarningLevel::Safe,
+            requires_restart: false,
+            tweak_type: TweakType::Toggle,
+            enabled: false,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked".to_string(),
+                key: "{1d27f844-3a1f-4410-85ac-14651078412d}".to_string(),
+                expected_value: RegistryValue::String("Troubleshoot Compat".to_string()),
+            }),
+            revert_operations: Some(vec![TweakOperation::RegistryDelete {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked".to_string(),
+                key: "{1d27f844-3a1f-4410-85ac-14651078412d}".to_string(),
+            }]),
+            operations: vec![TweakOperation::RegistrySet {
+                root_key: "HKLM".to_string(),
+                path: r"SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked".to_string(),
+                key: "{1d27f844-3a1f-4410-85ac-14651078412d}".to_string(),
+                value: RegistryValue::String("Troubleshoot Compat".to_string()),
+            }],
         },
     ]
 }
