@@ -1,44 +1,23 @@
 use serde::Serialize;
 use std::process::Command;
+use tauri::Manager;
 use winreg::{enums::*, RegKey};
 
-#[derive(Debug, Serialize)]
-pub struct SystemProfile {
-    pub cpu_name: String,
-    pub cpu_vendor: String,
-    pub cpu_cores: u32,
-    pub ram_gb: u32,
-    pub gpu_name: String,
-    pub is_laptop: bool,
-    pub system_drive_type: String,
-    pub system_drive_free_pct: f32,
-    pub connection_type: String,
-    pub link_speed_mbps: u32,
-    pub windows_version: String,
-    pub power_plan: String,
-    pub vbs_enabled: bool,
-    pub hpet_enabled: bool,
-    pub page_file_auto: bool,
-    pub defender_realtime: bool,
-    pub ram_usage_pct: f32,
-    pub cpu_usage_pct: f32,
-    pub startup_items_count: u32,
-    pub running_services_count: u32,
-    pub flags: DiagnosticFlags,
-}
-
-#[derive(Debug, Serialize)]
-pub struct DiagnosticFlags {
-    pub vbs_on_gaming_rig: bool,
-    pub balanced_power_plan: bool,
-    pub hpet_on_gaming: bool,
-    pub high_ram_at_idle: bool,
-    pub many_startup_items: bool,
-    pub hdd_system_drive: bool,
-}
-
 pub fn scan_system_profile() -> Result<SystemProfile, String> {
+    scan_system_profile_from_state(None)
+}
+
+pub fn scan_system_profile_from_state(
+    app: Option<tauri::AppHandle>,
+) -> Result<SystemProfile, String> {
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+
+    // Get real CPU/RAM from SystemMonitor if app handle available
+    let (ram_usage_pct, cpu_usage_pct) = if let Some(ref handle) = app {
+        get_real_system_stats(handle)
+    } else {
+        (0.0, 0.0)
+    };
 
     let cpu_key = hklm
         .open_subkey("HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0")
@@ -53,7 +32,6 @@ pub fn scan_system_profile() -> Result<SystemProfile, String> {
     };
 
     let ram_gb = get_ram_gb();
-    let ram_usage_pct = get_ram_usage_pct();
 
     let gpu_name = get_gpu_name(&hklm);
 
@@ -96,7 +74,7 @@ pub fn scan_system_profile() -> Result<SystemProfile, String> {
 
     let startup_items_count = count_startup_items(&hklm);
     let running_services_count = count_running_services();
-    let cpu_usage_pct = get_cpu_usage();
+    let cpu_cores = get_cpu_cores();
 
     let hpet_enabled = !hklm
         .open_subkey("SYSTEM\\CurrentControlSet\\Enum\\ACPI\\PNP0103\\0\\Device Parameters")
@@ -118,9 +96,8 @@ pub fn scan_system_profile() -> Result<SystemProfile, String> {
     Ok(SystemProfile {
         cpu_name,
         cpu_vendor,
-        cpu_cores: get_cpu_cores(),
+        cpu_cores,
         ram_gb,
-        ram_usage_pct,
         gpu_name,
         is_laptop,
         system_drive_type,
@@ -133,11 +110,69 @@ pub fn scan_system_profile() -> Result<SystemProfile, String> {
         hpet_enabled,
         page_file_auto,
         defender_realtime,
+        ram_usage_pct,
         cpu_usage_pct,
         startup_items_count,
         running_services_count,
         flags,
     })
+}
+
+fn get_real_system_stats(app: &tauri::AppHandle) -> (f32, f32) {
+    use crate::modules::system::monitoring::SystemMonitor;
+    use std::sync::Mutex;
+
+    let state = app.state::<Mutex<SystemMonitor>>();
+    if let Ok(mut monitor) = state.lock() {
+        monitor.sys.refresh_cpu_all();
+        monitor.sys.refresh_memory();
+
+        let cpu = monitor.sys.global_cpu_usage();
+        let total_mem = monitor.sys.total_memory();
+        let used_mem = monitor.sys.used_memory();
+        let ram_pct = if total_mem > 0 {
+            (used_mem as f32 / total_mem as f32) * 100.0
+        } else {
+            0.0
+        };
+        return (ram_pct, cpu);
+    }
+    (0.0, 0.0)
+}
+
+#[derive(Debug, Serialize)]
+pub struct SystemProfile {
+    pub cpu_name: String,
+    pub cpu_vendor: String,
+    pub cpu_cores: u32,
+    pub ram_gb: u32,
+    pub gpu_name: String,
+    pub is_laptop: bool,
+    pub system_drive_type: String,
+    pub system_drive_free_pct: f32,
+    pub connection_type: String,
+    pub link_speed_mbps: u32,
+    pub windows_version: String,
+    pub power_plan: String,
+    pub vbs_enabled: bool,
+    pub hpet_enabled: bool,
+    pub page_file_auto: bool,
+    pub defender_realtime: bool,
+    pub ram_usage_pct: f32,
+    pub cpu_usage_pct: f32,
+    pub startup_items_count: u32,
+    pub running_services_count: u32,
+    pub flags: DiagnosticFlags,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DiagnosticFlags {
+    pub vbs_on_gaming_rig: bool,
+    pub balanced_power_plan: bool,
+    pub hpet_on_gaming: bool,
+    pub high_ram_at_idle: bool,
+    pub many_startup_items: bool,
+    pub hdd_system_drive: bool,
 }
 
 fn get_ram_gb() -> u32 {
@@ -264,12 +299,4 @@ fn get_cpu_cores() -> u32 {
     std::thread::available_parallelism()
         .map(|n| n.get() as u32)
         .unwrap_or(0)
-}
-
-fn get_ram_usage_pct() -> f32 {
-    0.0
-}
-
-fn get_cpu_usage() -> f32 {
-    0.0
 }

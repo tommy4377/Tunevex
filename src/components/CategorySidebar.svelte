@@ -25,7 +25,6 @@
 
     const categories: { id: TweakCategory; label: string; icon: any }[] = [
         { id: "Home", label: "Home", icon: Home },
-        { id: "AiAdvisor", label: "AI Advisor", icon: Sparkles },
         { id: "Activation", label: "Activation", icon: Key },
         { id: "Network", label: "Network", icon: Network },
         { id: "SecurityPrivacy", label: "Security", icon: Lock },

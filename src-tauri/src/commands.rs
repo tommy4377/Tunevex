@@ -1872,8 +1872,9 @@ pub fn delete_gemini_key() -> Result<(), String> {
 pub async fn ai_analyze(
     ctx: State<'_, Mutex<TweakContext>>,
     state: State<'_, Mutex<AppState>>,
+    app: tauri::AppHandle,
 ) -> Result<AnalysisResult, String> {
-    let profile = profiler::scan_system_profile()?;
+    let profile = profiler::scan_system_profile_from_state(Some(app))?;
 
     let tweaks_summary = {
         let context = ctx.lock().map_err(|e| e.to_string())?;
@@ -1912,8 +1913,9 @@ pub async fn ai_chat(
     history: Vec<ChatMessage>,
     ctx: State<'_, Mutex<TweakContext>>,
     state: State<'_, Mutex<AppState>>,
+    app: tauri::AppHandle,
 ) -> Result<String, String> {
-    let profile = profiler::scan_system_profile()?;
+    let profile = profiler::scan_system_profile_from_state(Some(app))?;
 
     let applied_summary = {
         let context = ctx.lock().map_err(|e| e.to_string())?;
@@ -1947,8 +1949,9 @@ pub async fn ai_diagnose(
     problem: String,
     ctx: State<'_, Mutex<TweakContext>>,
     state: State<'_, Mutex<AppState>>,
+    app: tauri::AppHandle,
 ) -> Result<DiagnosisResult, String> {
-    let profile = profiler::scan_system_profile()?;
+    let profile = profiler::scan_system_profile_from_state(Some(app))?;
 
     let applied_detail = {
         let context = ctx.lock().map_err(|e| e.to_string())?;

@@ -15,7 +15,9 @@
         MonitorUp,
         MemoryStick,
         Gauge,
+        Sparkles,
     } from "lucide-svelte";
+    import { activeCategory } from "$lib/stores";
 
     import type { SystemStats } from "$lib/systemStore";
     import { systemStats, refreshStatsIfNeeded } from "$lib/systemStore";
@@ -160,6 +162,16 @@
             >
         </div>
     </div>
+
+    <!-- AI Advisor CTA -->
+    <button class="ai-cta" on:click={() => ($activeCategory = "AiAdvisor")}>
+        <Sparkles size={18} />
+        <div>
+            <span class="ai-cta-title">AI Advisor</span>
+            <span class="ai-cta-sub">Scan your system and get personalized recommendations</span>
+        </div>
+        <span class="ai-cta-arrow">→</span>
+    </button>
 
     <!-- Main Grid Layout -->
     <div class="main-grid">
@@ -652,5 +664,47 @@
     .restore-msg.error {
         background: rgba(239, 68, 68, 0.1);
         color: #ef4444;
+    }
+
+    /* AI CTA Button */
+    .ai-cta {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        border: none;
+        border-radius: var(--radius-lg, 16px);
+        padding: 20px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        transition: all 0.3s;
+        margin-top: 12px;
+    }
+
+    .ai-cta:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+    }
+
+    .ai-cta-content {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .ai-cta-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: white;
+    }
+
+    .ai-cta-sub {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+    .ai-cta-arrow {
+        font-size: 24px;
+        color: white;
     }
 </style>
