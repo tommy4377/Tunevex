@@ -47,6 +47,8 @@
     let applyResults: string[] = [];
     let scanError = "";
     let selectedRecs: Set<string> = new Set();
+    let selectedRec: any = null;
+    let showRecDetail = false;
 
     // Category definitions with counts and icon components
     const categoryIcons: Record<string, typeof List> = {
@@ -187,6 +189,16 @@
 
     function priorityColor(p: string) {
         return p === "high" ? "#f87171" : p === "medium" ? "#fbbf24" : "#34d399";
+    }
+
+    function openRecDetail(rec: any) {
+        selectedRec = rec;
+        showRecDetail = true;
+    }
+
+    function closeRecDetail() {
+        showRecDetail = false;
+        selectedRec = null;
     }
 </script>
 
@@ -338,21 +350,18 @@
                         class="rec-row"
                         class:selected={selectedRecs.has(rec.item_id)}
                         class:investigate={rec.action === "investigate"}
-                        role="checkbox"
-                        aria-checked={selectedRecs.has(rec.item_id)}
-                        tabindex="0"
-                        on:click={() => {
+                    >
+                        <div class="rec-check" class:checked={selectedRecs.has(rec.item_id)} on:click={() => {
                             if (selectedRecs.has(rec.item_id)) selectedRecs.delete(rec.item_id);
                             else selectedRecs.add(rec.item_id);
                             selectedRecs = selectedRecs;
-                        }}
-                    >
-                        <div class="rec-check" class:checked={selectedRecs.has(rec.item_id)}>
+                        }} role="checkbox" aria-checked={selectedRecs.has(rec.item_id)} tabindex="0">
                             {#if selectedRecs.has(rec.item_id)}<Check size={9} />{/if}
                         </div>
-                        <div class="rec-body">
+                        <div class="rec-body" on:click={() => openRecDetail(rec)} role="button" tabindex="0" on:keydown={(e) => e.key === "Enter" && openRecDetail(rec)}>
                             <div class="rec-header">
                                 <span class="rec-id">{rec.item_id.split("\\").pop() ?? rec.item_id}</span>
+                                <span class="rec-name">{rec.item_name || rec.item_id.split("\\").pop()}</span>
                                 <span class="rec-action" style="color: {rec.action === 'investigate' ? '#fbbf24' : '#f87171'}">
                                     {rec.action}
                                 </span>
@@ -362,6 +371,9 @@
                             </div>
                             <p class="rec-reason">{rec.reason}</p>
                         </div>
+                        <button class="rec-info-btn" on:click={() => openRecDetail(rec)} title="View details">
+                            <Sparkles size={12} />
+                        </button>
                     </div>
                 {/each}
             </div>
@@ -387,6 +399,65 @@
             {/if}
         {/if}
     </div>
+
+    {#if showRecDetail && selectedRec}
+        <div class="rec-modal-backdrop" on:click={closeRecDetail} role="button" tabindex="-1" on:keydown={(e) => e.key === "Escape" && closeRecDetail()}>
+            <div class="rec-modal" on:click|stopPropagation role="dialog">
+                <div class="rec-modal-header">
+                    <div class="rec-modal-title">
+                        <span class="modal-name">{selectedRec.item_name || selectedRec.item_id.split("\\").pop()}</span>
+                        <span class="modal-id">{selectedRec.item_id}</span>
+                    </div>
+                    <button class="modal-close" on:click={closeRecDetail}>×</button>
+                </div>
+                <div class="rec-modal-body">
+                    <div class="modal-row">
+                        <span class="modal-label">Action</span>
+                        <span class="modal-value rec-action" style="color: {selectedRec.action === 'investigate' ? '#fbbf24' : '#f87171'}">{selectedRec.action}</span>
+                    </div>
+                    <div class="modal-row">
+                        <span class="modal-label">Priority</span>
+                        <span class="modal-value" style="color: {priorityColor(selectedRec.priority)}">{selectedRec.priority}</span>
+                    </div>
+                    <div class="modal-row">
+                        <span class="modal-label">Reason</span>
+                        <p class="modal-reason">{selectedRec.reason}</p>
+                    </div>
+                    <div class="modal-row">
+                        <span class="modal-label">Startup Item ID</span>
+                        <code class="modal-code">{selectedRec.item_id}</code>
+                    </div>
+                    {#if selectedRec.item_name}
+                        <div class="modal-row">
+                            <span class="modal-label">Display Name</span>
+                            <span class="modal-value">{selectedRec.item_name}</span>
+                        </div>
+                    {/if}
+                </div>
+                <div class="rec-modal-footer">
+                    <button class="modal-back-btn" on:click={closeRecDetail}>
+                        ← Back to list
+                    </button>
+                    {#if selectedRec.action !== "keep"}
+                        <button
+                            class="modal-toggle-btn"
+                            class:selected={selectedRecs.has(selectedRec.item_id)}
+                            on:click={() => {
+                                if (selectedRecs.has(selectedRec.item_id)) {
+                                    selectedRecs.delete(selectedRec.item_id);
+                                } else {
+                                    selectedRecs.add(selectedRec.item_id);
+                                }
+                                selectedRecs = selectedRecs;
+                            }}
+                        >
+                            {selectedRecs.has(selectedRec.item_id) ? "✓ Selected" : "Select for apply"}
+                        </button>
+                    {/if}
+                </div>
+            </div>
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -683,7 +754,10 @@
     .scan-btn:hover:not(:disabled) { background: rgba(129,140,248,0.2); }
     .scan-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .scan-summary { font-size: 12px; color: var(--text-secondary); margin: 0; line-height: 1.5; }
-    .rec-list { display: flex; flex-direction: column; gap: 6px; }
+    .rec-list { display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow-y: auto; padding-right: 4px; }
+    .rec-list::-webkit-scrollbar { width: 4px; }
+    .rec-list::-webkit-scrollbar-track { background: transparent; }
+    .rec-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
     .rec-row {
         display: flex; align-items: flex-start; gap: 10px;
         padding: 9px 12px; background: rgba(255,255,255,0.02);
@@ -706,6 +780,15 @@
     .rec-id             { font-size: 11px; font-family: monospace; color: var(--text-secondary); }
     .rec-action         { font-size: 10px; font-weight: 700; text-transform: uppercase; }
     .rec-prio           { font-size: 10px; font-weight: 600; }
+    .rec-name           { font-size: 11px; color: var(--text-color); font-weight: 500; }
+    .rec-info-btn       {
+        background: none; border: none; color: var(--text-muted);
+        cursor: pointer; padding: 4px; border-radius: 4px;
+        display: flex; align-items: center; opacity: 0;
+        transition: opacity 0.15s, color 0.15s;
+    }
+    .rec-row:hover .rec-info-btn { opacity: 1; }
+    .rec-info-btn:hover { color: var(--accent-color); }
     .rec-reason         { margin: 0; font-size: 11px; color: var(--text-muted); line-height: 1.4; }
     .apply-bar          {
         display: flex; align-items: center; justify-content: flex-end; gap: 12px;
@@ -733,4 +816,59 @@
         border: 1px solid rgba(248,113,113,0.2);
         border-radius: 6px; padding: 8px 12px;
     }
+
+    .rec-modal-backdrop {
+        position: fixed; inset: 0; z-index: 1000;
+        background: rgba(0,0,0,0.65);
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(4px);
+    }
+    .rec-modal {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        width: 520px; max-width: 92vw;
+        max-height: 80vh; overflow-y: auto;
+        display: flex; flex-direction: column;
+        box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    }
+    .rec-modal-header {
+        display: flex; align-items: flex-start; justify-content: space-between;
+        padding: 20px 24px 16px;
+        border-bottom: 1px solid var(--border-color);
+        gap: 12px;
+    }
+    .rec-modal-title { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+    .modal-name { font-size: 16px; font-weight: 600; color: var(--text-color); }
+    .modal-id { font-size: 11px; font-family: monospace; color: var(--text-muted); word-break: break-all; }
+    .modal-close {
+        background: none; border: none; color: var(--text-muted);
+        font-size: 22px; cursor: pointer; padding: 0 4px; line-height: 1;
+        border-radius: 4px;
+    }
+    .modal-close:hover { color: var(--text-color); }
+    .rec-modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+    .modal-row { display: flex; flex-direction: column; gap: 4px; }
+    .modal-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .modal-value { font-size: 13px; color: var(--text-color); font-weight: 500; }
+    .modal-code { font-size: 12px; font-family: monospace; color: var(--text-secondary); background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; word-break: break-all; }
+    .modal-reason { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 0; }
+    .rec-modal-footer {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 16px 24px; border-top: 1px solid var(--border-color);
+        gap: 12px;
+    }
+    .modal-back-btn {
+        background: none; border: 1px solid var(--border-color);
+        border-radius: 8px; padding: 8px 16px; color: var(--text-muted);
+        font-size: 13px; cursor: pointer;
+    }
+    .modal-back-btn:hover { color: var(--text-color); border-color: var(--text-muted); }
+    .modal-toggle-btn {
+        background: rgba(129,140,248,0.12); border: 1px solid rgba(129,140,248,0.25);
+        border-radius: 8px; padding: 8px 16px; color: var(--accent-color);
+        font-size: 13px; cursor: pointer;
+    }
+    .modal-toggle-btn:hover { background: rgba(129,140,248,0.2); }
+    .modal-toggle-btn.selected { background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.25); color: #f87171; }
 </style>
