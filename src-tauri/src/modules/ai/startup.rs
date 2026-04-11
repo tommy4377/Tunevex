@@ -33,8 +33,9 @@ struct StartupItemView<'a> {
 
 pub async fn scan_startup_with_ai(
     items: Vec<StartupItem>,
+    app: tauri::AppHandle,
 ) -> Result<StartupScanResult, String> {
-    let profile = profiler::scan_system_profile()?;
+    let profile = profiler::scan_system_profile_from_state(Some(app))?;
     let memory = AiMemoryStore::load();
     let memory_ctx = memory.to_prompt_context();
 

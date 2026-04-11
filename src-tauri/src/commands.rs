@@ -1293,8 +1293,9 @@ pub fn delete_chat(id: String) -> Result<(), String> {
 #[tauri::command]
 pub async fn ai_scan_startup(
     items: Vec<StartupItem>,
+    app: tauri::AppHandle,
 ) -> Result<crate::modules::ai::startup::StartupScanResult, String> {
-    scan_startup_with_ai(items).await
+    scan_startup_with_ai(items, app).await
 }
 
 #[tauri::command]
