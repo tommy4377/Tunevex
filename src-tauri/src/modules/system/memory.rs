@@ -48,44 +48,6 @@ May improve disk-heavy gaming (open world games with streaming)."
             }],
         },
         // ============================================
-        // Disable Paging Executive
-        // ============================================
-        Tweak {
-            id: "mem_disable_paging_executive".to_string(),
-            category: TweakCategory::System,
-            name: "Keep Kernel in RAM".to_string(),
-            description: "Prevents Windows kernel and drivers from being paged to disk.
-
-Keeps critical system code in RAM for faster access.
-Requires 4GB+ RAM. Reduces disk I/O during gaming."
-                .to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: true,
-            tweak_type: TweakType::Toggle,
-            enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management"
-                    .to_string(),
-                key: "DisablePagingExecutive".to_string(),
-                expected_value: RegistryValue::DWord(1),
-            }),
-            revert_operations: Some(vec![TweakOperation::RegistrySet {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management"
-                    .to_string(),
-                key: "DisablePagingExecutive".to_string(),
-                value: RegistryValue::DWord(0),
-            }]),
-            operations: vec![TweakOperation::RegistrySet {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management"
-                    .to_string(),
-                key: "DisablePagingExecutive".to_string(),
-                value: RegistryValue::DWord(1),
-            }],
-        },
-        // ============================================
         // Set Fixed Page File Size (4GB)
         // ============================================
         Tweak {
