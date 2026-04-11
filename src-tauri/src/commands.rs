@@ -6,6 +6,7 @@ use crate::modules::utils::state::AppState;
 use std::os::windows::process::CommandExt;
 use std::process::Command;
 use std::sync::Mutex;
+use strip_ansi_escapes::strip_str;
 use tauri::{Emitter, State};
 
 // ─── Allowed Commands Whitelist (Security) ───────────────────────────────
@@ -1229,11 +1230,12 @@ pub async fn apply_tweak(
                         for line in reader.lines() {
                             match line {
                                 Ok(l) => {
-                                    println!("    [PS STREAM] {}", l);
+                                    let clean = strip_str(&l);
+                                    println!("    [PS STREAM] {}", clean);
                                     let _ = app_handle.emit("tweak-output", serde_json::json!({
                                         "id": id_clone,
                                         "type": "stdout",
-                                        "line": l
+                                        "line": clean
                                     }));
                                 }
                                 Err(e) => eprintln!("Error reading stdout: {}", e),
@@ -1255,7 +1257,7 @@ pub async fn apply_tweak(
                     }
 
                     if !output.status.success() {
-                        let stderr = String::from_utf8_lossy(&output.stderr);
+                        let stderr = strip_str(&String::from_utf8_lossy(&output.stderr));
                          let _ = app_handle.emit("tweak-output", serde_json::json!({
                                     "id": id_clone,
                                     "type": "stderr",
