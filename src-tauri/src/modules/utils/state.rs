@@ -1,8 +1,8 @@
+use super::dirs::get_state_path;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
-use super::dirs::get_state_path;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct AppState {

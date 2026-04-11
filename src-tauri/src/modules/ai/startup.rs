@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use crate::modules::startup::types::StartupItem;
 use super::{gemini, profiler};
-use super::memory::{AiMemoryStore, MemoryKind};
+use super::memory::AiMemoryStore;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StartupRecommendation {
