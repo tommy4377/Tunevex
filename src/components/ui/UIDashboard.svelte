@@ -23,14 +23,25 @@
             t.id.includes("extension") ||
             t.id.includes("compact") ||
             t.id.includes("hidden") ||
-            t.id.includes("system_files"),
+            t.id.includes("system_files") ||
+            t.id.includes("jpeg") ||
+            t.id.includes("home_namespace") ||
+            t.id.includes("menu_show_delay") ||
+            t.id.includes("launch_to_this_pc") ||
+            t.id.includes("icon_cache") ||
+            t.id.includes("auto_end_tasks") ||
+            t.id.includes("aero_shake") ||
+            t.id.includes("seconds_clock") ||
+            t.id.includes("enthusiast") ||
+            t.id.includes("no_resolve") ||
+            t.id.includes("printscreen"),
     );
 
     $: appearanceTweaks = uiTweaks.filter(
-        (t) => t.id.includes("dark_mode") || t.id.includes("theme"),
+        (t) => t.id.includes("dark_mode") || t.id.includes("theme") || t.id.includes("dynamic_lighting"),
     );
 
-    $: taskbarTweaks = uiTweaks.filter((t) => t.id.includes("taskbar"));
+    $: taskbarTweaks = uiTweaks.filter((t) => t.id.includes("taskbar") || t.id.includes("auto_end_tasks") || t.id.includes("seconds_clock"));
 
     const sectionsMeta = [
         {
