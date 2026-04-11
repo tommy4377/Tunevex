@@ -87,31 +87,26 @@
     isChecking = false;
   }
 
-  onMount(async () => {
-    try {
-      tweaks = await invoke("get_tweaks_fast");
-      loading = false;
+onMount(async () => {
+  try {
+    tweaks = await invoke<Tweak[]>('get_tweaks_fast');
+    loading = false;
 
-      unlistenCheckResult = await listen<{ id: string; enabled: boolean }>(
-        "tweak-check-result",
-        (event: any) => {
-          const { id, enabled } = event.payload;
-          tweaks = tweaks.map((t) => (t.id === id ? { ...t, enabled } : t));
-        },
-      );
+    unlistenCheckResult = await listen<{id: string, enabled: boolean}>('tweak-check-result', (event) => {
+      const { id, enabled } = event.payload;
+      tweaks = tweaks.map(t => t.id === id ? { ...t, enabled } : t);
+    });
 
-      const startCategory = currentCat || "Home";
-      await checkCategoryNow(startCategory);
+    // ✅ Check SOLO la categoria attuale, niente background queue
+    const startCategory = currentCat || 'Home';
+    await checkCategoryNow(startCategory);
 
-      const allCategories = Object.keys(categoryMap);
-      checkQueue = allCategories.filter((c) => c !== startCategory);
-      processBackgroundQueue();
-    } catch (e: any) {
-      console.error("Failed to load tweaks:", e);
-      error = e.toString();
-      loading = false;
-    }
-  });
+    // ❌ RIMOSSO: processBackgroundQueue() — era il colpevole
+  } catch (e: any) {
+    error = e.toString();
+    loading = false;
+  }
+});
 
   onDestroy(() => {
     if (unlistenCheckResult) unlistenCheckResult();

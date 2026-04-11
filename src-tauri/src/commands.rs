@@ -1010,11 +1010,9 @@ pub async fn check_category(
     let app_clone = app.clone();
     let category_clone = category.clone();
     
-    // Run checks in background thread - PARALLEL with rayon
+    // Run checks in background thread - SEQUENTIAL (no rayon)
     tokio::task::spawn_blocking(move || {
-        use rayon::prelude::*;
-        
-        // Parallel execution across CPU cores
+        // Sequential execution - avoids thread pool saturation
         let results: Vec<(String, bool)> = tweaks
             .iter()
             .filter_map(|tweak| {

@@ -227,11 +227,11 @@
             <!-- Storage Drives -->
             <h2>Storage</h2>
             <div class="drives-list">
-                {#each stats.disks.sort( (a, b) => a.mount_point.localeCompare(b.mount_point), ) as disk}
+                {#each stats.disks.sort( (a, b) => a.mountpoint.localeCompare(b.mountpoint), ) as disk}
                     <div class="drive-row">
                         <HardDrive size={14} />
                         <span class="drive-label"
-                            >{disk.name || "Disk"} ({disk.mount_point})</span
+                            >{disk.name || "Disk"} ({disk.mountpoint})</span
                         >
                         <span class="drive-space"
                             >{formatBytes(disk.available_space)} free</span

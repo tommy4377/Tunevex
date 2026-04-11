@@ -19,25 +19,35 @@ pub fn get_filesystem_tweaks() -> Vec<Tweak> {
 
 Modern software doesn't need these legacy names.
 Improves file creation speed and reduces disk overhead.
-Safe for Windows 10/11 systems.".to_string(),
+Safe for Windows 10/11 systems."
+                .to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             tweak_type: TweakType::Toggle,
             enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$result = fsutil behavior query disable8dot3
-if ($result -match "1$" -or $result -match "NtfsDisable8dot3NameCreation *= *1") { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Control\\FileSystem".to_string(),
+                key: "NtfsDisable8dot3NameCreation".to_string(),
+                expected_value: RegistryValue::DWord(1),
             }),
             revert_operations: Some(vec![TweakOperation::Command {
                 cmd: "fsutil".to_string(),
-                args: vec!["behavior".to_string(), "set".to_string(), "disable8dot3".to_string(), "0".to_string()],
+                args: vec![
+                    "behavior".to_string(),
+                    "set".to_string(),
+                    "disable8dot3".to_string(),
+                    "0".to_string(),
+                ],
             }]),
             operations: vec![TweakOperation::Command {
                 cmd: "fsutil".to_string(),
-                args: vec!["behavior".to_string(), "set".to_string(), "disable8dot3".to_string(), "1".to_string()],
+                args: vec![
+                    "behavior".to_string(),
+                    "set".to_string(),
+                    "disable8dot3".to_string(),
+                    "1".to_string(),
+                ],
             }],
         },
         // ============================================
@@ -50,25 +60,35 @@ if ($result -match "1$" -or $result -match "NtfsDisable8dot3NameCreation *= *1")
             description: "Disables updating file/folder last access time on read operations.
 
 Reduces disk writes significantly, especially with many small files.
-Used by AtlasOS and other performance-focused Windows tweaks.".to_string(),
+Used by AtlasOS and other performance-focused Windows tweaks."
+                .to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             tweak_type: TweakType::Toggle,
             enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-$result = fsutil behavior query disablelastaccess
-if ($result -match "1$" -or $result -match "DisableLastAccess *= *1") { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
+            check: Some(TweakCheck::Registry {
+                root_key: "HKLM".to_string(),
+                path: "SYSTEM\\CurrentControlSet\\Control\\FileSystem".to_string(),
+                key: "NtfsDisableLastAccess".to_string(),
+                expected_value: RegistryValue::DWord(1),
             }),
             revert_operations: Some(vec![TweakOperation::Command {
                 cmd: "fsutil".to_string(),
-                args: vec!["behavior".to_string(), "set".to_string(), "disablelastaccess".to_string(), "0".to_string()],
+                args: vec![
+                    "behavior".to_string(),
+                    "set".to_string(),
+                    "disablelastaccess".to_string(),
+                    "0".to_string(),
+                ],
             }]),
             operations: vec![TweakOperation::Command {
                 cmd: "fsutil".to_string(),
-                args: vec!["behavior".to_string(), "set".to_string(), "disablelastaccess".to_string(), "1".to_string()],
+                args: vec![
+                    "behavior".to_string(),
+                    "set".to_string(),
+                    "disablelastaccess".to_string(),
+                    "1".to_string(),
+                ],
             }],
         },
         // ============================================
@@ -81,7 +101,8 @@ if ($result -match "1$" -or $result -match "DisableLastAccess *= *1") { "True" }
             description: "Increases NTFS paged pool memory usage.
 
 Allows NTFS to use more RAM for caching file metadata.
-Improves performance on drives with many files.".to_string(),
+Improves performance on drives with many files."
+                .to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             tweak_type: TweakType::Toggle,
@@ -114,7 +135,8 @@ Improves performance on drives with many files.".to_string(),
             description: "Disables NTFS file tunneling (metadata preservation on delete/recreate).
 
 Reduces overhead when deleting and recreating files with same name.
-Safe tweak recommended by performance guides.".to_string(),
+Safe tweak recommended by performance guides."
+                .to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             tweak_type: TweakType::Toggle,
