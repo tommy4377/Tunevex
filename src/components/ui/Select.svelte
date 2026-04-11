@@ -99,7 +99,7 @@
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid var(--border-color); /* Fallback */
         border: var(--border-glass, 1px solid rgba(255, 255, 255, 0.08));
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         color: var(--text-color);
         font-size: 13px;
         cursor: pointer;
@@ -142,7 +142,7 @@
         right: 0;
         background: #1e1e1e; /* Solid background for visibility */
         border: 1px solid var(--border-color);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         padding: 4px;
         z-index: 9999;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
