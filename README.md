@@ -1,15 +1,15 @@
-# Tunevex v0.4.0
+# Tunevex v0.5.0
 
-AI Advisor
+Startup analyzer
 
 Tunevex is a Windows system tuning and optimization utility built with Rust, Tauri and Svelte.
 
 ## Highlights
 
-- Optional Gemini powered advisor
-- Analyze, chat and diagnose workflows
-- Windows Credential Manager key storage
-- System profile aware recommendations
+- Startup scanning across common Windows autostart locations
+- Safety classification and critical entry protection
+- AI assisted startup recommendations
+- Detailed startup scan reports
 
 ## Safety
 

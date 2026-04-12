@@ -57,7 +57,15 @@ pub fn scan() -> Vec<StartupItem> {
 
             let triggers = infer_triggers(&task_path);
             let (publisher, description) = utils::get_file_info(&command);
-            let rating = assess_safety(&command, publisher.as_deref());
+            let mut rating = assess_safety(&command, publisher.as_deref());
+
+            // Mark Windows system tasks as Critical
+            let task_lower = task_path.to_lowercase();
+            if task_lower.starts_with(r"\microsoft\windows\") {
+                use crate::modules::startup::types::SafetyRating;
+                rating = SafetyRating::Critical;
+            }
+
             let first_token = command
                 .trim_matches('"')
                 .split_whitespace()

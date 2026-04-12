@@ -1,11 +1,11 @@
 pub mod commands;
 pub mod modules;
 
-use crate::commands::TweakContext;
 use crate::modules::activation::get_activation_tweaks;
 use crate::modules::cpu::get_cpu_tweaks;
 use crate::modules::debloat::get_debloat_tweaks;
 use crate::modules::display::get_display_tweaks;
+use crate::modules::tweaks::TweakContext;
 // use crate::modules::filesystem::get_filesystem_tweaks; // Migrated to storage
 use crate::modules::gaming::get_gaming_tweaks;
 use crate::modules::gpu::get_gpu_tweaks;

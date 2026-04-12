@@ -216,7 +216,7 @@
     gap: 10px; padding: 12px; }
   .hint { color: var(--text-muted); font-size: 13px; text-align: center; margin: auto; }
   .message { padding: 10px 14px; border-radius: var(--radius-md);
-    font-size: 13px; line-height: 1.5; max-width: 85%; white-space: pre-wrap; }
+    font-size: 13px; line-height: 1.4; max-width: 85%; white-space: pre-wrap; word-break: break-word; overflow-wrap: break-word; }
   .message.user  { background: rgba(129,140,248,0.15); border: 1px solid rgba(129,140,248,0.25);
     align-self: flex-end; color: var(--text-color); }
   .message.model { background: var(--layer-card); border: var(--border-glass);

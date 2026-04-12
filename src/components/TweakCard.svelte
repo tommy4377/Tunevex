@@ -1,8 +1,7 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
     import { invoke } from "@tauri-apps/api/core";
-    import { listen } from "@tauri-apps/api/event";
-    import { Loader2 } from "lucide-svelte";
+    import { Loader2, AlertTriangle } from "lucide-svelte";
     import Badge from "./ui/Badge.svelte";
     import type { Tweak } from "$lib/types";
 
@@ -10,10 +9,24 @@
 
     const dispatch = createEventDispatcher();
     let isApplying = false;
+    let showRevertConfirm = false;
 
-    async function handleToggle() {
+    function handleRevertClick() {
+        if (tweak.enabled && tweak.warning_level === 'Dangerous') {
+            showRevertConfirm = true;
+        } else {
+            doToggle();
+        }
+    }
+
+    function cancelRevert() {
+        showRevertConfirm = false;
+    }
+
+    async function doToggle() {
         if (isApplying) return;
         isApplying = true;
+        showRevertConfirm = false;
         try {
             if (tweak.enabled) {
                 await invoke("undo_tweak", { id: tweak.id });
@@ -39,25 +52,44 @@
 
     <p class="description">{tweak.description}</p>
 
-
-
-    <div class="footer">
-        <button
-            class="apply-btn"
-            class:applied={tweak.enabled}
-            class:loading={isApplying}
-            on:click={handleToggle}
-            disabled={isApplying}
-        >
-            {#if isApplying}
-                <Loader2 class="spinner" size={16} />
-            {:else if tweak.tweak_type === "Action"}
-                Run
-            {:else}
-                {tweak.enabled ? "Enabled" : "Disabled"}
-            {/if}
-        </button>
-    </div>
+    {#if showRevertConfirm}
+        <div class="revert-warning">
+            <div class="warning-header">
+                <AlertTriangle size={14} />
+                <span>Reverting Dangerous Tweak</span>
+            </div>
+            <p class="warning-text">
+                Reverting this tweak may affect system stability or security. This action cannot be undone easily.
+            </p>
+            <div class="warning-actions">
+                <button class="cancel-btn" onclick={cancelRevert} disabled={isApplying}>
+                    Cancel
+                </button>
+                <button class="confirm-btn" onclick={doToggle} disabled={isApplying}>
+                    {isApplying ? "Reverting..." : "Revert Anyway"}
+                </button>
+            </div>
+        </div>
+    {:else}
+        <div class="footer">
+            <button
+                class="apply-btn"
+                class:applied={tweak.enabled}
+                class:loading={isApplying}
+                class:dangerous={tweak.enabled && tweak.warning_level === 'Dangerous'}
+                onclick={handleRevertClick}
+                disabled={isApplying}
+            >
+                {#if isApplying}
+                    <Loader2 class="spinner" size={16} />
+                {:else if tweak.tweak_type === "Action"}
+                    Run
+                {:else}
+                    {tweak.enabled ? "Enabled" : "Disabled"}
+                {/if}
+            </button>
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -161,6 +193,15 @@
         cursor: wait;
     }
 
+    .apply-btn.dangerous {
+        border-color: rgba(248, 113, 113, 0.4);
+    }
+
+    .apply-btn.dangerous:hover {
+        border-color: #f87171;
+        color: #f87171;
+    }
+
     .apply-btn :global(.spinner) {
         animation: spin 1s linear infinite;
     }
@@ -172,6 +213,75 @@
         to {
             transform: rotate(360deg);
         }
+    }
+
+    .revert-warning {
+        margin-top: auto;
+        padding: 12px;
+        background: rgba(248, 113, 113, 0.08);
+        border: 1px solid rgba(248, 113, 113, 0.25);
+        border-radius: var(--radius-md);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .warning-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: #f87171;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .warning-text {
+        margin: 0;
+        font-size: 12px;
+        color: var(--text-secondary);
+        line-height: 1.4;
+    }
+
+    .warning-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+    }
+
+    .cancel-btn, .confirm-btn {
+        padding: 5px 12px;
+        border-radius: var(--radius-sm);
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s;
+        border: 1px solid;
+    }
+
+    .cancel-btn {
+        background: transparent;
+        border-color: rgba(255, 255, 255, 0.12);
+        color: var(--text-secondary);
+    }
+
+    .cancel-btn:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .confirm-btn {
+        background: rgba(248, 113, 113, 0.15);
+        border-color: rgba(248, 113, 113, 0.3);
+        color: #f87171;
+    }
+
+    .confirm-btn:hover:not(:disabled) {
+        background: rgba(248, 113, 113, 0.25);
+    }
+
+    .cancel-btn:disabled, .confirm-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 
 </style>

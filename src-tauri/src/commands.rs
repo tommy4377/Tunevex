@@ -7,923 +7,20 @@ use crate::modules::registry::backup::RegistryBackup;
 use crate::modules::registry::operations::apply_registry_tweak;
 use crate::modules::startup::toggle_item;
 use crate::modules::startup::types::StartupItem;
-use crate::modules::types::{RegistryValue, Tweak, TweakCheck, TweakOperation};
+use crate::modules::tweaks::{
+    apply_msi_remove, apply_msi_set, apply_svc_host_split_all, check_tweak_enabled,
+    control_defender_services, get_current_windows_build, reset_dns_servers,
+    set_defender_exclusions, set_dns_servers, set_nic_property, win11_only_tweaks, TweakContext,
+};
+use crate::modules::types::{Tweak, TweakOperation};
 use crate::modules::utils::privileges::is_admin;
+use crate::modules::utils::security::{safe_path_existing, safe_path_new, validate_command};
 use crate::modules::utils::state::AppState;
 use std::os::windows::process::CommandExt;
 use std::process::Command;
 use std::sync::Mutex;
 use strip_ansi_escapes::strip_str;
 use tauri::{Emitter, State};
-
-// ─── Allowed Commands Whitelist (Security) ───────────────────────────────
-const ALLOWED_COMMANDS: &[&str] = &[
-    "sc",
-    "schtasks",
-    "bcdedit",
-    "powercfg",
-    "fsutil",
-    "powershell",
-    "taskkill",
-    "netsh",
-    "reg",
-    "cmd",
-    "pnputil",
-    "del",
-    "rmdir",
-    "dism",
-];
-
-fn validate_command(cmd: &str) -> Result<(), String> {
-    let cmd_path = std::path::Path::new(cmd);
-    let exe_name = cmd_path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or(cmd)
-        .to_lowercase();
-    if ALLOWED_COMMANDS.contains(&exe_name.as_str()) {
-        Ok(())
-    } else {
-        Err(format!("Command '{}' is not in the allowed list", cmd))
-    }
-}
-
-// ─── Allowed Write Roots (Security - Path Traversal Prevention) ───────────────
-const ALLOWED_WRITE_ROOTS: &[&str] = &[
-    r"C:\Users",
-    r"C:\ProgramData",
-    r"C:\Program Files",
-    r"C:\Program Files (x86)",
-];
-
-fn expand_env_vars(raw: &str) -> String {
-    raw.replace("%APPDATA%", &std::env::var("APPDATA").unwrap_or_default())
-        .replace(
-            "%LOCALAPPDATA%",
-            &std::env::var("LOCALAPPDATA").unwrap_or_default(),
-        )
-        .replace(
-            "%ProgramData%",
-            &std::env::var("ProgramData").unwrap_or_default(),
-        )
-        .replace(
-            "%ProgramFiles%",
-            &std::env::var("ProgramFiles").unwrap_or_default(),
-        )
-        .replace(
-            "%UserProfile%",
-            &std::env::var("USERPROFILE").unwrap_or_default(),
-        )
-        .replace("%Home%", &std::env::var("USERPROFILE").unwrap_or_default())
-}
-
-fn is_under_allowed_root(p: &std::path::Path) -> bool {
-    let s = p.to_string_lossy().to_lowercase();
-    ALLOWED_WRITE_ROOTS
-        .iter()
-        .any(|r| s.starts_with(&r.to_lowercase()))
-}
-
-// For SOURCE paths that MUST already exist (Delete, Copy/Move src)
-fn safe_path_existing(raw: &str) -> Result<std::path::PathBuf, String> {
-    let expanded = expand_env_vars(raw);
-    let canonical = std::path::Path::new(&expanded)
-        .canonicalize()
-        .map_err(|e| format!("Path not found '{}': {}", raw, e))?;
-    if !is_under_allowed_root(&canonical) {
-        return Err(format!("Path '{}' is outside allowed directories.", raw));
-    }
-    Ok(canonical)
-}
-
-// For DESTINATION paths that may NOT exist yet (Write, Copy/Move dest)
-fn safe_path_new(raw: &str) -> Result<std::path::PathBuf, String> {
-    let expanded = expand_env_vars(raw);
-    let p = std::path::PathBuf::from(&expanded);
-    // Walk up until we find an existing ancestor, canonicalize only that
-    let mut existing = p.clone();
-    let mut suffix = std::path::PathBuf::new();
-    loop {
-        if existing.exists() {
-            break;
-        }
-        match existing.parent() {
-            Some(parent) => {
-                if let Some(component) = existing.file_name() {
-                    suffix = std::path::PathBuf::from(component).join(&suffix);
-                }
-                existing = parent.to_path_buf();
-            }
-            None => break,
-        }
-    }
-    let base = if existing.exists() {
-        existing
-            .canonicalize()
-            .map_err(|e| format!("Cannot resolve base path for '{}': {}", raw, e))?
-    } else {
-        existing
-    };
-    let full = base.join(suffix);
-    if !is_under_allowed_root(&full) {
-        return Err(format!(
-            "Destination '{}' is outside allowed directories.",
-            raw
-        ));
-    }
-    Ok(full)
-}
-
-// ─── Tcpip interface registry path ─────────────────────────────────────────
-const TCPIP_INTERFACES_PATH: &str =
-    "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces";
-
-// ─── NIC class GUID ────────────────────────────────────────────────────────
-const NIC_CLASS_PATH: &str =
-    "SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e972-e325-11ce-bfc1-08002be10318}";
-
-/// Enumerate every physical NIC subkey (those that have a "DriverDesc" value).
-/// Returns a list of registry paths like
-///   "SYSTEM\...\{4d36e972...}\0000"
-fn nic_subkey_paths() -> Vec<String> {
-    use winreg::enums::*;
-    use winreg::RegKey;
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let class_key = match hklm.open_subkey(NIC_CLASS_PATH) {
-        Ok(k) => k,
-        Err(_) => return Vec::new(),
-    };
-    let mut paths = Vec::new();
-    for sub in class_key.enum_keys().flatten() {
-        // Only 4-digit numeric subkeys are adapter instances
-        if sub.len() != 4 || !sub.chars().all(|c| c.is_ascii_digit()) {
-            continue;
-        }
-        let sub_path = format!("{}\\{}", NIC_CLASS_PATH, sub);
-        // Verify it is a real adapter (has DriverDesc)
-        if let Ok(k) = hklm.open_subkey(&sub_path) {
-            if k.get_value::<String, _>("DriverDesc").is_ok() {
-                paths.push(sub_path);
-            }
-        }
-    }
-    paths
-}
-
-/// Write `value` as REG_SZ into `property` for every physical NIC subkey.
-/// Silently skips adapters that don't have the property at all.
-fn set_nic_property(property: &str, value: &str) -> Result<(), String> {
-    use winreg::enums::*;
-    use winreg::RegKey;
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    for path in nic_subkey_paths() {
-        match hklm.open_subkey_with_flags(&path, KEY_SET_VALUE | KEY_QUERY_VALUE) {
-            Ok(k) => {
-                // Only set if the property already exists on this adapter
-                // (avoids injecting foreign keys into adapters that don't support it)
-                let already: Result<String, _> = k.get_value(property);
-                if already.is_ok() {
-                    if let Err(e) = k.set_value(property, &value.to_string()) {
-                        eprintln!(
-                            "[NicProp] Warning: set {} on {} failed: {}",
-                            property, path, e
-                        );
-                    }
-                }
-            }
-            Err(e) => eprintln!("[NicProp] Warning: open {} failed: {}", path, e),
-        }
-    }
-    Ok(())
-}
-
-/// Check that every physical NIC subkey that *has* `property` reports the
-/// expected value.  Returns true if no adapter disagrees.
-fn check_nic_property(property: &str, expected: &str) -> bool {
-    use winreg::enums::*;
-    use winreg::RegKey;
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let mut found_any = false;
-    for path in nic_subkey_paths() {
-        if let Ok(k) = hklm.open_subkey_with_flags(&path, KEY_READ) {
-            if let Ok(val) = k.get_value::<String, _>(property) {
-                found_any = true;
-                if val.to_lowercase() != expected.to_lowercase() {
-                    return false;
-                }
-            }
-        }
-    }
-    // If no adapter has the property, treat as "not applied"
-    found_any
-}
-
-// ─── DNS helpers (pure winreg, no PowerShell) ───────────────────────────────
-
-/// Enumerate all {GUID} subkeys under Tcpip\Parameters\Interfaces.
-fn tcpip_interface_subkeys() -> Vec<String> {
-    use winreg::enums::*;
-    use winreg::RegKey;
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let parent = match hklm.open_subkey(TCPIP_INTERFACES_PATH) {
-        Ok(k) => k,
-        Err(_) => return Vec::new(),
-    };
-    parent
-        .enum_keys()
-        .flatten()
-        .map(|guid| format!("{}\\{}", TCPIP_INTERFACES_PATH, guid))
-        .collect()
-}
-
-/// Write static DNS server addresses to every Tcpip interface subkey.
-/// Format: "primary,secondary"  (Windows comma-separated REG_SZ).
-fn set_dns_servers(primary: &str, secondary: &str) -> Result<(), String> {
-    use winreg::enums::*;
-    use winreg::RegKey;
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let value = format!("{},{}", primary, secondary);
-    for path in tcpip_interface_subkeys() {
-        match hklm.open_subkey_with_flags(&path, KEY_SET_VALUE) {
-            Ok(k) => {
-                if let Err(e) = k.set_value("NameServer", &value) {
-                    eprintln!("[DNS] Warning: set NameServer on {} failed: {}", path, e);
-                }
-            }
-            Err(e) => eprintln!("[DNS] Warning: open {} failed: {}", path, e),
-        }
-    }
-    Ok(())
-}
-
-/// Reset DNS to DHCP by clearing NameServer on every Tcpip interface subkey.
-fn reset_dns_servers() -> Result<(), String> {
-    use winreg::enums::*;
-    use winreg::RegKey;
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let empty = String::new();
-    for path in tcpip_interface_subkeys() {
-        match hklm.open_subkey_with_flags(&path, KEY_SET_VALUE) {
-            Ok(k) => {
-                if let Err(e) = k.set_value("NameServer", &empty) {
-                    eprintln!("[DNS] Warning: clear NameServer on {} failed: {}", path, e);
-                }
-            }
-            Err(e) => eprintln!("[DNS] Warning: open {} failed: {}", path, e),
-        }
-    }
-    Ok(())
-}
-
-// ─── Windows Defender native helpers (no PowerShell) ───────────────────────
-
-/// Registry path for Tamper Protection feature flag.
-const DEFENDER_FEATURES_PATH: &str = "SOFTWARE\\Microsoft\\Windows Defender\\Features";
-/// Registry path for Defender policy (set by Group Policy / tweaks).
-const DEFENDER_POLICY_PATH: &str = "SOFTWARE\\Policies\\Microsoft\\Windows Defender";
-/// Registry path for Defender Exclusions\Paths.
-const DEFENDER_EXCLUSIONS_PATH: &str = "SOFTWARE\\Microsoft\\Windows Defender\\Exclusions\\Paths";
-
-/// Returns true when Tamper Protection is currently ACTIVE (value == 5).
-/// Source: HKLM\SOFTWARE\Microsoft\Windows Defender\Features\TamperProtection
-fn is_tamper_protection_on() -> bool {
-    use winreg::enums::*;
-    use winreg::RegKey;
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    if let Ok(key) = hklm.open_subkey(DEFENDER_FEATURES_PATH) {
-        // TamperProtection == 5 means fully enabled; 4 = disabled; 0/2 = off/intermediate
-        if let Ok(val) = key.get_value::<u32, _>("TamperProtection") {
-            return val == 5;
-        }
-    }
-    false
-}
-
-/// Check native Defender status via pure registry reads.
-/// variant "realtime_disabled" → RTP policy key is 1 AND tamper protection is OFF
-/// variant "av_disabled"       → both AV policy keys are 1 AND tamper protection is OFF
-fn check_mp_computer_status(check: &str) -> bool {
-    use winreg::enums::*;
-    use winreg::RegKey;
-
-    // If Tamper Protection is on, any policy tweak is silently ignored by Windows —
-    // from the user's perspective the tweak is NOT applied.
-    if is_tamper_protection_on() {
-        return false;
-    }
-
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    match check {
-        "realtime_disabled" => {
-            // Policy key: HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection
-            let rtp_path = format!("{}\\Real-Time Protection", DEFENDER_POLICY_PATH);
-            hklm.open_subkey(&rtp_path)
-                .and_then(|k| k.get_value::<u32, _>("DisableRealtimeMonitoring"))
-                .map(|v| v == 1)
-                .unwrap_or(false)
-        }
-        "av_disabled" => {
-            // Both DisableAntiSpyware and DisableAntiVirus must be 1
-            let spyware_off = hklm
-                .open_subkey(DEFENDER_POLICY_PATH)
-                .and_then(|k| k.get_value::<u32, _>("DisableAntiSpyware"))
-                .map(|v| v == 1)
-                .unwrap_or(false);
-            let antivirus_off = hklm
-                .open_subkey(DEFENDER_POLICY_PATH)
-                .and_then(|k| k.get_value::<u32, _>("DisableAntiVirus"))
-                .map(|v| v == 1)
-                .unwrap_or(false);
-            spyware_off && antivirus_off
-        }
-        _ => false,
-    }
-}
-
-/// Returns true when ALL the given paths appear as value names under
-/// HKLM\SOFTWARE\Microsoft\Windows Defender\Exclusions\Paths.
-/// The Exclusions\Paths key stores each exclusion path as a REG_DWORD value name
-/// (the value data is always 0).
-fn check_defender_exclusion_paths(paths: &[String]) -> bool {
-    use winreg::enums::*;
-    use winreg::RegKey;
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let key = match hklm.open_subkey(DEFENDER_EXCLUSIONS_PATH) {
-        Ok(k) => k,
-        Err(_) => return false,
-    };
-    // Collect all existing value names (case-insensitive)
-    let existing: Vec<String> = key
-        .enum_values()
-        .flatten()
-        .map(|(name, _)| name.to_lowercase())
-        .collect();
-    paths.iter().all(|p| existing.contains(&p.to_lowercase()))
-}
-
-/// Add or remove exclusion paths from
-/// HKLM\SOFTWARE\Microsoft\Windows Defender\Exclusions\Paths.
-fn set_defender_exclusions(paths: &[String], action: &str) -> Result<(), String> {
-    use winreg::enums::*;
-    use winreg::RegKey;
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    match action {
-        "add" => {
-            // Open or create the Exclusions\Paths key
-            let (key, _) = hklm
-                .create_subkey(DEFENDER_EXCLUSIONS_PATH)
-                .map_err(|e| format!("Failed to open/create Exclusions\\Paths key: {}", e))?;
-            for path in paths {
-                // Each path is stored as a value name with DWORD data = 0
-                key.set_value(path, &0u32)
-                    .map_err(|e| format!("Failed to add exclusion '{}': {}", path, e))?;
-            }
-        }
-        "remove" => {
-            if let Ok(key) = hklm.open_subkey_with_flags(DEFENDER_EXCLUSIONS_PATH, KEY_SET_VALUE) {
-                for path in paths {
-                    // Ignore "not found" errors — exclusion may already be gone
-                    let _ = key.delete_value(path);
-                }
-            }
-            // If the key doesn't exist there is nothing to remove — that is fine.
-        }
-        _ => return Err(format!("Unknown DefenderExclusion action: {}", action)),
-    }
-    Ok(())
-}
-
-/// Control Defender services (WinDefend, WdNisSvc, Sense) via sc.exe.
-/// action "disable" → sc stop + sc config start= disabled
-/// action "enable"  → sc config start= auto + sc start
-fn control_defender_services(services: &[String], action: &str) -> Result<(), String> {
-    for svc in services {
-        match action {
-            "disable" => {
-                // Stop service first (ignore error — it may already be stopped)
-                let _ = Command::new("sc")
-                    .args(&["stop", svc])
-                    .creation_flags(0x08000000)
-                    .output();
-                // Disable startup type
-                let out = Command::new("sc")
-                    .args(&["config", svc, "start=", "disabled"])
-                    .creation_flags(0x08000000)
-                    .output()
-                    .map_err(|e| format!("sc config disable {} failed: {}", svc, e))?;
-                if !out.status.success() {
-                    eprintln!(
-                        "[Defender] Warning: sc config start= disabled for {} returned non-zero",
-                        svc
-                    );
-                }
-            }
-            "enable" => {
-                // Set to auto-start
-                let out = Command::new("sc")
-                    .args(&["config", svc, "start=", "auto"])
-                    .creation_flags(0x08000000)
-                    .output()
-                    .map_err(|e| format!("sc config enable {} failed: {}", svc, e))?;
-                if !out.status.success() {
-                    eprintln!(
-                        "[Defender] Warning: sc config start= auto for {} returned non-zero",
-                        svc
-                    );
-                }
-                // Start service (ignore error — may need reboot or tamper protection blocks it)
-                let _ = Command::new("sc")
-                    .args(&["start", svc])
-                    .creation_flags(0x08000000)
-                    .output();
-            }
-            _ => return Err(format!("Unknown DefenderServiceControl action: {}", action)),
-        }
-    }
-    Ok(())
-}
-
-/// Run a binary and return true when its stdout+stderr output (case-insensitive)
-/// contains the given substring.  Used for bcdedit /enum and powercfg /q checks
-/// without spawning PowerShell.
-fn check_command_output_contains(cmd: &str, args: &[String], contains: &str) -> bool {
-    // BUG-H2 fix: apply the same whitelist used in apply_tweak/undo_tweak
-    if validate_command(cmd).is_err() {
-        eprintln!("[check] Blocked non-whitelisted command: '{}'", cmd);
-        return false; // fail-safe: treat as "not applied"
-    }
-    let output = Command::new(cmd)
-        .args(args)
-        .creation_flags(0x08000000)
-        .output();
-    match output {
-        Ok(out) => {
-            let combined = format!(
-                "{}{}",
-                String::from_utf8_lossy(&out.stdout),
-                String::from_utf8_lossy(&out.stderr)
-            )
-            .to_lowercase();
-            combined.contains(&contains.to_lowercase())
-        }
-        Err(_) => false,
-    }
-}
-
-/// Returns true when the given registry key path does NOT exist.
-fn check_registry_key_absent(root_key: &str, path: &str) -> bool {
-    use winreg::enums::*;
-    use winreg::RegKey;
-    let hkey = match root_key.to_uppercase().as_str() {
-        "HKLM" | "HKEY_LOCAL_MACHINE" => HKEY_LOCAL_MACHINE,
-        "HKCU" | "HKEY_CURRENT_USER" => HKEY_CURRENT_USER,
-        "HKCR" | "HKEY_CLASSES_ROOT" => HKEY_CLASSES_ROOT,
-        "HKU" | "HKEY_USERS" => HKEY_USERS,
-        _ => return false,
-    };
-    RegKey::predef(hkey).open_subkey(path).is_err()
-}
-
-/// Set or remove SvcHostSplitDisable on every non-Xbox service subkey under
-/// HKLM\SYSTEM\CurrentControlSet\Services.
-/// enable_split = false  → sets SvcHostSplitDisable = DWORD 1 (disable splitting)
-/// enable_split = true   → deletes SvcHostSplitDisable (restore default splitting)
-/// Only touches subkeys that have a "Start" value (real services).
-fn apply_svc_host_split_all(enable_split: bool) -> Result<(), String> {
-    use winreg::enums::*;
-    use winreg::RegKey;
-
-    const SERVICES_PATH: &str = "SYSTEM\\CurrentControlSet\\Services";
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let services_key = hklm
-        .open_subkey_with_flags(SERVICES_PATH, KEY_READ)
-        .map_err(|e| format!("Failed to open Services key: {}", e))?;
-
-    for sub_name in services_key.enum_keys().flatten() {
-        // Skip Xbox services
-        let lower = sub_name.to_lowercase();
-        if lower.contains("xbl") || lower.contains("xbox") {
-            continue;
-        }
-
-        let sub_path = format!("{}\\{}", SERVICES_PATH, sub_name);
-
-        // Only act on real services (those that have a "Start" value)
-        let sub_key = match hklm.open_subkey_with_flags(&sub_path, KEY_READ | KEY_SET_VALUE) {
-            Ok(k) => k,
-            Err(_) => continue,
-        };
-
-        if sub_key.get_value::<u32, _>("Start").is_err() {
-            continue; // not a real service
-        }
-
-        if enable_split {
-            // Restore default: remove SvcHostSplitDisable
-            let _ = sub_key.delete_value("SvcHostSplitDisable");
-        } else {
-            // Disable splitting: set to 1
-            if let Err(e) = sub_key.set_value("SvcHostSplitDisable", &1u32) {
-                eprintln!("[SvcHostSplit] Warning: set on {} failed: {}", sub_name, e);
-            }
-        }
-    }
-    Ok(())
-}
-
-/// Check if MSI is enabled globally for all PCI device classes at the specified priority.
-/// Returns true only if ALL devices in all classes have MSISupported=1, MessageNumberLimit=1, Priority=priority.
-fn check_msi_enabled_globally(priority: u32) -> bool {
-    use winreg::enums::*;
-    use winreg::RegKey;
-
-    const PCI_PATH: &str = "SYSTEM\\CurrentControlSet\\Enum\\PCI";
-    const CLASSES: &[&str] = &["Display", "SCSIAdapter", "Net", "USB", "HDC"];
-
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let _pci_key = match hklm.open_subkey_with_flags(PCI_PATH, KEY_READ) {
-        Ok(k) => k,
-        Err(_) => return false,
-    };
-
-    for class in CLASSES {
-        let class_key_path = format!("{}\\{}", PCI_PATH, class);
-        let class_key = match hklm.open_subkey_with_flags(&class_key_path, KEY_READ) {
-            Ok(k) => k,
-            Err(_) => continue,
-        };
-
-        for dev_name in class_key.enum_keys().flatten() {
-            let dev_path = format!("{}\\{}\\{}", PCI_PATH, class, dev_name);
-            let _dev_key = match hklm.open_subkey_with_flags(&dev_path, KEY_READ) {
-                Ok(k) => k,
-                Err(_) => continue,
-            };
-
-            let msi_path = format!(
-                "{}\\Device Parameters\\Interrupt Management\\MessageSignaledInterruptProperties",
-                dev_path
-            );
-            let msi_key = match hklm.open_subkey_with_flags(&msi_path, KEY_READ) {
-                Ok(k) => k,
-                Err(_) => return false,
-            };
-
-            let msi_supported: u32 = match msi_key.get_value("MSISupported") {
-                Ok(v) => v,
-                Err(_) => return false,
-            };
-            let msg_limit: u32 = match msi_key.get_value("MessageNumberLimit") {
-                Ok(v) => v,
-                Err(_) => return false,
-            };
-            let prio: u32 = match msi_key.get_value("Priority") {
-                Ok(v) => v,
-                Err(_) => return false,
-            };
-
-            if msi_supported != 1 || msg_limit != 1 || prio != priority {
-                return false;
-            }
-        }
-    }
-    true
-}
-
-/// Apply MSI settings to all devices of a given PCI class.
-fn apply_msi_set(class: &str, priority: u32) -> Result<(), String> {
-    use winreg::enums::*;
-    use winreg::RegKey;
-
-    const PCI_PATH: &str = "SYSTEM\\CurrentControlSet\\Enum\\PCI";
-    let class_key_path = format!("{}\\{}", PCI_PATH, class);
-
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let class_key = match hklm.open_subkey_with_flags(&class_key_path, KEY_READ) {
-        Ok(k) => k,
-        Err(_) => return Ok(()),
-    };
-
-    for dev_name in class_key.enum_keys().flatten() {
-        let dev_path = format!("{}\\{}\\{}", PCI_PATH, class, dev_name);
-        let base_path = format!("{}\\Device Parameters\\Interrupt Management", dev_path);
-        let msi_path = format!("{}\\{}", base_path, "MessageSignaledInterruptProperties");
-
-        // Create keys if they don't exist
-        if let Err(_) = hklm.create_subkey(&base_path) {
-            continue;
-        }
-        if let Err(_) = hklm.create_subkey(&msi_path) {
-            continue;
-        }
-
-        let msi_key = match hklm.open_subkey_with_flags(&msi_path, KEY_SET_VALUE) {
-            Ok(k) => k,
-            Err(_) => continue,
-        };
-
-        let _ = msi_key.set_value("MSISupported", &1u32);
-        let _ = msi_key.set_value("MessageNumberLimit", &1u32);
-        let _ = msi_key.set_value("Priority", &priority);
-    }
-    Ok(())
-}
-
-/// Remove MSI settings from all devices of a given PCI class.
-fn apply_msi_remove(class: &str) -> Result<(), String> {
-    use winreg::enums::*;
-    use winreg::RegKey;
-
-    const PCI_PATH: &str = "SYSTEM\\CurrentControlSet\\Enum\\PCI";
-    let class_key_path = format!("{}\\{}", PCI_PATH, class);
-
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let class_key = match hklm.open_subkey_with_flags(&class_key_path, KEY_READ) {
-        Ok(k) => k,
-        Err(_) => return Ok(()),
-    };
-
-    for dev_name in class_key.enum_keys().flatten() {
-        let dev_path = format!("{}\\{}\\{}", PCI_PATH, class, dev_name);
-        let msi_path = format!(
-            "{}\\Device Parameters\\Interrupt Management\\MessageSignaledInterruptProperties",
-            dev_path
-        );
-
-        let msi_key = match hklm.open_subkey_with_flags(&msi_path, KEY_SET_VALUE) {
-            Ok(k) => k,
-            Err(_) => continue,
-        };
-
-        let _ = msi_key.delete_value("MSISupported");
-        let _ = msi_key.delete_value("MessageNumberLimit");
-        let _ = msi_key.delete_value("Priority");
-    }
-    Ok(())
-}
-
-/// Check if MSI is enabled on all network adapters at the specified priority.
-fn check_msi_enabled_on_net(priority: u32) -> bool {
-    use winreg::enums::*;
-    use winreg::RegKey;
-
-    const PCI_PATH: &str = "SYSTEM\\CurrentControlSet\\Enum\\PCI\\Net";
-
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let net_key = match hklm.open_subkey_with_flags(PCI_PATH, KEY_READ) {
-        Ok(k) => k,
-        Err(_) => return false,
-    };
-
-    for dev_name in net_key.enum_keys().flatten() {
-        let dev_path = format!("{}\\{}", PCI_PATH, dev_name);
-        let msi_path = format!(
-            "{}\\Device Parameters\\Interrupt Management\\MessageSignaledInterruptProperties",
-            dev_path
-        );
-
-        let msi_key = match hklm.open_subkey_with_flags(&msi_path, KEY_READ) {
-            Ok(k) => k,
-            Err(_) => return false,
-        };
-
-        let msi_supported: u32 = match msi_key.get_value("MSISupported") {
-            Ok(v) => v,
-            Err(_) => return false,
-        };
-        let msg_limit: u32 = match msi_key.get_value("MessageNumberLimit") {
-            Ok(v) => v,
-            Err(_) => return false,
-        };
-        let prio: u32 = match msi_key.get_value("Priority") {
-            Ok(v) => v,
-            Err(_) => return false,
-        };
-
-        if msi_supported != 1 || msg_limit != 1 || prio != priority {
-            return false;
-        }
-    }
-    true
-}
-
-/// Return true when at least one interface has a NameServer value that contains `ip`.
-fn check_dns_servers_contain(ip: &str) -> bool {
-    use winreg::enums::*;
-    use winreg::RegKey;
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    for path in tcpip_interface_subkeys() {
-        if let Ok(k) = hklm.open_subkey_with_flags(&path, KEY_READ) {
-            if let Ok(val) = k.get_value::<String, _>("NameServer") {
-                // NameServer is comma-separated, e.g. "8.8.8.8,8.8.4.4"
-                if val.split(',').any(|s| s.trim() == ip) {
-                    return true;
-                }
-            }
-        }
-    }
-    false
-}
-
-// Placeholder for the global tweak registry
-pub struct TweakContext {
-    pub tweaks: Vec<Tweak>,
-}
-
-/// Check if a tweak is currently enabled on the system by evaluating its TweakCheck
-fn check_tweak_enabled(check: &TweakCheck) -> bool {
-    match check {
-        TweakCheck::Registry {
-            root_key,
-            path,
-            key,
-            expected_value,
-        } => check_registry_value(root_key, path, key, expected_value),
-        TweakCheck::MultiScheduledTaskDisabled { names } => names.iter().all(|name| {
-            let output = Command::new("schtasks")
-                .args(["/Query", "/TN", name, "/V", "/FO", "LIST"])
-                .creation_flags(0x08000000)
-                .output()
-                .unwrap_or_else(|_| std::process::Output {
-                    status: std::os::windows::process::ExitStatusExt::from_raw(1),
-                    stdout: vec![],
-                    stderr: vec![],
-                });
-            let s = String::from_utf8_lossy(&output.stdout).to_string();
-            s.contains("Disabled") || s.contains("Disabilitato")
-        }),
-        TweakCheck::Powershell {
-            script,
-            expected_output,
-        } => check_powershell_output(script, expected_output),
-        TweakCheck::NetAdapterProperty {
-            property,
-            expected_value,
-        } => check_nic_property(property, expected_value),
-        TweakCheck::DnsServersContain { ip } => check_dns_servers_contain(ip),
-        TweakCheck::MultiRegistry { checks } => checks
-            .iter()
-            .all(|c| check_registry_value(&c.root_key, &c.path, &c.key, &c.expected_value)),
-        TweakCheck::MpComputerStatus { check } => check_mp_computer_status(check),
-        TweakCheck::DefenderExclusionPath { paths } => check_defender_exclusion_paths(paths),
-        TweakCheck::CommandOutputContains {
-            cmd,
-            args,
-            contains,
-        } => check_command_output_contains(cmd, args, contains),
-        TweakCheck::RegistryKeyAbsent { root_key, path } => {
-            check_registry_key_absent(root_key, path)
-        }
-        TweakCheck::ScheduledTaskDisabled { name } => {
-            let output = Command::new("schtasks")
-                .args(&["/query", "/tn", name, "/v", "/fo", "list"])
-                .creation_flags(0x08000000)
-                .output()
-                .unwrap_or_else(|_| std::process::Output {
-                    status: std::os::windows::process::ExitStatusExt::from_raw(1),
-                    stdout: Vec::new(),
-                    stderr: Vec::new(),
-                });
-            let out_str = String::from_utf8_lossy(&output.stdout).to_string();
-            // In English Windows, "Status: Disabled"
-            out_str.contains("Disabled") || out_str.contains("Disabilitato")
-        }
-        TweakCheck::ServiceDisabled { name } => {
-            let output = Command::new("sc")
-                .args(&["qc", name])
-                .creation_flags(0x08000000)
-                .output()
-                .unwrap_or_else(|_| std::process::Output {
-                    status: std::os::windows::process::ExitStatusExt::from_raw(1),
-                    stdout: Vec::new(),
-                    stderr: Vec::new(),
-                });
-            let out_str = String::from_utf8_lossy(&output.stdout).to_string();
-            out_str.contains("DISABLED") || out_str.contains("4  DISABLED")
-        }
-        TweakCheck::ServiceMode { name, mode } => {
-            let output = Command::new("sc")
-                .args(&["qc", name])
-                .creation_flags(0x08000000)
-                .output()
-                .unwrap_or_else(|_| std::process::Output {
-                    status: std::os::windows::process::ExitStatusExt::from_raw(1),
-                    stdout: Vec::new(),
-                    stderr: Vec::new(),
-                });
-            let out_str = String::from_utf8_lossy(&output.stdout).to_string();
-            let mode_upper = mode.to_uppercase();
-            out_str.contains(&mode_upper)
-                || out_str.contains(&format!("START_TYPE         : {}", mode_upper))
-        }
-        TweakCheck::MultiServiceDisabled { names } => names.iter().all(|name| {
-            let output = Command::new("sc")
-                .args(&["qc", name])
-                .creation_flags(0x08000000)
-                .output()
-                .unwrap_or_else(|_| std::process::Output {
-                    status: std::os::windows::process::ExitStatusExt::from_raw(1),
-                    stdout: Vec::new(),
-                    stderr: Vec::new(),
-                });
-            let out_str = String::from_utf8_lossy(&output.stdout).to_string();
-            out_str.contains("DISABLED") || out_str.contains("4  DISABLED")
-        }),
-        TweakCheck::MsiEnabledGlobally { priority } => check_msi_enabled_globally(*priority),
-        TweakCheck::MsiEnabledOnNet { priority } => check_msi_enabled_on_net(*priority),
-        TweakCheck::NetworkInterfacesCheck {
-            key,
-            expected_value,
-        } => crate::modules::registry::operations::check_network_interfaces(key, expected_value)
-            .unwrap_or(false),
-    }
-}
-
-/// Check if a registry value matches the expected value
-fn check_registry_value(
-    root_key: &str,
-    path: &str,
-    key: &str,
-    expected_value: &RegistryValue,
-) -> bool {
-    use winreg::enums::*;
-    use winreg::RegKey;
-
-    let hkey = match root_key.to_uppercase().as_str() {
-        "HKLM" | "HKEY_LOCAL_MACHINE" => HKEY_LOCAL_MACHINE,
-        "HKCU" | "HKEY_CURRENT_USER" => HKEY_CURRENT_USER,
-        "HKCR" | "HKEY_CLASSES_ROOT" => HKEY_CLASSES_ROOT,
-        "HKU" | "HKEY_USERS" => HKEY_USERS,
-        _ => return false,
-    };
-
-    let regkey = match RegKey::predef(hkey).open_subkey(path) {
-        Ok(k) => k,
-        Err(_) => return false,
-    };
-
-    match expected_value {
-        RegistryValue::DWord(expected) => regkey
-            .get_value::<u32, _>(key)
-            .map(|v| v == *expected)
-            .unwrap_or(false),
-        RegistryValue::QWord(expected) => regkey
-            .get_value::<u64, _>(key)
-            .map(|v| v == *expected)
-            .unwrap_or(false),
-        RegistryValue::String(expected) => regkey
-            .get_value::<String, _>(key)
-            .map(|v| v == *expected)
-            .unwrap_or(false),
-        RegistryValue::Binary(expected) => {
-            // Use get_raw_value to avoid winreg version conflicts
-            regkey
-                .get_raw_value(key)
-                .map(|v| v.bytes == *expected)
-                .unwrap_or(false)
-        }
-        RegistryValue::MultiString(expected) => regkey
-            .get_value::<Vec<String>, _>(key)
-            .map(|v| v == *expected)
-            .unwrap_or(false),
-    }
-}
-
-/// Check if PowerShell script output matches expected value
-fn check_powershell_output(script: &str, expected_output: &str) -> bool {
-    use std::io::Write;
-    use std::process::Stdio;
-    // BUG-H3 fix: RemoteSigned + script via stdin (same as apply/undo paths)
-    let mut child = match Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-NonInteractive",
-            "-ExecutionPolicy",
-            "RemoteSigned",
-            "-Command",
-            "-",
-        ])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .creation_flags(0x08000000)
-        .spawn()
-    {
-        Ok(c) => c,
-        Err(_) => return false,
-    };
-    if let Some(mut stdin) = child.stdin.take() {
-        let _ = writeln!(stdin, "{}", script);
-    }
-    match child.wait_with_output() {
-        Ok(out) => {
-            let stdout = String::from_utf8_lossy(&out.stdout).trim().to_lowercase();
-            stdout == expected_output.trim().to_lowercase()
-        }
-        Err(_) => false,
-    }
-}
-
 #[tauri::command]
 
 pub fn check_is_admin() -> bool {
@@ -947,30 +44,6 @@ pub async fn set_startup_item_enabled(id: String, enable: bool) -> Result<(), St
 }
 
 use crate::modules::network::dns_benchmark::{self, DnsBenchmarkResult};
-
-fn get_current_windows_build() -> u32 {
-    use winreg::{enums::*, RegKey};
-    RegKey::predef(HKEY_LOCAL_MACHINE)
-        .open_subkey("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion")
-        .and_then(|k| k.get_value::<String, _>("CurrentBuildNumber"))
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0)
-}
-
-fn win11_only_tweaks() -> std::collections::HashMap<&'static str, u32> {
-    [
-        ("interface_taskbar_end_task", 22621),
-        ("taskbar_align_left", 22000),
-        ("interface_remove_home_namespace", 22000),
-        ("interface_disable_dynamic_lighting", 22621),
-        ("privacy_disable_recall", 26100),
-        ("privacy_disable_cross_device_resume", 26100),
-        ("boot_highest_mode", 22000),
-    ]
-    .into_iter()
-    .collect()
-}
 
 #[tauri::command]
 pub async fn benchmark_dns() -> Result<Vec<DnsBenchmarkResult>, String> {
@@ -2188,6 +1261,8 @@ pub async fn ai_diagnose(
     app: tauri::AppHandle,
 ) -> Result<DiagnosisResult, String> {
     let profile = profiler::scan_system_profile_from_state(Some(app))?;
+    let memory = AiMemoryStore::load();
+    let memory_ctx = memory.to_prompt_context();
 
     let applied_detail = {
         let context = ctx.lock().map_err(|e| e.to_string())?;
@@ -2208,13 +1283,27 @@ pub async fn ai_diagnose(
             .collect::<Vec<_>>()
     };
 
+    let (ctx_user, ctx_model) = prompts::build_context_injection(
+        &serde_json::to_string_pretty(&profile).map_err(|e| e.to_string())?,
+        &serde_json::to_string(&applied_detail).map_err(|e| e.to_string())?,
+        &memory_ctx,
+    );
+
     let prompt = prompts::build_diagnose_prompt(
         &serde_json::to_string_pretty(&profile).map_err(|e| e.to_string())?,
         &serde_json::to_string(&applied_detail).map_err(|e| e.to_string())?,
         &problem,
     );
 
-    let raw = gemini::call_gemini(vec![("user".to_string(), prompt)], true).await?;
+    let raw = gemini::call_gemini(
+        vec![
+            ("user".to_string(), ctx_user),
+            ("model".to_string(), ctx_model),
+            ("user".to_string(), prompt),
+        ],
+        true,
+    )
+    .await?;
 
     let raw_trimmed = raw.trim();
     let result: DiagnosisResult = if raw_trimmed.starts_with('[') {
@@ -2243,6 +1332,21 @@ pub async fn ai_diagnose(
             )
         })?
     };
+
+    let mut mem = AiMemoryStore::load();
+    mem.add(MemoryKind::Diagnosis {
+        problem: problem.clone(),
+        likely_causes: result
+            .likely_causes
+            .iter()
+            .map(|c| c.tweak_id.clone())
+            .collect(),
+        suggested_fix: result.suggested_fix.clone(),
+        resolved: None,
+        follow_up_notes: None,
+    });
+    let _ = mem.save();
+
     Ok(result)
 }
 
@@ -2270,7 +1374,7 @@ pub fn get_full_ai_memory() -> Result<String, String> {
 
 #[tauri::command]
 pub fn clear_ai_memory() -> Result<(), String> {
-    let mut store = AiMemoryStore::default();
+    let store = AiMemoryStore::default();
     store.save()
 }
 
@@ -2303,8 +1407,9 @@ pub fn delete_chat(id: String) -> Result<(), String> {
 #[tauri::command]
 pub async fn ai_scan_startup(
     items: Vec<StartupItem>,
+    app: tauri::AppHandle,
 ) -> Result<crate::modules::ai::startup::StartupScanResult, String> {
-    scan_startup_with_ai(items).await
+    scan_startup_with_ai(items, app).await
 }
 
 #[tauri::command]
@@ -2331,7 +1436,7 @@ pub async fn ai_apply_startup_recommendations(
 
             memory.add(MemoryKind::StartupAction {
                 item_id: rec.item_id.clone(),
-                item_name: rec.item_id.clone(),
+                item_name: rec.item_name.clone(),
                 action: "disabled".to_string(),
                 reason: rec.reason.clone(),
             });

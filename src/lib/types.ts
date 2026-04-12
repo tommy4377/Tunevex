@@ -37,6 +37,7 @@ export interface Tweak {
     requires_restart: boolean;
     enabled?: boolean; // Frontend state
     check?: TweakCheck;
+    revert_warning?: string; // Shown when reverting a Dangerous tweak
 }
 
 export type TweakCheck =

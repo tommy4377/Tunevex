@@ -223,6 +223,7 @@ fn get_ram_gb() -> u32 {
         .unwrap_or(0)
 }
 
+#[allow(dead_code)]
 fn get_ram_usage_pct() -> f32 {
     unsafe {
         let mut ms = MemoryStatusEx::zeroed();
