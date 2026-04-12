@@ -183,26 +183,41 @@ fn toggle_ifeo_item(id: &str, enable: bool) -> Result<(), String> {
         .map_err(|e| format!("Cannot open IFEO key: {}", e))?;
 
     if enable {
-        // Re-enabling IFEO is dangerous - refuse
-        return Err("Cannot re-enable IFEO debugger hijacks - too dangerous. \
-                    If this was legitimate software, reinstall it."
-            .to_string());
-    }
-
-    // Backup before deletion
-    if let Ok(debugger) = key.get_value::<String, _>("Debugger") {
+        // Try to restore from backup
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
         let backup_path = format!(r"Software\TommyTweaker\Backups\IFEO\{}", exe_name);
-        if let Ok((backup_key, _)) = hkcu.create_subkey(&backup_path) {
-            let _ = backup_key.set_value("Debugger", &debugger);
+        if let Ok(backup_key) = hkcu.open_subkey(&backup_path) {
+            if let Ok(debugger) = backup_key.get_value::<String, _>("Debugger") {
+                let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+                let key_path = format!(
+                    r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\{}",
+                    exe_name
+                );
+                if let Ok(key) = hklm.open_subkey_with_flags(&key_path, KEY_ALL_ACCESS) {
+                    key.set_value("Debugger", &debugger)
+                        .map_err(|e| format!("Failed to restore debugger: {}", e))?;
+                    let _ = hkcu.delete_subkey_all(&backup_path);
+                    return Ok(());
+                }
+            }
         }
+        Err("No backup found for this IFEO entry".to_string())
+    } else {
+        // Backup before deletion
+        if let Ok(debugger) = key.get_value::<String, _>("Debugger") {
+            let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+            let backup_path = format!(r"Software\TommyTweaker\Backups\IFEO\{}", exe_name);
+            if let Ok((backup_key, _)) = hkcu.create_subkey(&backup_path) {
+                let _ = backup_key.set_value("Debugger", &debugger);
+            }
+        }
+
+        // Delete the debugger value
+        key.delete_value("Debugger")
+            .map_err(|e| format!("Cannot remove debugger: {}", e))?;
+
+        Ok(())
     }
-
-    // Delete the debugger value
-    key.delete_value("Debugger")
-        .map_err(|e| format!("Cannot remove debugger: {}", e))?;
-
-    Ok(())
 }
 
 fn toggle_appinit_item(id: &str, enable: bool) -> Result<(), String> {
@@ -216,36 +231,90 @@ fn toggle_appinit_item(id: &str, enable: bool) -> Result<(), String> {
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     if let Ok(key) = hklm.open_subkey_with_flags(path, KEY_ALL_ACCESS) {
         if enable {
-            return Err("Cannot re-enable AppInit_DLLs - too dangerous".to_string());
-        }
-
-        // Backup
-        if let Ok(current) = key.get_value::<String, _>("AppInit_DLLs") {
+            // Restore from backup
             let hkcu = RegKey::predef(HKEY_CURRENT_USER);
             let backup_path = if is_32bit {
                 r"Software\TommyTweaker\Backups\AppInit32"
             } else {
                 r"Software\TommyTweaker\Backups\AppInit64"
             };
-            if let Ok((backup_key, _)) = hkcu.create_subkey(backup_path) {
-                let _ = backup_key.set_value("AppInit_DLLs", &current);
+            if let Ok(backup_key) = hkcu.open_subkey(backup_path) {
+                if let Ok(dlls) = backup_key.get_value::<String, _>("AppInit_DLLs") {
+                    key.set_value("AppInit_DLLs", &dlls)
+                        .map_err(|e| format!("Failed to restore AppInit_DLLs: {}", e))?;
+                    let _ = key.set_value("LoadAppInit_DLLs", &1u32);
+                    let _ = hkcu.delete_subkey_all(backup_path);
+                    return Ok(());
+                }
             }
-        }
+            Err("No backup found for AppInit_DLLs".to_string())
+        } else {
+            // Backup
+            if let Ok(current) = key.get_value::<String, _>("AppInit_DLLs") {
+                let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+                let backup_path = if is_32bit {
+                    r"Software\TommyTweaker\Backups\AppInit32"
+                } else {
+                    r"Software\TommyTweaker\Backups\AppInit64"
+                };
+                if let Ok((backup_key, _)) = hkcu.create_subkey(backup_path) {
+                    let _ = backup_key.set_value("AppInit_DLLs", &current);
+                }
+            }
 
-        // Clear
-        key.set_value("AppInit_DLLs", &"")
-            .map_err(|e| e.to_string())?;
-        let _ = key.set_value("LoadAppInit_DLLs", &0u32); // Disable loading
-        Ok(())
+            // Clear
+            key.set_value("AppInit_DLLs", &"")
+                .map_err(|e| e.to_string())?;
+            let _ = key.set_value("LoadAppInit_DLLs", &0u32); // Disable loading
+            Ok(())
+        }
     } else {
         Err("Could not open AppInit registry key".to_string())
     }
 }
 
-fn toggle_bootexec_item(_id: &str, _enable: bool) -> Result<(), String> {
-    Err("BootExecute items cannot be toggled safely. \
-         Use 'msconfig' or 'autoruns' for manual editing."
-        .to_string())
+fn toggle_bootexec_item(id: &str, enable: bool) -> Result<(), String> {
+    let exe_name = id.strip_prefix("BOOT:").ok_or("Invalid Boot ID format")?;
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    let key = hklm
+        .open_subkey_with_flags(
+            r"SYSTEM\CurrentControlSet\Control\Session Manager",
+            KEY_ALL_ACCESS,
+        )
+        .map_err(|e| format!("Cannot open Session Manager key: {}", e))?;
+
+    if enable {
+        // Restore from backup
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        let backup_path = r"Software\TommyTweaker\Backups\BootExecute";
+        if let Ok(backup_key) = hkcu.open_subkey(backup_path) {
+            if let Ok(saved) = backup_key.get_value::<Vec<String>, _>("BootExecute") {
+                key.set_value("BootExecute", &saved)
+                    .map_err(|e| format!("Failed to restore BootExecute: {}", e))?;
+                // Delete backup after successful restore
+                let _ = backup_key.delete_value("BootExecute");
+                return Ok(());
+            }
+        }
+        Err("No backup found for BootExecute item".to_string())
+    } else {
+        // Backup current value first
+        if let Ok(current) = key.get_value::<Vec<String>, _>("BootExecute") {
+            let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+            let backup_path = r"Software\TommyTweaker\Backups\BootExecute";
+            if let Ok((backup_key, _)) = hkcu.create_subkey(backup_path) {
+                let _ = backup_key.set_value("BootExecute", &current);
+            }
+        }
+
+        // Remove the item from the MultiString value
+        if let Ok(mut current) = key.get_value::<Vec<String>, _>("BootExecute") {
+            current.retain(|v| v != exe_name);
+            key.set_value("BootExecute", &current)
+                .map_err(|e| format!("Failed to update BootExecute: {}", e))?;
+        }
+        Ok(())
+    }
 }
 
 // ============================================

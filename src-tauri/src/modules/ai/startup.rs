@@ -143,11 +143,11 @@ PAST AI DECISIONS (memory):
 {memory_ctx}
 
 RULES:
-1. Evaluate EVERY item. Never skip.
-2. "disable" only if clearly non-essential for this specific hardware/use case (gaming PC).
-3. "investigate" if unknown publisher, suspicious path (%TEMP%, %APPDATA% + random name), or IFEO hijack.
-4. "keep" if Microsoft system critical, GPU driver (NVIDIA/AMD), or gaming-related (Steam, Discord).
-5. Consider previous diagnoses in memory — if an item was involved in a past problem, flag it.
+1. "Critical" items are Windows system processes — report them as "keep" with a brief explanation of what they do. NEVER recommend disabling them.
+2. Evaluate ALL "Unknown", "Careful", and "Dangerous" items. Never skip any.
+3. "disable" only if clearly non-essential for this specific hardware/use case (gaming PC).
+4. "investigate" if unknown publisher, suspicious path (%TEMP%, %APPDATA% + random name), or IFEO hijack.
+5. For EVERY item reviewed, tell the user WHAT it is and whether it should be removed.
 6. safety_rating from the item data MUST inform your priority.
 
 Return ONLY valid JSON:
@@ -159,8 +159,8 @@ Return ONLY valid JSON:
       "item_name": "human readable name",
       "action": "disable|keep|investigate",
       "priority": "high|medium|low",
-      "reason": "one sentence referencing specific item data"
+      "reason": "one sentence explaining what this item is and whether it should be removed"
     }}
   ]
-}}"#)
+ }}"#)
 }

@@ -16,6 +16,7 @@
         Circle,
         Sparkles,
         Check,
+        Shield,
     } from "lucide-svelte";
     import StartupScanReport from "./StartupScanReport.svelte";
 
@@ -32,7 +33,7 @@
         publisher?: string;
         description?: string;
         source: string;
-        safety_rating: "Safe" | "Careful" | "Dangerous" | "Unknown";
+        safety_rating: "Safe" | "Careful" | "Dangerous" | "Unknown" | "Critical";
         file_exists: boolean;
     }
 
@@ -274,13 +275,15 @@
                         class:careful={item.safety_rating === "Careful"}
                         class:dangerous={item.safety_rating === "Dangerous"}
                         class:unknown={item.safety_rating === "Unknown"}
+                        class:critical={item.safety_rating === "Critical"}
                         class:disabled={!item.enabled}
                     >
                         <div class="toggle-container">
-                            <label class="toggle-switch">
+                            <label class="toggle-switch" class:disabled={item.safety_rating === "Critical"}>
                                 <input
                                     type="checkbox"
                                     checked={item.enabled}
+                                    disabled={item.safety_rating === "Critical"}
                                     on:change={() => toggleItem(item)}
                                 />
                                 <span class="slider"></span>
@@ -297,7 +300,11 @@
                                     class="safety-badge {item.safety_rating.toLowerCase()}"
                                     title="Safety Rating"
                                 >
-                                    <Circle size={8} />
+                                    {#if item.safety_rating === "Critical"}
+                                        <Shield size={8} />
+                                    {:else}
+                                        <Circle size={8} />
+                                    {/if}
                                     {item.safety_rating}
                                 </div>
                             </div>
@@ -596,6 +603,10 @@
     .startup-item.dangerous {
         border-left-color: var(--danger-color, #e74c3c);
     }
+    .startup-item.critical {
+        border-left-color: #a855f7;
+        opacity: 0.75;
+    }
     .startup-item.disabled {
         opacity: 0.6;
         filter: grayscale(0.5);
@@ -687,6 +698,10 @@
     .safety-badge.unknown :global(svg) {
         color: rgba(255, 255, 255, 0.5);
         fill: rgba(255, 255, 255, 0.5);
+    }
+    .safety-badge.critical :global(svg) {
+        color: #a855f7;
+        fill: #a855f7;
     }
 
     .details {

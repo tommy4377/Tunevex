@@ -3,6 +3,7 @@ pub mod browser;
 pub mod explorer;
 pub mod logon;
 pub mod services;
+pub mod sys_processes;
 pub mod tasks;
 pub mod types;
 pub mod utils;
@@ -59,6 +60,20 @@ pub fn assess_safety(path: &str, publisher: Option<&str>) -> SafetyRating {
     let path_lower = path.to_lowercase();
     let pub_lower = publisher.unwrap_or("").to_lowercase();
 
+    // Check for Windows system processes first
+    let exe_name = path_lower
+        .split_whitespace()
+        .next()
+        .unwrap_or(&path_lower)
+        .split('\\')
+        .last()
+        .unwrap_or(&path_lower);
+    if sys_processes::is_windows_system_process(exe_name)
+        || sys_processes::is_windows_system_process(&path_lower)
+    {
+        return SafetyRating::Critical;
+    }
+
     // Safe publishers/locations
     if pub_lower.contains("microsoft")
         || pub_lower.contains("google")
@@ -83,7 +98,7 @@ pub fn assess_safety(path: &str, publisher: Option<&str>) -> SafetyRating {
         return SafetyRating::Dangerous;
     }
 
-    // If we have no publisher and it's not system32, treat as Unknown (potential risk, but distinct from explicit Dangerous)
+    // If we have no publisher and it's not system32, treat as Unknown
     if publisher.is_none() {
         return SafetyRating::Unknown;
     }

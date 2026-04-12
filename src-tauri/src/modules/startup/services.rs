@@ -2,23 +2,9 @@ use crate::modules::startup::types::{AutostartSource, StartupItem};
 use crate::modules::startup::{assess_safety, utils};
 
 pub fn scan() -> Vec<StartupItem> {
-    // Critical services that should NEVER be disabled
-    const CRITICAL_SERVICES: &[&str] = &[
-        "RpcSs",
-        "WinDefend",
-        "Dnscache",
-        "Dhcp",
-        "TermService",
-        "Spooler",
-        "AudioSrv",
-        "lanmanworkstation",
-        "lanmanserver",
-        "EventLog",
-        "Schedule",
-        "SENS",
-        "ProfSvc",
-        "Themes",
-    ];
+    use crate::modules::startup::sys_processes::WINDOWS_CRITICAL_SERVICE_NAMES;
+    let critical_set: std::collections::HashSet<_> =
+        WINDOWS_CRITICAL_SERVICE_NAMES.iter().collect();
 
     // PERFORMANCE FIX: Use winreg directly instead of WMI via PowerShell
     // Registry read is ~1-5ms vs WMI's 500ms-2s
@@ -75,7 +61,7 @@ pub fn scan() -> Vec<StartupItem> {
                 let mut rating = assess_safety(&image_path, publisher.as_deref());
 
                 // Override rating for critical services
-                if CRITICAL_SERVICES.contains(&name.as_str()) {
+                if critical_set.contains(&name.as_str()) {
                     use crate::modules::startup::types::SafetyRating;
                     rating = SafetyRating::Critical;
                 }
