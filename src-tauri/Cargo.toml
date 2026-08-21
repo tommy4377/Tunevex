@@ -21,6 +21,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2.9.1", features = [] }
 tauri-plugin-opener = "2.5.3"
 tauri-plugin-dialog = "2.6.0"
+tauri-plugin-mcp-bridge = "0.12"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
@@ -45,7 +46,6 @@ reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
 keyring = { version = "3", features = ["windows-native"] }
 
 # HTTP plugin for Tauri
-tauri-plugin-http = "2"
 
 # Windows Dependencies (Now Mandatory)
 winreg = "0.52"
@@ -62,7 +62,7 @@ features = [
     "Win32_UI_Shell",
     "Win32_Storage_FileSystem",
     "Win32_System_IO",
-    "Win32_System_Ioctl", 
+    "Win32_System_Ioctl",
     "Win32_System_Console",
     "Win32_Security",
     "Win32_NetworkManagement_IpHelper",

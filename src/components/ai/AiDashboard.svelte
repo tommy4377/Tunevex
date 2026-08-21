@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
-  import { Sparkles, MessageSquare, AlertTriangle, Key, Trash2 } from "lucide-svelte";
+  import { openUrl } from "@tauri-apps/plugin-opener";
+  import { Sparkles, Key, Trash2, Wifi } from "lucide-svelte";
+  import type { Tweak } from "$lib/types";
   import Button from "../ui/Button.svelte";
   import ScanPanel from "./ScanPanel.svelte";
   import ChatPanel from "./ChatPanel.svelte";
@@ -13,6 +15,9 @@
   let keyInput = "";
   let savingKey = false;
   let keyError = "";
+  let testingKey = false;
+  let connectionStatus = "";
+  export let allTweaks: Tweak[] = [];
 
   onMount(async () => {
     hasKey = await invoke<boolean>("get_gemini_key_status");
@@ -25,6 +30,7 @@
       await invoke("save_gemini_key", { key: keyInput });
       hasKey = true;
       keyInput = "";
+      await testConnection();
     } catch (e) {
       keyError = e as string;
     } finally {
@@ -32,9 +38,27 @@
     }
   }
 
+  async function testConnection() {
+    testingKey = true;
+    connectionStatus = "";
+    keyError = "";
+    try {
+      await invoke("test_gemini_connection");
+      connectionStatus = "Connection verified.";
+    } catch (e) {
+      keyError = `Key saved, but Gemini could not be reached: ${e as string}`;
+    } finally {
+      testingKey = false;
+    }
+  }
+
   async function deleteKey() {
     await invoke("delete_gemini_key");
     hasKey = false;
+  }
+
+  function openAiStudio() {
+    void openUrl("https://aistudio.google.com/app/apikey");
   }
 </script>
 
@@ -44,11 +68,11 @@
       <div class="setup-icon"><Sparkles size={32} /></div>
       <h2>Connect Gemini AI</h2>
       <p>
-        Get a free API key at
-        <a href="https://aistudio.google.com/app/apikey" target="_blank" class="subtle-link">
+        Create an API or authorization key at
+        <button type="button" onclick={openAiStudio} class="subtle-link">
           aistudio.google.com
-        </a>
-        — no billing required.
+        </button>
+        . Availability and billing depend on your Google AI Studio account.
       </p>
       <p class="security-note">
         Your key is stored in <strong>Windows Credential Manager</strong>,
@@ -57,7 +81,7 @@
       <div class="key-input-row">
         <input
           type="password"
-          placeholder="AIzaSy..."
+          placeholder="Paste your AI Studio key"
           bind:value={keyInput}
           onkeydown={(e) => e.key === "Enter" && saveKey()}
         />
@@ -75,11 +99,16 @@
       <div class="title-row">
         <Sparkles size={20} />
         <h1>AI Advisor</h1>
-        <span class="powered-by">powered by Gemini 3 Flash</span>
+        <span class="powered-by">powered by Gemini 3.5 Flash</span>
       </div>
-      <button class="remove-key" onclick={deleteKey} title="Remove API key">
-        <Trash2 size={13} /> Remove Key
-      </button>
+      <div class="key-actions">
+        <button class="remove-key" onclick={testConnection} disabled={testingKey} title="Test Gemini connection">
+          <Wifi size={13} /> {testingKey ? "Testing..." : "Test"}
+        </button>
+        <button class="remove-key" onclick={deleteKey} title="Remove API key">
+          <Trash2 size={13} /> Remove Key
+        </button>
+      </div>
     </div>
 
     <div class="tabs">
@@ -90,10 +119,12 @@
     </div>
 
     <div class="tab-content">
+      {#if connectionStatus}<p class="connection-ok">{connectionStatus}</p>{/if}
+      {#if keyError}<p class="error">{keyError}</p>{/if}
       {#if tab === "scan"}
-        <ScanPanel />
+        <ScanPanel {allTweaks} />
       {:else if tab === "chat"}
-        <ChatPanel />
+        <ChatPanel {allTweaks} />
       {:else}
         <DiagnosePanel />
       {/if}
@@ -103,7 +134,7 @@
 
 <style>
   .ai-dashboard {
-    padding: 0 32px 32px;
+    padding: 0 24px 24px;
     height: 100%;
     overflow-y: auto;
     display: flex;
@@ -125,7 +156,7 @@
   .setup-icon { color: var(--accent-color); }
   .setup-card h2 { font-size: 22px; font-weight: 700; margin: 0; }
   .setup-card p { color: var(--text-muted); font-size: 14px; margin: 0; }
-  .subtle-link { color: var(--accent-color); text-decoration: none; opacity: 0.85; transition: opacity 0.15s; }
+  .subtle-link { color: var(--accent-color); text-decoration: none; opacity: 0.85; transition: opacity 0.15s; border: 0; background: none; padding: 0; cursor: pointer; font: inherit; }
   .subtle-link:hover { opacity: 1; text-decoration: underline; }
   .security-note {
     background: rgba(var(--accent-rgb), 0.08);
@@ -182,6 +213,9 @@
     transition: color 0.2s, border-color 0.2s;
   }
   .remove-key:hover { color: var(--danger); border-color: var(--danger); }
+  .remove-key:disabled { opacity: 0.55; cursor: wait; }
+  .key-actions { display: flex; gap: 8px; }
+  .connection-ok { color: var(--success); font-size: 12px; margin: 0 0 10px; }
   .tabs {
     display: flex;
     gap: 4px;
@@ -212,4 +246,10 @@
     color: var(--accent-color);
   }
   .tab-content { flex: 1; overflow-y: auto; }
+
+  @media (max-width: 940px) {
+    .ai-dashboard { padding-inline: 18px; padding-bottom: 18px; }
+    .header { padding-top: 20px; margin-bottom: 16px; }
+    .tabs { margin-bottom: 14px; }
+  }
 </style>

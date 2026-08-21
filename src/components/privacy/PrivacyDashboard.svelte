@@ -7,6 +7,7 @@
         Megaphone,
         Shield,
         Brush,
+        MoreHorizontal,
     } from "lucide-svelte";
     import { invoke } from "@tauri-apps/api/core";
     import { Card, CardGrid, BackButton, SectionHeader } from "../ui";
@@ -22,7 +23,8 @@
         | "settings"
         | "advertising"
         | "policies"
-        | "maintenance" = "dashboard";
+        | "maintenance"
+        | "other" = "dashboard";
 
     // Filters
     $: windowsTweaks = allTweaks.filter(
@@ -32,7 +34,7 @@
                 t.id === "priv_disable_ceip" ||
                 t.id === "priv_disable_wer" ||
                 t.id === "priv_disable_input_telemetry" ||
-                t.id === "priv_disable_telemetry_tasks"),
+                t.id === "privacy_disable_telemetry_tasks"),
     );
 
     $: appTweaks = allTweaks.filter(
@@ -93,6 +95,11 @@
                 t.id === "priv_disable_maintenance_wakeup"),
     );
 
+    $: groupedTweaks = [windowsTweaks, appTweaks, settingsTweaks, adTweaks, policiesTweaks, maintenanceTweaks].flat();
+    $: otherTweaks = allTweaks.filter(
+        (t) => t.category === "Privacy" && !groupedTweaks.includes(t),
+    );
+
     async function applySafeTweaks(tweaks: Tweak[]) {
         for (const tweak of tweaks.filter((t) => t.warning_level === "Safe")) {
             if (!tweak.enabled) {
@@ -150,6 +157,13 @@
             desc: "Storage Sense, Reserved Storage, Wake-up timers.",
             tweaks: () => maintenanceTweaks,
         },
+        {
+            id: "other",
+            icon: MoreHorizontal,
+            title: "Additional Privacy Controls",
+            desc: "Newer privacy policies, scheduled tasks, and app settings.",
+            tweaks: () => otherTweaks,
+        },
     ] as const;
 
     $: currentSection = sections.find((s) => s.id === currentView);
@@ -158,7 +172,7 @@
 
 <div class="privacy-container">
     {#if currentView === "dashboard"}
-        <CardGrid columns="repeat(3, 1fr)" gap="16px">
+        <CardGrid columns="repeat(auto-fit, minmax(210px, 1fr))" gap="16px">
             {#each sections.filter((s) => s.tweaks().length > 0) as section}
                 <Card
                     icon={section.icon}

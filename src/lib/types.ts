@@ -23,7 +23,8 @@ export type TweakCategory =
     | 'Restore'
     | 'Activation'
     | 'Home'
-    | 'AiAdvisor';
+    | 'AiAdvisor'
+    | 'AllTweaks';
 
 export type TweakType = 'Toggle' | 'Action';
 

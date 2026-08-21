@@ -9,7 +9,7 @@ pub fn get_usb_msi_tweaks() -> Vec<Tweak> {
         name: "Enable MSI Mode on USB Controllers (Normal)".to_string(),
         description: "Enables MSI with Priority 1 on USB host controllers. Reduces USB latency."
             .to_string(),
-        warning_level: WarningLevel::Safe,
+        warning_level: WarningLevel::Careful,
         requires_restart: true,
         tweak_type: TweakType::Toggle,
         enabled: false,

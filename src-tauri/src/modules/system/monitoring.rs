@@ -1,5 +1,6 @@
 // src-tauri/src/modules/system/monitoring.rs
 
+use std::os::windows::process::CommandExt;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -7,7 +8,6 @@ use std::time::Duration;
 use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
 use tauri::{command, Manager};
 use winreg::{enums::*, RegKey};
-use std::os::windows::process::CommandExt;
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
@@ -65,7 +65,11 @@ impl SystemMonitor {
                 }
 
                 let output = std::process::Command::new("typeperf")
-                    .args(["-sc", "1", r"\GPU Engine(*engtype_3D)\Utilization Percentage"])
+                    .args([
+                        "-sc",
+                        "1",
+                        r"\GPU Engine(*engtype_3D)\Utilization Percentage",
+                    ])
                     .creation_flags(CREATE_NO_WINDOW)
                     .output();
 

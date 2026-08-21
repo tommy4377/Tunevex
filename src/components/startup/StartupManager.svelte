@@ -19,6 +19,10 @@
         Shield,
     } from "lucide-svelte";
     import StartupScanReport from "./StartupScanReport.svelte";
+    import TweakList from "../TweakList.svelte";
+    import type { Tweak } from "$lib/types";
+
+    export let allTweaks: Tweak[] = [];
 
     type StartupCategory = string;
 
@@ -340,6 +344,16 @@
                     </div>
                 {/each}
             </div>
+        {/if}
+
+        {#if allTweaks.some((tweak) => tweak.category === "StartupServices")}
+            <section class="boot-tweaks">
+                <div class="boot-heading">
+                    <Rocket size={15} />
+                    <div><h2>Boot configuration</h2><p>Reversible Windows boot and recovery settings.</p></div>
+                </div>
+                <TweakList tweaks={allTweaks.filter((tweak) => tweak.category === "StartupServices")} showHeader={false} />
+            </section>
         {/if}
 
         <div class="ai-scan-section">
@@ -778,6 +792,10 @@
         padding: 16px 20px;
         display: flex; flex-direction: column; gap: 12px;
     }
+    .boot-tweaks { margin-top: 24px; }
+    .boot-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; color: var(--accent-color); }
+    .boot-heading h2 { margin: 0; font-size: 14px; color: var(--text-color); }
+    .boot-heading p { margin: 2px 0 0; font-size: 11px; color: var(--text-muted); }
     .ai-scan-header {
         display: flex; align-items: center; gap: 8px;
         color: var(--accent-color); font-size: 13px; font-weight: 600;

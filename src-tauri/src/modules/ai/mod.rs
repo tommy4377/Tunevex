@@ -1,17 +1,15 @@
 pub mod gemini;
+pub mod memory;
 pub mod profiler;
 pub mod prompts;
-pub mod memory;
 pub mod startup;
 
-pub use profiler::{SystemProfile, DiagnosticFlags};
 pub use memory::{
-    AiMemoryStore, AiMemoryEntry, MemoryKind,
-    ChatSession, ChatMessage, ChatSessionMeta,
-    save_chat_session, list_chat_sessions,
-    load_chat_session, delete_chat_session,
+    delete_chat_session, list_chat_sessions, load_chat_session, save_chat_session, AiMemoryEntry,
+    AiMemoryStore, ChatMessage, ChatSession, ChatSessionMeta, MemoryKind,
 };
-pub use startup::{StartupRecommendation, StartupScanResult, scan_startup_with_ai};
+pub use profiler::{DiagnosticFlags, SystemProfile};
+pub use startup::{scan_startup_with_ai, StartupRecommendation, StartupScanResult};
 
 use serde::{Deserialize, Serialize};
 
@@ -28,6 +26,20 @@ pub struct RecommendedTweak {
     pub id: String,
     pub priority: String,
     pub reason: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChatReply {
+    pub content: String,
+    pub tweak_actions: Vec<ChatTweakAction>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatTweakAction {
+    pub id: String,
+    pub name: String,
+    pub operation: String,
+    pub warning_level: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

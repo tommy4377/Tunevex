@@ -1,25 +1,22 @@
-use crate::modules::registry::backup::RegistryBackup;
-use crate::modules::registry::operations::apply_registry_tweak;
-use crate::modules::types::{Tweak, TweakOperation};
-use crate::modules::utils::privileges::is_admin;
-use crate::modules::utils::state::AppState;
 use crate::modules::ai::memory::{
-    AiMemoryStore, MemoryKind, ChatSession, ChatMessage as AiChatMessage,
-    save_chat_session, list_chat_sessions, load_chat_session,
-    delete_chat_session, ChatSessionMeta,
+    delete_chat_session, list_chat_sessions, load_chat_session, save_chat_session,
+    validate_session_id, AiMemoryStore, ChatMessage as AiChatMessage, ChatSession, ChatSessionMeta,
+    MemoryKind,
 };
 use crate::modules::ai::startup::{scan_startup_with_ai, StartupRecommendation};
-use crate::modules::startup::types::StartupItem;
+use crate::modules::registry::backup::RegistryBackup;
+use crate::modules::registry::operations::apply_registry_tweak;
 use crate::modules::startup::toggle_item;
+use crate::modules::startup::types::StartupItem;
 use crate::modules::tweaks::{
-    TweakContext, check_tweak_enabled, get_current_windows_build, win11_only_tweaks,
-    set_nic_property, set_dns_servers, reset_dns_servers,
-    control_defender_services, set_defender_exclusions,
-    apply_svc_host_split_all, apply_msi_set, apply_msi_remove,
+    apply_msi_remove, apply_msi_set, apply_svc_host_split_all, check_tweak_enabled,
+    control_defender_services, get_current_windows_build, reset_dns_servers,
+    set_defender_exclusions, set_dns_servers, set_nic_property, win11_only_tweaks, TweakContext,
 };
-use crate::modules::utils::security::{
-    validate_command, safe_path_existing, safe_path_new,
-};
+use crate::modules::types::{Tweak, TweakOperation, WarningLevel};
+use crate::modules::utils::privileges::is_admin;
+use crate::modules::utils::security::{safe_path_existing, safe_path_new, validate_command};
+use crate::modules::utils::state::AppState;
 use std::os::windows::process::CommandExt;
 use std::process::Command;
 use std::sync::Mutex;
@@ -42,11 +39,9 @@ pub async fn scan_startup() -> Result<Vec<crate::modules::startup::types::Startu
 #[tauri::command]
 pub async fn set_startup_item_enabled(id: String, enable: bool) -> Result<(), String> {
     let id_clone = id.clone();
-    tokio::task::spawn_blocking(move || {
-        crate::modules::startup::toggle_item(id_clone, enable)
-    })
-    .await
-    .map_err(|e| e.to_string())?
+    tokio::task::spawn_blocking(move || crate::modules::startup::toggle_item(id_clone, enable))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 use crate::modules::network::dns_benchmark::{self, DnsBenchmarkResult};
@@ -60,15 +55,16 @@ pub async fn benchmark_dns() -> Result<Vec<DnsBenchmarkResult>, String> {
 
 #[tauri::command]
 pub async fn apply_dns_server(primary: String, secondary: String) -> Result<(), String> {
-    tokio::task::spawn_blocking(move || {
-        dns_benchmark::apply_dns(primary, secondary)
-    })
-    .await
-    .map_err(|e| e.to_string())?
+    tokio::task::spawn_blocking(move || dns_benchmark::apply_dns(primary, secondary))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub async fn get_tweaks(ctx: State<'_, Mutex<TweakContext>>, state: State<'_, Mutex<AppState>>) -> Result<Vec<Tweak>, String> {
+pub async fn get_tweaks(
+    ctx: State<'_, Mutex<TweakContext>>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<Vec<Tweak>, String> {
     // Extract data and immediately drop the locks
     let tweaks = {
         let context = ctx.lock().map_err(|e| e.to_string())?;
@@ -83,10 +79,14 @@ pub async fn get_tweaks(ctx: State<'_, Mutex<TweakContext>>, state: State<'_, Mu
     let min_builds = win11_only_tweaks();
 
     // Move heavy I/O (registry, sc, schtasks) to blocking thread pool
-    tokio::task::spawn_blocking(move||
+    tokio::task::spawn_blocking(move || {
         tweaks
             .iter()
-            .filter(|t| min_builds.get(t.id.as_str()).map_or(true, |&min| build >= min))
+            .filter(|t| {
+                min_builds
+                    .get(t.id.as_str())
+                    .map_or(true, |&min| build >= min)
+            })
             .map(|t| {
                 let mut tweak = t.clone();
                 // First, check actual system state via TweakCheck if available
@@ -99,7 +99,7 @@ pub async fn get_tweaks(ctx: State<'_, Mutex<TweakContext>>, state: State<'_, Mu
                 tweak
             })
             .collect::<Vec<_>>()
-    )
+    })
     .await
     .map_err(|e| format!("Task join error: {}", e))
 }
@@ -127,7 +127,11 @@ pub async fn get_tweaks_fast(
 
     Ok(tweaks
         .into_iter()
-        .filter(|t| min_builds.get(t.id.as_str()).map_or(true, |&min| build >= min))
+        .filter(|t| {
+            min_builds
+                .get(t.id.as_str())
+                .map_or(true, |&min| build >= min)
+        })
         .map(|mut t| {
             t.enabled = applied.contains(&t.id);
             t
@@ -157,31 +161,40 @@ pub async fn check_category(
     // Clone app handle for the spawned task
     let app_clone = app.clone();
     let category_clone = category.clone();
-    
+
     // Run checks in background thread - SEQUENTIAL (no rayon)
     tokio::task::spawn_blocking(move || {
         // Sequential execution - avoids thread pool saturation
         let results: Vec<(String, bool)> = tweaks
             .iter()
             .filter_map(|tweak| {
-                tweak.check.as_ref().map(|check| {
-                    (tweak.id.clone(), check_tweak_enabled(check))
-                })
+                tweak
+                    .check
+                    .as_ref()
+                    .map(|check| (tweak.id.clone(), check_tweak_enabled(check)))
             })
             .collect();
-        
+
         // Emit results sequentially (order doesn't matter for UI)
         for (id, enabled) in results {
-            let _ = app_clone.emit("tweak-check-result", serde_json::json!({
-                "id": id,
-                "enabled": enabled
-            }));
+            let _ = app_clone.emit(
+                "tweak-check-result",
+                serde_json::json!({
+                    "id": id,
+                    "enabled": enabled
+                }),
+            );
         }
         // Emit completion for this category
-        let _ = app_clone.emit("category-check-complete", serde_json::json!({
-            "category": category_clone
-        }));
-    }).await.map_err(|e| e.to_string())?;
+        let _ = app_clone.emit(
+            "category-check-complete",
+            serde_json::json!({
+                "category": category_clone
+            }),
+        );
+    })
+    .await
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -189,6 +202,7 @@ pub async fn check_category(
 #[tauri::command]
 pub async fn apply_tweak(
     id: String,
+    dangerous_acknowledgement: Option<String>,
     ctx: State<'_, Mutex<TweakContext>>,
     state: State<'_, Mutex<AppState>>,
     app: tauri::AppHandle,
@@ -204,12 +218,34 @@ pub async fn apply_tweak(
             .ok_or("Tweak ID not found")?
     };
 
+    validate_dangerous_acknowledgement(
+        &tweak.id,
+        &tweak.warning_level,
+        dangerous_acknowledgement.as_deref(),
+    )?;
+
+    // Refuse to mutate the PC unless the applied-state journal can be
+    // persisted. Without this preflight, a restricted process could change
+    // the registry and only then discover that its elevated state file is not
+    // writable, leaving the UI out of sync with Windows.
+    {
+        let state_path = crate::modules::utils::dirs::get_state_path()
+            .map_err(|e| format!("Cannot determine state path: {e}"))?;
+        let app_state = state.lock().map_err(|e| e.to_string())?;
+        app_state
+            .save(state_path)
+            .map_err(|e| format!("Cannot safely apply tweak because state is not writable: {e}"))?;
+    }
+
     // Emit progress start
-    let _ = app.emit("tweak-progress", serde_json::json!({
-        "id": id.clone(),
-        "status": "applying",
-        "progress": 0
-    }));
+    let _ = app.emit(
+        "tweak-progress",
+        serde_json::json!({
+            "id": id.clone(),
+            "status": "applying",
+            "progress": 0
+        }),
+    );
 
     // 2. Execute operations (Async/Blocking wrapper)
     // We use tokio::spawn_blocking for heavy IO/Process operations to avoid blocking the async runtime
@@ -222,9 +258,31 @@ pub async fn apply_tweak(
         let app = app_closure;
 
         // Create a single backup manager for all registry operations
-        let backup_path = crate::modules::utils::dirs::get_backup_dir()
-            .map_err(|e| format!("Cannot determine backup directory: {}", e))?;
+        let backup_path = crate::modules::utils::dirs::get_registry_backup_path()
+            .map_err(|e| format!("Cannot determine registry backup path: {}", e))?;
         let mut backup_mgr = RegistryBackup::new(backup_path.clone());
+
+        for op in &tweak_clone.operations {
+            if let TweakOperation::Command { cmd, .. } = op {
+                validate_command(cmd)?;
+            }
+        }
+
+        // Capture and persist every registry value before the first mutation.
+        // This keeps rollback data intact even if a later operation fails or
+        // the application is interrupted mid-tweak.
+        for op in &tweak_clone.operations {
+            match op {
+                TweakOperation::RegistrySet { root_key, path, key, .. }
+                | TweakOperation::RegistryDelete { root_key, path, key } => backup_mgr
+                    .backup_value(root_key, path, key)
+                    .map_err(|e| format!("Failed to capture rollback value for {key}: {e}"))?,
+                _ => {}
+            }
+        }
+        backup_mgr
+            .save(backup_path.clone())
+            .map_err(|e| format!("Failed to persist rollback backup: {e}"))?;
 
         println!("[TWEAK APPLY] Applying ID: {}", tweak_clone.id);
         for (i, op) in tweak_clone.operations.iter().enumerate() {
@@ -237,10 +295,6 @@ pub async fn apply_tweak(
                     value,
                 } => {
                     println!("  -> RegistrySet: {}\\{}\\{} = {:?}", root_key, path, key, value);
-                    if let Err(e) = backup_mgr.backup_value(root_key, path, key) {
-                        eprintln!("  -> Backup warning for {}: {}", key, e);
-                    }
-
                     if let Err(e) = apply_registry_tweak(op) {
                        eprintln!("  -> Registry Error: {:?}", e);
                        return Err(format!("Registry error: {:?}", e));
@@ -253,10 +307,6 @@ pub async fn apply_tweak(
                     key,
                 } => {
                     println!("  -> RegistryDelete: {}\\{}\\{}", root_key, path, key);
-                    if let Err(e) = backup_mgr.backup_value(root_key, path, key) {
-                        eprintln!("  -> Backup warning for {}: {}", key, e);
-                    }
-
                     if let Err(e) = apply_registry_tweak(op) {
                        eprintln!("  -> Registry Error: {:?}", e);
                        return Err(format!("Registry error: {:?}", e));
@@ -411,12 +461,16 @@ pub async fn apply_tweak(
                         .map_err(|e| format!("Failed to disable service {}: {}", name, e))?;
 
                     if !output_config.status.success() {
-                        eprintln!("Warning: Failed to disable service {}", name);
+                        return Err(format!(
+                            "Failed to disable service {}: {}",
+                            name,
+                            String::from_utf8_lossy(&output_config.stderr).trim()
+                        ));
                     }
                 }
                 TweakOperation::ServiceSetMode { name, mode } => {
                     println!("  -> ServiceSetMode: {} -> {}", name, mode);
-                    
+
                     let sc_mode = match mode.to_lowercase().as_str() {
                         "automatic" | "auto" => "auto",
                         "manual" | "demand" => "demand",
@@ -432,7 +486,11 @@ pub async fn apply_tweak(
                         .map_err(|e| format!("Failed to set service mode {}: {}", name, e))?;
 
                     if !output.status.success() {
-                        eprintln!("Warning: Failed to set service mode {}", name);
+                        return Err(format!(
+                            "Failed to set service mode for {}: {}",
+                            name,
+                            String::from_utf8_lossy(&output.stderr).trim()
+                        ));
                     }
                 }
                 TweakOperation::ScheduledTaskDisable { path, name } => {
@@ -442,7 +500,7 @@ pub async fn apply_tweak(
                     } else {
                         format!("{}\\{}", path, name)
                     };
-                    
+
                     let output = Command::new("schtasks")
                         .args(&["/Change", "/TN", &full_path, "/Disable"])
                         .creation_flags(0x08000000)
@@ -450,7 +508,11 @@ pub async fn apply_tweak(
                         .map_err(|e| format!("Failed to disable task {}: {}", name, e))?;
 
                     if !output.status.success() {
-                        eprintln!("Warning: Failed to disable task {}", name);
+                        return Err(format!(
+                            "Failed to disable scheduled task {}: {}",
+                            full_path,
+                            String::from_utf8_lossy(&output.stderr).trim()
+                        ));
                     }
                 }
                 TweakOperation::ScheduledTaskEnable { path, name } => {
@@ -460,7 +522,7 @@ pub async fn apply_tweak(
                     } else {
                         format!("{}\\{}", path, name)
                     };
-                    
+
                     let output = Command::new("schtasks")
                         .args(&["/Change", "/TN", &full_path, "/Enable"])
                         .creation_flags(0x08000000)
@@ -468,7 +530,11 @@ pub async fn apply_tweak(
                         .map_err(|e| format!("Failed to enable task {}: {}", name, e))?;
 
                     if !output.status.success() {
-                        eprintln!("Warning: Failed to enable task {}", name);
+                        return Err(format!(
+                            "Failed to enable scheduled task {}: {}",
+                            full_path,
+                            String::from_utf8_lossy(&output.stderr).trim()
+                        ));
                     }
                 }
                 TweakOperation::FileOperation(file_op) => {
@@ -599,9 +665,9 @@ pub async fn apply_tweak(
         }
 
         // Persist all registry backups to disk
-        if let Err(e) = backup_mgr.save(backup_path) {
-            eprintln!("Warning: Failed to persist backup: {}", e);
-        }
+        backup_mgr
+            .save(backup_path)
+            .map_err(|e| format!("Failed to persist rollback backup: {e}"))?;
 
         Ok(())
     }).await.map_err(|e| e.to_string())??;
@@ -609,24 +675,81 @@ pub async fn apply_tweak(
     // 3. Update State & Persist
     {
         let mut app_state = state.lock().map_err(|e| e.to_string())?;
-        app_state.applied_tweaks.insert(id.clone());
+        if matches!(tweak.tweak_type, crate::modules::types::TweakType::Toggle) {
+            app_state.applied_tweaks.insert(id.clone());
+        }
 
         let state_path = crate::modules::utils::dirs::get_state_path()
             .unwrap_or_else(|_| std::path::PathBuf::from("state.json"));
 
-        if let Err(e) = app_state.save(state_path) {
-            eprintln!("Failed to save app state: {}", e);
-        }
+        app_state
+            .save(state_path)
+            .map_err(|e| format!("Failed to save app state: {e}"))?;
     }
 
     // Emit success
-    let _ = app.emit("tweak-progress", serde_json::json!({
-        "id": id,
-        "status": "success",
-        "progress": 100
-    }));
+    let _ = app.emit(
+        "tweak-progress",
+        serde_json::json!({
+            "id": id,
+            "status": "success",
+            "progress": 100
+        }),
+    );
 
     Ok(())
+}
+
+fn validate_dangerous_acknowledgement(
+    id: &str,
+    warning_level: &WarningLevel,
+    acknowledgement: Option<&str>,
+) -> Result<(), String> {
+    if !matches!(warning_level, WarningLevel::Dangerous) {
+        return Ok(());
+    }
+
+    let expected = format!("APPLY {id}");
+    if acknowledgement != Some(expected.as_str()) {
+        return Err(format!(
+            "Dangerous tweak acknowledgement required. Review the risk and confirm with: {expected}"
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod dangerous_acknowledgement_tests {
+    use super::*;
+
+    #[test]
+    fn dangerous_controls_require_the_exact_id_scoped_phrase() {
+        assert!(validate_dangerous_acknowledgement(
+            "sec_disable_firewall",
+            &WarningLevel::Dangerous,
+            None,
+        )
+        .is_err());
+        assert!(validate_dangerous_acknowledgement(
+            "sec_disable_firewall",
+            &WarningLevel::Dangerous,
+            Some("APPLY another_tweak"),
+        )
+        .is_err());
+        assert!(validate_dangerous_acknowledgement(
+            "sec_disable_firewall",
+            &WarningLevel::Dangerous,
+            Some("APPLY sec_disable_firewall"),
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn safe_controls_do_not_need_an_acknowledgement() {
+        assert!(
+            validate_dangerous_acknowledgement("safe_control", &WarningLevel::Safe, None,).is_ok()
+        );
+    }
 }
 
 #[tauri::command]
@@ -663,11 +786,23 @@ pub async fn undo_tweak(
     state: State<'_, Mutex<AppState>>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
-    let _ = app.emit("tweak-progress", serde_json::json!({
-        "id": id.clone(),
-        "status": "reverting",
-        "progress": 0
-    }));
+    {
+        let state_path = crate::modules::utils::dirs::get_state_path()
+            .map_err(|e| format!("Cannot determine state path: {e}"))?;
+        let app_state = state.lock().map_err(|e| e.to_string())?;
+        app_state
+            .save(state_path)
+            .map_err(|e| format!("Cannot safely undo tweak because state is not writable: {e}"))?;
+    }
+
+    let _ = app.emit(
+        "tweak-progress",
+        serde_json::json!({
+            "id": id.clone(),
+            "status": "reverting",
+            "progress": 0
+        }),
+    );
 
     let tweak = {
         let context = ctx.lock().map_err(|e| e.to_string())?;
@@ -679,8 +814,8 @@ pub async fn undo_tweak(
             .ok_or("Tweak ID not found")?
     };
 
-    let backup_path = crate::modules::utils::dirs::get_backup_dir()
-        .map_err(|e| format!("Cannot determine backup directory: {}", e))?;
+    let backup_path = crate::modules::utils::dirs::get_registry_backup_path()
+        .map_err(|e| format!("Cannot determine registry backup path: {}", e))?;
 
     let id_clone = id.clone();
     let app_clone = app.clone();
@@ -710,7 +845,10 @@ pub async fn undo_tweak(
                     key,
                 } => {
                     if let Some(ref mgr) = backup_mgr {
-                        if mgr.restore_tweak_backup(root_key, path, key).unwrap_or(false) {
+                        if mgr
+                            .restore_tweak_backup(root_key, path, key)
+                            .map_err(|e| format!("Failed to restore registry backup: {e}"))?
+                        {
                             restored_keys.insert(format!("{}::{}::{}", root_key, path, key));
                         }
                     }
@@ -723,7 +861,12 @@ pub async fn undo_tweak(
         println!("[TWEAK REVERT] Reverting ID: {}", id);
         if let Some(ref revert_ops) = tweak.revert_operations {
             for (i, op) in revert_ops.iter().enumerate() {
-                println!("[TWEAK REVERT] Operation {}/{}: {:?}", i + 1, revert_ops.len(), op);
+                println!(
+                    "[TWEAK REVERT] Operation {}/{}: {:?}",
+                    i + 1,
+                    revert_ops.len(),
+                    op
+                );
 
                 // Skip registry operations that were already restored from backup
                 match op {
@@ -749,22 +892,25 @@ pub async fn undo_tweak(
 
                 match op {
                     TweakOperation::RegistrySet { .. } | TweakOperation::RegistryDelete { .. } => {
-                         println!("  -> Registry Operation (Revert): {:?}", op);
-                         apply_registry_tweak(op).map_err(|e| format!("Revert registry error: {:?}", e))?;
-                         println!("  -> Revert Registry Success");
+                        println!("  -> Registry Operation (Revert): {:?}", op);
+                        apply_registry_tweak(op)
+                            .map_err(|e| format!("Revert registry error: {:?}", e))?;
+                        println!("  -> Revert Registry Success");
                     }
                     TweakOperation::Powershell { script } => {
                         println!("  -> Revert PowerShell: {}", script);
-                        use std::process::Stdio;
                         use std::io::Write;
-                        
+                        use std::process::Stdio;
+
                         // SECURITY FIX: Use RemoteSigned + pass script via stdin
                         let mut child = Command::new("powershell")
                             .args([
                                 "-NoProfile",
                                 "-NonInteractive",
-                                "-ExecutionPolicy", "RemoteSigned",
-                                "-Command", "-",
+                                "-ExecutionPolicy",
+                                "RemoteSigned",
+                                "-Command",
+                                "-",
                             ])
                             .stdin(Stdio::piped())
                             .stdout(Stdio::piped())
@@ -779,18 +925,28 @@ pub async fn undo_tweak(
                                 .map_err(|e| format!("Failed to write script to stdin: {}", e))?;
                         }
 
-                        let output = child.wait_with_output()
+                        let output = child
+                            .wait_with_output()
                             .map_err(|e| format!("Revert PowerShell failed: {}", e))?;
 
                         if !output.stdout.is_empty() {
-                             println!("    [REVERT STDOUT] {}", String::from_utf8_lossy(&output.stdout));
+                            println!(
+                                "    [REVERT STDOUT] {}",
+                                String::from_utf8_lossy(&output.stdout)
+                            );
                         }
                         if !output.stderr.is_empty() {
-                             eprintln!("    [REVERT STDERR] {}", String::from_utf8_lossy(&output.stderr));
+                            eprintln!(
+                                "    [REVERT STDERR] {}",
+                                String::from_utf8_lossy(&output.stderr)
+                            );
                         }
 
                         if !output.status.success() {
-                            eprintln!("Warning: Revert PowerShell script returned non-zero");
+                            return Err(format!(
+                                "Revert PowerShell script failed: {}",
+                                String::from_utf8_lossy(&output.stderr).trim()
+                            ));
                         }
                     }
                     TweakOperation::ServiceSetMode { name, mode } => {
@@ -810,7 +966,11 @@ pub async fn undo_tweak(
                             .map_err(|e| format!("Revert service failed: {}", e))?;
 
                         if !output.status.success() {
-                            eprintln!("Warning: Failed to revert service mode {}", name);
+                            return Err(format!(
+                                "Failed to restore service mode for {}: {}",
+                                name,
+                                String::from_utf8_lossy(&output.stderr).trim()
+                            ));
                         }
                     }
                     TweakOperation::ScheduledTaskDisable { path, name } => {
@@ -819,10 +979,18 @@ pub async fn undo_tweak(
                         } else {
                             format!("{}\\{}", path, name)
                         };
-                        let _ = Command::new("schtasks")
+                        let output = Command::new("schtasks")
                             .args(&["/Change", "/TN", &full_path, "/Disable"])
                             .creation_flags(0x08000000)
-                            .output();
+                            .output()
+                            .map_err(|e| format!("Failed to start schtasks: {e}"))?;
+                        if !output.status.success() {
+                            return Err(format!(
+                                "Failed to disable scheduled task {}: {}",
+                                full_path,
+                                String::from_utf8_lossy(&output.stderr).trim()
+                            ));
+                        }
                     }
                     TweakOperation::ScheduledTaskEnable { path, name } => {
                         let full_path = if path == "\\" || path.is_empty() {
@@ -830,20 +998,36 @@ pub async fn undo_tweak(
                         } else {
                             format!("{}\\{}", path, name)
                         };
-                        let _ = Command::new("schtasks")
+                        let output = Command::new("schtasks")
                             .args(&["/Change", "/TN", &full_path, "/Enable"])
                             .creation_flags(0x08000000)
-                            .output();
+                            .output()
+                            .map_err(|e| format!("Failed to start schtasks: {e}"))?;
+                        if !output.status.success() {
+                            return Err(format!(
+                                "Failed to enable scheduled task {}: {}",
+                                full_path,
+                                String::from_utf8_lossy(&output.stderr).trim()
+                            ));
+                        }
                     }
                     TweakOperation::ServiceDisable { name } => {
                         let _ = Command::new("sc")
                             .args(&["stop", name])
                             .creation_flags(0x08000000)
                             .output();
-                        let _ = Command::new("sc")
+                        let output = Command::new("sc")
                             .args(&["config", name, "start=", "disabled"])
                             .creation_flags(0x08000000)
-                            .output();
+                            .output()
+                            .map_err(|e| format!("Failed to start sc.exe: {e}"))?;
+                        if !output.status.success() {
+                            return Err(format!(
+                                "Failed to disable service {}: {}",
+                                name,
+                                String::from_utf8_lossy(&output.stderr).trim()
+                            ));
+                        }
                     }
                     TweakOperation::Command { cmd, args } => {
                         println!("  -> Revert Command: {} {:?}", cmd, args);
@@ -858,10 +1042,21 @@ pub async fn undo_tweak(
                             let stderr = String::from_utf8_lossy(&output.stderr);
                             let combined = format!("{}{}", stdout, stderr).to_lowercase();
 
-                            if combined.contains("element not found") || combined.contains("value is protected") {
-                                eprintln!("  -> Non-fatal: {} {:?} -> {}", cmd, args, combined.trim());
+                            if combined.contains("element not found")
+                                || combined.contains("value is protected")
+                            {
+                                eprintln!(
+                                    "  -> Non-fatal: {} {:?} -> {}",
+                                    cmd,
+                                    args,
+                                    combined.trim()
+                                );
                             } else {
-                                eprintln!("Warning: Revert command returned non-zero: {:?}", output.status.code());
+                                return Err(format!(
+                                    "Revert command failed with {:?}: {}",
+                                    output.status.code(),
+                                    combined.trim()
+                                ));
                             }
                         }
                     }
@@ -884,57 +1079,56 @@ pub async fn undo_tweak(
                         }
                     }
                     TweakOperation::DefenderServiceControl { services, action } => {
-                        println!("  -> Revert DefenderServiceControl: {:?} action={}", services, action);
-                        if let Err(e) = control_defender_services(services, action) {
-                            eprintln!("Warning: Revert DefenderServiceControl failed: {}", e);
-                        }
+                        println!(
+                            "  -> Revert DefenderServiceControl: {:?} action={}",
+                            services, action
+                        );
+                        control_defender_services(services, action)
+                            .map_err(|e| format!("Revert DefenderServiceControl failed: {e}"))?;
                     }
                     TweakOperation::DefenderExclusion { paths, action } => {
-                        println!("  -> Revert DefenderExclusion: {:?} action={}", paths, action);
-                        if let Err(e) = set_defender_exclusions(paths, action) {
-                            eprintln!("Warning: Revert DefenderExclusion failed: {}", e);
-                        }
+                        println!(
+                            "  -> Revert DefenderExclusion: {:?} action={}",
+                            paths, action
+                        );
+                        set_defender_exclusions(paths, action)
+                            .map_err(|e| format!("Revert DefenderExclusion failed: {e}"))?;
                     }
                     TweakOperation::SvcHostSplitAll { enable_split } => {
                         println!("  -> Revert SvcHostSplitAll: enable_split={}", enable_split);
-                        if let Err(e) = apply_svc_host_split_all(*enable_split) {
-                            eprintln!("Warning: Revert SvcHostSplitAll failed: {}", e);
-                        }
+                        apply_svc_host_split_all(*enable_split)
+                            .map_err(|e| format!("Revert SvcHostSplitAll failed: {e}"))?;
                     }
                     TweakOperation::MsiSet { class, priority } => {
                         println!("  -> Revert MsiSet: class={}, priority={}", class, priority);
-                        if let Err(e) = apply_msi_remove(&class) {
-                            eprintln!("Warning: Revert MsiSet failed: {}", e);
-                        }
+                        apply_msi_set(class, *priority)
+                            .map_err(|e| format!("Revert MsiSet failed: {e}"))?;
                     }
                     TweakOperation::MsiRemove { class } => {
                         println!("  -> Revert MsiRemove: class={}", class);
-                        if let Err(e) = apply_msi_set(&class, 0) {
-                            eprintln!("Warning: Revert MsiRemove failed: {}", e);
-                        }
+                        apply_msi_remove(class)
+                            .map_err(|e| format!("Revert MsiRemove failed: {e}"))?;
                     }
                     TweakOperation::MsiSetNet { priority } => {
                         println!("  -> Revert MsiSetNet: priority={}", priority);
-                        if let Err(e) = apply_msi_remove("Net") {
-                            eprintln!("Warning: Revert MsiSetNet failed: {}", e);
-                        }
+                        apply_msi_set("Net", *priority)
+                            .map_err(|e| format!("Revert MsiSetNet failed: {e}"))?;
                     }
                     TweakOperation::MsiRemoveNet => {
                         println!("  -> Revert MsiRemoveNet");
-                        if let Err(e) = apply_msi_set("Net", 0) {
-                            eprintln!("Warning: Revert MsiRemoveNet failed: {}", e);
-                        }
+                        apply_msi_remove("Net")
+                            .map_err(|e| format!("Revert MsiRemoveNet failed: {e}"))?;
                     }
                     TweakOperation::NetworkInterfacesSet { key, value: _ } => {
-                         println!("  -> Revert NetworkInterfacesSet: key={}", key);
-                         // BUG-H4 fix: construct enum variant directly — no JSON string injection
-                         let revert_op = TweakOperation::NetworkInterfacesDelete { key: key.clone() };
-                         if let Err(e) = crate::modules::registry::operations::apply_network_interface_tweak(&revert_op) {
-                             eprintln!("Warning: Revert NetworkInterfacesSet failed: {}", e);
-                         }
-                     }
-                    TweakOperation::NetworkInterfacesDelete { key: _ } => {
-                        println!("  -> Revert NetworkInterfacesDelete: cannot restore, skipping");
+                        println!("  -> Revert NetworkInterfacesSet: key={}", key);
+                        // BUG-H4 fix: construct enum variant directly — no JSON string injection
+                        crate::modules::registry::operations::apply_network_interface_tweak(op)
+                            .map_err(|e| format!("Revert network interface value failed: {e}"))?;
+                    }
+                    TweakOperation::NetworkInterfacesDelete { key } => {
+                        println!("  -> Revert NetworkInterfacesDelete: key={}", key);
+                        crate::modules::registry::operations::apply_network_interface_tweak(op)
+                            .map_err(|e| format!("Revert network interface value failed: {e}"))?;
                     }
                     _ => {
                         println!("  -> Skipped unknown revert op: {:?}", op);
@@ -944,7 +1138,9 @@ pub async fn undo_tweak(
         }
 
         Ok(())
-    }).await.map_err(|e| e.to_string())??;
+    })
+    .await
+    .map_err(|e| e.to_string())??;
 
     // Update State (Remove from applied)
     {
@@ -952,15 +1148,20 @@ pub async fn undo_tweak(
         if app_state.applied_tweaks.remove(&id) {
             let state_path = crate::modules::utils::dirs::get_state_path()
                 .unwrap_or_else(|_| std::path::PathBuf::from("state.json"));
-            let _ = app_state.save(state_path);
+            app_state
+                .save(state_path)
+                .map_err(|e| format!("Failed to save app state: {e}"))?;
         }
     }
 
-    let _ = app.emit("tweak-progress", serde_json::json!({
-        "id": id,
-        "status": "revert-success",
-        "progress": 100
-    }));
+    let _ = app.emit(
+        "tweak-progress",
+        serde_json::json!({
+            "id": id,
+            "status": "revert-success",
+            "progress": 100
+        }),
+    );
 
     Ok(())
 }
@@ -968,19 +1169,13 @@ pub async fn undo_tweak(
 // ─── AI Commands ───────────────────────────────────────────────────────────────
 
 use crate::modules::ai::{
-    AnalysisResult, ChatMessage, DiagnosisResult,
-    gemini, prompts, profiler,
+    gemini, profiler, prompts, AnalysisResult, ChatMessage, ChatReply, ChatTweakAction,
+    DiagnosisResult,
 };
 
 #[tauri::command]
 pub fn save_gemini_key(key: String) -> Result<(), String> {
-    if key.trim().is_empty() {
-        return Err("API key cannot be empty".to_string());
-    }
-    if !key.starts_with("AIza") {
-        return Err("Invalid Gemini API key format (must start with AIza)".to_string());
-    }
-    gemini::save_api_key(key.trim())
+    gemini::save_api_key(&key)
 }
 
 #[tauri::command]
@@ -994,6 +1189,11 @@ pub fn delete_gemini_key() -> Result<(), String> {
 }
 
 #[tauri::command]
+pub async fn test_gemini_connection() -> Result<(), String> {
+    gemini::test_connection().await
+}
+
+#[tauri::command]
 pub async fn ai_analyze(
     ctx: State<'_, Mutex<TweakContext>>,
     state: State<'_, Mutex<AppState>>,
@@ -1003,31 +1203,38 @@ pub async fn ai_analyze(
     let memory = AiMemoryStore::load();
     let memory_ctx = memory.to_prompt_context();
 
-    let startup_items = tokio::task::spawn_blocking(
-        crate::modules::startup::scan_all_startup_items
-    ).await.unwrap_or_default();
+    let startup_items =
+        tokio::task::spawn_blocking(crate::modules::startup::scan_all_startup_items)
+            .await
+            .unwrap_or_default();
     let startup_json = serde_json::to_string(&startup_items).unwrap_or_default();
 
     let tweaks_summary = {
         let context = ctx.lock().map_err(|e| e.to_string())?;
         let st = state.lock().map_err(|e| e.to_string())?;
-        let mut tweaks: Vec<_> = context.tweaks
+        let mut tweaks: Vec<_> = context
+            .tweaks
             .iter()
-            .map(|t| serde_json::json!({
-                "id":              t.id,
-                "name":            t.name,
-                "description":     t.description,
-                "risk_level":      format!("{:?}", t.warning_level),
-                "category":        format!("{:?}", t.category),
-                "currently_applied": st.applied_tweaks.contains(&t.id),
-                "requires_restart": t.requires_restart,
-            }))
+            .map(|t| {
+                serde_json::json!({
+                    "id":              t.id,
+                    "name":            t.name,
+                    "description":     t.description,
+                    "risk_level":      format!("{:?}", t.warning_level),
+                    "category":        format!("{:?}", t.category),
+                    "currently_applied": st.applied_tweaks.contains(&t.id),
+                    "requires_restart": t.requires_restart,
+                })
+            })
             .collect();
         tweaks.sort_by(|a, b| {
             let ca = a["category"].as_str().unwrap_or("");
             let cb = b["category"].as_str().unwrap_or("");
             ca.cmp(cb).then(
-                a["id"].as_str().unwrap_or("").cmp(b["id"].as_str().unwrap_or(""))
+                a["id"]
+                    .as_str()
+                    .unwrap_or("")
+                    .cmp(b["id"].as_str().unwrap_or("")),
             )
         });
         tweaks
@@ -1062,26 +1269,75 @@ pub async fn ai_analyze(
     .await?;
 
     let raw_trimmed = raw.trim();
-    let result: AnalysisResult = if raw_trimmed.starts_with('[') {
+    let mut result: AnalysisResult = if raw_trimmed.starts_with('[') {
         serde_json::from_str::<Vec<AnalysisResult>>(raw_trimmed)
-            .map_err(|e| format!("Failed to parse Gemini response: {}\nRaw: {}", e, &raw[..400.min(raw.len())]))?
-            .into_iter().next()
-            .ok_or_else(|| format!("Empty array in Gemini response\nRaw: {}", &raw[..400.min(raw.len())]))?
+            .map_err(|e| {
+                format!(
+                    "Failed to parse Gemini response: {}\nRaw: {}",
+                    e,
+                    &raw[..400.min(raw.len())]
+                )
+            })?
+            .into_iter()
+            .next()
+            .ok_or_else(|| {
+                format!(
+                    "Empty array in Gemini response\nRaw: {}",
+                    &raw[..400.min(raw.len())]
+                )
+            })?
     } else {
-        serde_json::from_str(&raw).map_err(|e| format!("Failed to parse Gemini response: {}\nRaw: {}", e, &raw[..400.min(raw.len())]))?
+        serde_json::from_str(&raw).map_err(|e| {
+            format!(
+                "Failed to parse Gemini response: {}\nRaw: {}",
+                e,
+                &raw[..400.min(raw.len())]
+            )
+        })?
     };
 
-    if let Ok(_) = serde_json::from_str::<AnalysisResult>(&raw) {
-        let mut mem = AiMemoryStore::load();
-        mem.add(MemoryKind::Recommendation {
-            scan_summary: result.system_summary.clone(),
-            add: result.add.iter().map(|r| r.id.clone()).collect(),
-            remove: result.remove.iter().map(|r| r.id.clone()).collect(),
-            applied: vec![],
-        });
-        mem.last_system_summary = Some(result.system_summary.clone());
-        let _ = mem.save();
+    // Model output is advisory and untrusted. Only retain ids that exist in
+    // the current catalog, and never offer a Dangerous tweak for application.
+    let (known, applied, dangerous) = {
+        let context = ctx.lock().map_err(|e| e.to_string())?;
+        let state = state.lock().map_err(|e| e.to_string())?;
+        (
+            context
+                .tweaks
+                .iter()
+                .map(|t| t.id.clone())
+                .collect::<std::collections::HashSet<_>>(),
+            state.applied_tweaks.clone(),
+            context
+                .tweaks
+                .iter()
+                .filter(|t| matches!(t.warning_level, WarningLevel::Dangerous))
+                .map(|t| t.id.clone())
+                .collect::<std::collections::HashSet<_>>(),
+        )
+    };
+    result.add.retain(|r| {
+        known.contains(&r.id) && !applied.contains(&r.id) && !dangerous.contains(&r.id)
+    });
+    result
+        .remove
+        .retain(|r| known.contains(&r.id) && applied.contains(&r.id));
+    for conflict in &mut result.conflicts {
+        conflict.tweak_ids.retain(|id| known.contains(id));
     }
+    result
+        .conflicts
+        .retain(|conflict| conflict.tweak_ids.len() > 1);
+
+    let mut mem = AiMemoryStore::load();
+    mem.add(MemoryKind::Recommendation {
+        scan_summary: result.system_summary.clone(),
+        add: result.add.iter().map(|r| r.id.clone()).collect(),
+        remove: result.remove.iter().map(|r| r.id.clone()).collect(),
+        applied: vec![],
+    });
+    mem.last_system_summary = Some(result.system_summary.clone());
+    mem.save()?;
 
     Ok(result)
 }
@@ -1094,38 +1350,87 @@ pub async fn ai_chat(
     ctx: State<'_, Mutex<TweakContext>>,
     state: State<'_, Mutex<AppState>>,
     app: tauri::AppHandle,
-) -> Result<String, String> {
+) -> Result<ChatReply, String> {
+    validate_session_id(&session_id)?;
+    let message = message.trim().to_string();
+    if message.is_empty() || message.len() > 8_000 {
+        return Err("Message must be between 1 and 8,000 characters.".to_string());
+    }
+    if history.len() > 200
+        || history
+            .iter()
+            .any(|m| !matches!(m.role.as_str(), "user" | "model") || m.content.len() > 32_000)
+    {
+        return Err("Chat history is invalid or too large.".to_string());
+    }
     let profile = profiler::scan_system_profile_from_state(Some(app))?;
     let memory = AiMemoryStore::load();
     let memory_ctx = memory.to_prompt_context();
 
-    let applied_summary = {
+    let catalog_summary = {
         let context = ctx.lock().map_err(|e| e.to_string())?;
         let st = state.lock().map_err(|e| e.to_string())?;
-        context.tweaks
+        context
+            .tweaks
             .iter()
-            .filter(|t| st.applied_tweaks.contains(&t.id))
-            .map(|t| serde_json::json!({"id": t.id, "name": t.name}))
+            .map(|t| {
+                serde_json::json!({
+                    "id": t.id,
+                    "name": t.name,
+                    "description": t.description,
+                    "warning_level": format!("{:?}", t.warning_level),
+                    "applied": st.applied_tweaks.contains(&t.id),
+                })
+            })
             .collect::<Vec<_>>()
     };
 
-    let (ctx_user, ctx_model) = prompts::build_context_injection(
+    let (ctx_user, ctx_model) = prompts::build_chat_context_injection(
         &serde_json::to_string_pretty(&profile).map_err(|e| e.to_string())?,
-        &serde_json::to_string(&applied_summary).map_err(|e| e.to_string())?,
+        &serde_json::to_string(&catalog_summary).map_err(|e| e.to_string())?,
         &memory_ctx,
     );
 
     let mut messages = vec![
-        ("user".to_string(),   ctx_user),
-        ("model".to_string(),  ctx_model),
+        ("user".to_string(), ctx_user),
+        ("model".to_string(), ctx_model),
     ];
-    let history_clone: Vec<_> = history.iter().map(|m| (m.role.clone(), m.content.clone())).collect();
+    let history_clone: Vec<_> = history
+        .iter()
+        .rev()
+        .take(30)
+        .rev()
+        .map(|m| (m.role.clone(), m.content.clone()))
+        .collect();
     for msg in history_clone {
         messages.push(msg);
     }
     messages.push(("user".to_string(), message.clone()));
 
     let response = gemini::call_gemini(messages, false).await?;
+
+    // Model text is untrusted. Re-bind every surfaced action to the live
+    // catalog and current applied state; invented IDs can never become buttons.
+    let tweak_actions = {
+        let context = ctx.lock().map_err(|e| e.to_string())?;
+        let st = state.lock().map_err(|e| e.to_string())?;
+        context
+            .tweaks
+            .iter()
+            .filter(|t| response.contains(&t.id))
+            .take(12)
+            .map(|t| ChatTweakAction {
+                id: t.id.clone(),
+                name: t.name.clone(),
+                operation: if st.applied_tweaks.contains(&t.id) {
+                    "undo".to_string()
+                } else {
+                    "apply".to_string()
+                },
+                warning_level: format!("{:?}", t.warning_level),
+            })
+            .collect::<Vec<_>>()
+    };
 
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -1138,28 +1443,37 @@ pub async fn ai_chat(
             role: m.role,
             content: m.content,
             timestamp: now,
+            tweak_actions: m.tweak_actions,
         })
         .collect();
     all_messages.push(AiChatMessage {
         role: "user".to_string(),
         content: message,
         timestamp: now,
+        tweak_actions: vec![],
     });
     all_messages.push(AiChatMessage {
         role: "model".to_string(),
         content: response.clone(),
         timestamp: now,
+        tweak_actions: tweak_actions.clone(),
     });
 
+    let started_at = load_chat_session(&session_id)
+        .map(|session| session.started_at)
+        .unwrap_or(now);
     let session = ChatSession {
         id: session_id,
         title,
-        started_at: now,
+        started_at,
         messages: all_messages,
     };
-    let _ = save_chat_session(&session);
+    save_chat_session(&session)?;
 
-    Ok(response)
+    Ok(ChatReply {
+        content: response,
+        tweak_actions,
+    })
 }
 
 #[tauri::command]
@@ -1176,16 +1490,19 @@ pub async fn ai_diagnose(
     let applied_detail = {
         let context = ctx.lock().map_err(|e| e.to_string())?;
         let st = state.lock().map_err(|e| e.to_string())?;
-        context.tweaks
+        context
+            .tweaks
             .iter()
             .filter(|t| st.applied_tweaks.contains(&t.id))
-            .map(|t| serde_json::json!({
-                "id":          t.id,
-                "name":        t.name,
-                "description": t.description,
-                "category":    format!("{:?}", t.category),
-                "risk_level":  format!("{:?}", t.warning_level),
-            }))
+            .map(|t| {
+                serde_json::json!({
+                    "id":          t.id,
+                    "name":        t.name,
+                    "description": t.description,
+                    "category":    format!("{:?}", t.category),
+                    "risk_level":  format!("{:?}", t.warning_level),
+                })
+            })
             .collect::<Vec<_>>()
     };
 
@@ -1212,19 +1529,58 @@ pub async fn ai_diagnose(
     .await?;
 
     let raw_trimmed = raw.trim();
-    let result: DiagnosisResult = if raw_trimmed.starts_with('[') {
+    let mut result: DiagnosisResult = if raw_trimmed.starts_with('[') {
         serde_json::from_str::<Vec<DiagnosisResult>>(raw_trimmed)
-            .map_err(|e| format!("Failed to parse diagnosis: {}\nRaw: {}", e, &raw[..400.min(raw.len())]))?
-            .into_iter().next()
-            .ok_or_else(|| format!("Empty array in diagnosis response\nRaw: {}", &raw[..400.min(raw.len())]))?
+            .map_err(|e| {
+                format!(
+                    "Failed to parse diagnosis: {}\nRaw: {}",
+                    e,
+                    &raw[..400.min(raw.len())]
+                )
+            })?
+            .into_iter()
+            .next()
+            .ok_or_else(|| {
+                format!(
+                    "Empty array in diagnosis response\nRaw: {}",
+                    &raw[..400.min(raw.len())]
+                )
+            })?
     } else {
-        serde_json::from_str(&raw).map_err(|e| format!("Failed to parse diagnosis: {}\nRaw: {}", e, &raw[..400.min(raw.len())]))?
+        serde_json::from_str(&raw).map_err(|e| {
+            format!(
+                "Failed to parse diagnosis: {}\nRaw: {}",
+                e,
+                &raw[..400.min(raw.len())]
+            )
+        })?
     };
+
+    let (known, applied) = {
+        let context = ctx.lock().map_err(|e| e.to_string())?;
+        let state = state.lock().map_err(|e| e.to_string())?;
+        (
+            context
+                .tweaks
+                .iter()
+                .map(|t| t.id.clone())
+                .collect::<std::collections::HashSet<_>>(),
+            state.applied_tweaks.clone(),
+        )
+    };
+    result
+        .likely_causes
+        .retain(|cause| known.contains(&cause.tweak_id));
+    result
+        .safe_to_revert
+        .retain(|id| known.contains(id) && applied.contains(id));
 
     let mut mem = AiMemoryStore::load();
     mem.add(MemoryKind::Diagnosis {
         problem: problem.clone(),
-        likely_causes: result.likely_causes.iter()
+        likely_causes: result
+            .likely_causes
+            .iter()
             .map(|c| c.tweak_id.clone())
             .collect(),
         suggested_fix: result.suggested_fix.clone(),
@@ -1245,8 +1601,8 @@ pub fn get_ai_memory_context() -> String {
 
 #[tauri::command]
 pub fn record_ai_memory(kind_json: String) -> Result<(), String> {
-    let kind: MemoryKind = serde_json::from_str(&kind_json)
-        .map_err(|e| format!("Invalid memory kind JSON: {}", e))?;
+    let kind: MemoryKind =
+        serde_json::from_str(&kind_json).map_err(|e| format!("Invalid memory kind JSON: {}", e))?;
     let mut store = AiMemoryStore::load();
     store.add(kind);
     store.save()
@@ -1268,8 +1624,8 @@ pub fn clear_ai_memory() -> Result<(), String> {
 
 #[tauri::command]
 pub fn save_chat(session_json: String) -> Result<(), String> {
-    let session: ChatSession = serde_json::from_str(&session_json)
-        .map_err(|e| format!("Invalid session JSON: {}", e))?;
+    let session: ChatSession =
+        serde_json::from_str(&session_json).map_err(|e| format!("Invalid session JSON: {}", e))?;
     save_chat_session(&session)
 }
 
@@ -1305,11 +1661,32 @@ pub async fn ai_apply_startup_recommendations(
     let recs: Vec<StartupRecommendation> = serde_json::from_str(&recommendations_json)
         .map_err(|e| format!("Invalid recs JSON: {}", e))?;
 
+    let current_items =
+        tokio::task::spawn_blocking(crate::modules::startup::scan_all_startup_items)
+            .await
+            .map_err(|e| e.to_string())?;
+    let current = current_items
+        .into_iter()
+        .map(|item| (item.id.clone(), item))
+        .collect::<std::collections::HashMap<_, _>>();
+
     let mut results: Vec<String> = Vec::new();
     let mut memory = AiMemoryStore::load();
 
     for rec in &recs {
         if rec.action == "disable" {
+            let item = current
+                .get(&rec.item_id)
+                .ok_or_else(|| format!("Startup item no longer exists: {}", rec.item_id))?;
+            if matches!(
+                item.safety_rating,
+                crate::modules::startup::types::SafetyRating::Critical
+            ) {
+                return Err(format!(
+                    "Refusing to disable critical startup item: {}",
+                    item.name
+                ));
+            }
             let result = tokio::task::spawn_blocking({
                 let id = rec.item_id.clone();
                 move || toggle_item(id, false)

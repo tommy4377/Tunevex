@@ -58,7 +58,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // App Launch Tracking & Instrumentation
         Tweak {
             id: "priv_disable_app_tracking".to_string(),
@@ -102,7 +102,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Location Services
         Tweak {
             id: "priv_disable_location".to_string(),
@@ -145,7 +145,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Disable Cloud Sync
         Tweak {
             id: "priv_disable_cloud_sync".to_string(),
@@ -188,7 +188,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Online Speech Recognition
         Tweak {
             id: "priv_disable_speech".to_string(),
@@ -277,7 +277,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Disable Website Language Access
         Tweak {
             id: "priv_disable_lang_list".to_string(),
@@ -396,7 +396,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Disable Performance Track
         Tweak {
             id: "priv_disable_perftrack".to_string(),
@@ -428,7 +428,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Disable Bing Web Search
         Tweak {
             id: "priv_disable_bing_search".to_string(),
@@ -459,7 +459,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search".to_string(), key: "ConnectedSearchUseWeb".to_string(), value: RegistryValue::DWord(0) }
             ]
         },
-        
+
         // Clear MRU History
         Tweak {
             id: "priv_clear_mru".to_string(),

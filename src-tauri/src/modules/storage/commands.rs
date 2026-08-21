@@ -1,22 +1,21 @@
+use crate::modules::storage::compression::{
+    compress_file, decompress_file, is_compressed, Algorithm,
+};
 use crate::modules::storage::scanner::{scan_directory, ScanResult};
-use crate::modules::storage::compression::{compress_file, decompress_file, is_compressed, Algorithm};
-use crate::modules::utils::state::AppState;
-use crate::modules::utils::dirs::get_state_path;
 use crate::modules::storage::state::CompactorState;
+use crate::modules::utils::dirs::get_state_path;
+use crate::modules::utils::state::AppState;
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::path::Path;
-use tauri::{State, Emitter, AppHandle};
+use tauri::{AppHandle, Emitter, State};
 
 // File extensions that don't compress well (already compressed formats)
 const SKIP_EXTENSIONS: &[&str] = &[
     // Images
-    "jpg", "jpeg", "png", "gif", "webp", "bmp", "ico", "svg",
-    // Video
-    "mp4", "mkv", "avi", "mov", "webm", "wmv", "flv", "m4v",
-    // Audio
-    "mp3", "aac", "flac", "ogg", "wma", "m4a", "opus",
-    // Archives (already compressed)
+    "jpg", "jpeg", "png", "gif", "webp", "bmp", "ico", "svg", // Video
+    "mp4", "mkv", "avi", "mov", "webm", "wmv", "flv", "m4v", // Audio
+    "mp3", "aac", "flac", "ogg", "wma", "m4a", "opus", // Archives (already compressed)
     "zip", "rar", "7z", "gz", "xz", "zst", "bz2", "tar", "cab",
     // Documents (often compressed internally)
     "pdf", "docx", "xlsx", "pptx",
@@ -24,9 +23,13 @@ const SKIP_EXTENSIONS: &[&str] = &[
 
 // System files that should NEVER be touched (can cause BSOD)
 const SKIP_FILENAMES: &[&str] = &[
-    "pagefile.sys", "hiberfil.sys", "swapfile.sys",
-    "ntuser.dat", "usrclass.dat",
-    "desktop.ini", "thumbs.db",
+    "pagefile.sys",
+    "hiberfil.sys",
+    "swapfile.sys",
+    "ntuser.dat",
+    "usrclass.dat",
+    "desktop.ini",
+    "thumbs.db",
 ];
 
 // Minimum file size worth compressing (4KB)
@@ -63,7 +66,6 @@ fn should_skip_file(path: &Path, size: u64) -> bool {
     false
 }
 
-
 #[tauri::command]
 pub async fn cancel_compactor(state: State<'_, Mutex<CompactorState>>) -> Result<(), String> {
     let state = state.lock().map_err(|e| e.to_string())?;
@@ -72,7 +74,11 @@ pub async fn cancel_compactor(state: State<'_, Mutex<CompactorState>>) -> Result
 }
 
 #[tauri::command]
-pub async fn scan_storage(app: AppHandle, path: String, compactor_state: State<'_, Mutex<CompactorState>>) -> Result<ScanResult, String> {
+pub async fn scan_storage(
+    app: AppHandle,
+    path: String,
+    compactor_state: State<'_, Mutex<CompactorState>>,
+) -> Result<ScanResult, String> {
     // Reset cancel state
     {
         let s = compactor_state.lock().map_err(|e| e.to_string())?;
@@ -82,12 +88,12 @@ pub async fn scan_storage(app: AppHandle, path: String, compactor_state: State<'
         let s = compactor_state.lock().map_err(|e| e.to_string())?;
         s.cancel_token.clone()
     };
-    
+
     // Emit start event
     let _ = app.emit("compactor-status", "Scanning...");
-    
+
     let result = scan_directory(&path, cancel_token, Some(app)).await;
-    
+
     Ok(result)
 }
 
@@ -101,12 +107,12 @@ pub async fn compress_folder(
 ) -> Result<String, String> {
     // Reset cancel state
     {
-         let s = compactor_state.lock().map_err(|e| e.to_string())?;
-         s.reset();
+        let s = compactor_state.lock().map_err(|e| e.to_string())?;
+        s.reset();
     }
     let cancel_token = {
-         let s = compactor_state.lock().map_err(|e| e.to_string())?;
-         s.cancel_token.clone()
+        let s = compactor_state.lock().map_err(|e| e.to_string())?;
+        s.cancel_token.clone()
     };
 
     // Compress everything in folder
@@ -126,7 +132,7 @@ pub async fn compress_folder(
         let mut count = 0;
         let mut skipped = 0;
         let mut bytes_processed: u64 = 0;
-        
+
         // PERFORMANCE FIX: Batch IPC events to avoid event flood
         const BATCH_SIZE: usize = 50;
         let mut batch: Vec<String> = Vec::with_capacity(BATCH_SIZE);
@@ -160,7 +166,7 @@ pub async fn compress_folder(
                         skipped += 1;
                     }
                 }
-                
+
                 // Emit batch when full
                 if batch.len() >= BATCH_SIZE {
                     let _ = app_clone.emit("compactor-file-batch", &batch);
@@ -170,7 +176,7 @@ pub async fn compress_folder(
                 }
             }
         }
-        
+
         // Flush remaining batch
         if !batch.is_empty() {
             let _ = app_clone.emit("compactor-file-batch", &batch);
@@ -206,7 +212,7 @@ pub async fn decompress_folder(
 
     let count = tokio::task::spawn_blocking(move || -> usize {
         let mut count = 0;
-        
+
         // PERFORMANCE FIX: Batch IPC events
         const BATCH_SIZE: usize = 50;
         let mut batch: Vec<String> = Vec::with_capacity(BATCH_SIZE);
@@ -221,7 +227,7 @@ pub async fn decompress_folder(
                 if decompress_file(entry.path()).is_ok() {
                     count += 1;
                 }
-                
+
                 // Emit batch when full
                 if batch.len() >= BATCH_SIZE {
                     let _ = app_clone.emit("compactor-file-batch", &batch);
@@ -230,7 +236,7 @@ pub async fn decompress_folder(
                 }
             }
         }
-        
+
         // Flush remaining batch
         if !batch.is_empty() {
             let _ = app_clone.emit("compactor-file-batch", &batch);
@@ -275,7 +281,9 @@ pub async fn get_folder_stats(path: String) -> Result<FolderStats, String> {
 }
 
 #[tauri::command]
-pub async fn get_compressed_folders(state: State<'_, Mutex<AppState>>) -> Result<Vec<String>, String> {
+pub async fn get_compressed_folders(
+    state: State<'_, Mutex<AppState>>,
+) -> Result<Vec<String>, String> {
     let app_state = state.lock().map_err(|e| e.to_string())?;
     Ok(app_state.compressed_folders.iter().cloned().collect())
 }

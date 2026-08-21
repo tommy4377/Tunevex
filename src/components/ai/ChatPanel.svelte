@@ -2,15 +2,33 @@
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
   import { marked } from "marked";
-  import { History, Trash2, Plus } from "lucide-svelte";
+  import DOMPurify from "dompurify";
+  import { History, Trash2, Plus, AlertTriangle, RotateCcw, Play } from "lucide-svelte";
+  import type { Tweak } from "$lib/types";
 
-  interface Msg { role: string; content: string; timestamp: number; }
+  interface ChatAction {
+    id: string;
+    name: string;
+    operation: "apply" | "undo";
+    warning_level: "Safe" | "Careful" | "Dangerous";
+    completed?: boolean;
+  }
+  interface ChatReply { content: string; tweak_actions: ChatAction[]; }
+  interface Msg { role: string; content: string; timestamp: number; tweak_actions?: ChatAction[]; }
   interface SessionMeta {
     id: string; title: string; started_at: number; message_count: number;
   }
 
   marked.setOptions({ breaks: true, gfm: true });
-  function md(text: string): string { return marked.parse(text) as string; }
+  function md(text: string): string {
+    return DOMPurify.sanitize(marked.parse(text) as string, {
+      USE_PROFILES: { html: true },
+      FORBID_TAGS: ["style", "iframe", "object", "embed", "form", "input"],
+      FORBID_ATTR: ["style"],
+    });
+  }
+
+  export let allTweaks: Tweak[] = [];
 
   let messages: Msg[] = [];
   let sessions: SessionMeta[] = [];
@@ -19,6 +37,7 @@
   let loading = false;
   let message = "";
   let error = "";
+  let actionBusyId: string | null = null;
 
   onMount(async () => {
     sessions = await invoke<SessionMeta[]>("list_chats");
@@ -33,17 +52,64 @@
     loading = true;
     error = "";
     try {
-      const reply = await invoke<string>("ai_chat", {
+      const reply = await invoke<ChatReply>("ai_chat", {
         message: sent,
         history: messages.slice(0, -1),
         sessionId: currentSessionId,
       });
-      messages = [...messages, { role: "model", content: reply, timestamp: Date.now() }];
+      messages = [...messages, {
+        role: "model",
+        content: reply.content,
+        timestamp: Date.now(),
+        tweak_actions: reply.tweak_actions,
+      }];
       sessions = await invoke<SessionMeta[]>("list_chats");
     } catch (e) {
       error = e as string;
     } finally {
       loading = false;
+    }
+  }
+
+  async function executeTweakAction(action: ChatAction) {
+    if (actionBusyId) return;
+    const tweak = allTweaks.find((item) => item.id === action.id);
+    if (!tweak) {
+      error = `Tweak is no longer in the live catalog: ${action.id}`;
+      return;
+    }
+
+    let dangerousAcknowledgement: string | null = null;
+    if (action.operation === "apply" && action.warning_level === "Dangerous") {
+      const expected = `APPLY ${action.id}`;
+      dangerousAcknowledgement = prompt(
+        `POWER USER CONTROL\n\n${tweak.name}\n\n${tweak.description}\n\nType ${expected} to apply.`
+      );
+      if (dangerousAcknowledgement !== expected) return;
+    }
+
+    actionBusyId = action.id;
+    error = "";
+    try {
+      if (action.operation === "undo") {
+        await invoke("undo_tweak", { id: action.id });
+        tweak.enabled = false;
+        action.operation = "apply";
+      } else {
+        await invoke("apply_tweak", { id: action.id, dangerousAcknowledgement });
+        if (tweak.tweak_type === "Action") {
+          action.completed = true;
+        } else {
+          tweak.enabled = true;
+          action.operation = "undo";
+        }
+      }
+      allTweaks = [...allTweaks];
+      messages = [...messages];
+    } catch (e) {
+      error = `Could not ${action.operation} ${action.name}: ${e as string}`;
+    } finally {
+      actionBusyId = null;
     }
   }
 
@@ -129,6 +195,30 @@
               {msg.content}
             {/if}
           </div>
+          {#if msg.role === "model" && msg.tweak_actions?.length}
+            <div class="tweak-actions" aria-label="AI referenced tweaks">
+              {#each msg.tweak_actions as action (action.id)}
+                <div class:dangerous={action.warning_level === "Dangerous"} class="tweak-action">
+                  <div class="action-copy">
+                    <span class="action-name">{action.name}</span>
+                    <code>{action.id}</code>
+                    {#if action.warning_level !== "Safe"}
+                      <span class="risk"><AlertTriangle size={11}/>{action.warning_level}</span>
+                    {/if}
+                  </div>
+                  <button
+                    class:undo={action.operation === "undo"}
+                    class:dangerous-action={action.warning_level === "Dangerous" && action.operation === "apply"}
+                    disabled={actionBusyId !== null || action.completed}
+                    on:click={() => executeTweakAction(action)}
+                  >
+                    {#if action.operation === "undo"}<RotateCcw size={12}/>{:else}<Play size={12}/>{/if}
+                    {action.completed ? "Completed" : action.operation === "undo" ? "Undo" : "Apply"}
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {/if}
         </div>
       {/each}
       {#if loading}
@@ -215,13 +305,28 @@
   .messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column;
     gap: 10px; padding: 12px; }
   .hint { color: var(--text-muted); font-size: 13px; text-align: center; margin: auto; }
-  .message { padding: 10px 14px; border-radius: var(--radius-md);
-    font-size: 13px; line-height: 1.4; max-width: 85%; white-space: pre-wrap; word-break: break-word; overflow-wrap: break-word; }
+  .message { padding: 10px 14px; border-radius: var(--radius-md); min-width: 0;
+    font-size: 13px; line-height: 1.4; max-width: min(85%, 640px); white-space: pre-wrap; word-break: break-word; overflow-wrap: break-word; }
   .message.user  { background: rgba(129,140,248,0.15); border: 1px solid rgba(129,140,248,0.25);
     align-self: flex-end; color: var(--text-color); }
   .message.model { background: var(--layer-card); border: var(--border-glass);
     align-self: flex-start; }
   .msg-content { color: var(--text-secondary); }
+  .tweak-actions { display: grid; gap: 6px; margin-top: 10px; width: min(520px, 100%); min-width: 0; }
+  .tweak-action { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 8px 9px; border: 1px solid rgba(255,255,255,0.09); border-radius: var(--radius-sm);
+    background: rgba(255,255,255,0.025); }
+  .tweak-action.dangerous { border-color: rgba(248,113,113,0.28); }
+  .action-copy { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 7px; min-width: 0; }
+  .action-name { width: 100%; color: var(--text-color); font-size: 12px; font-weight: 600; }
+  .action-copy code { color: var(--text-muted); font-size: 10px; overflow-wrap: anywhere; }
+  .risk { display: inline-flex; align-items: center; gap: 3px; color: #fbbf24; font-size: 10px; }
+  .tweak-action button { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+    padding: 6px 9px; border-radius: var(--radius-sm); border: 1px solid rgba(129,140,248,0.35);
+    background: rgba(129,140,248,0.13); color: var(--accent-hover); cursor: pointer; font-size: 11px; }
+  .tweak-action button.undo { border-color: rgba(251,191,36,0.35); color: #fbbf24; background: rgba(251,191,36,0.08); }
+  .tweak-action button.dangerous-action { border-color: rgba(248,113,113,0.4); color: #f87171; background: rgba(248,113,113,0.1); }
+  .tweak-action button:disabled { opacity: 0.5; cursor: not-allowed; }
   .typing { letter-spacing: 4px; color: var(--text-muted); }
   .error-box { padding: 8px 12px; background: rgba(248,113,113,0.1);
     border: 1px solid rgba(248,113,113,0.2); border-radius: var(--radius-sm);
@@ -263,4 +368,11 @@
   :global(.md-body h3)  { font-size: 14px; font-weight: 600; margin: 10px 0 4px; }
   :global(.md-body a)   { color: var(--accent-color); text-decoration: none; }
   :global(.md-body a:hover) { text-decoration: underline; }
+
+  @media (max-width: 940px) {
+    .history-sidebar { width: 176px; }
+    .session-title { max-width: 120px; }
+    .message { max-width: 92%; }
+    .tweak-action { align-items: flex-start; flex-wrap: wrap; }
+  }
 </style>

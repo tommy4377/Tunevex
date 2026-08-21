@@ -62,8 +62,8 @@ Write-Host "Enabling Variable Refresh Rate (VRR)..." -ForegroundColor Cyan
 
 # Windows 11 VRR registry setting
 $path = "HKCU:\Software\Microsoft\DirectX\UserGpuPreferences"
-if (!(Test-Path $path)) { 
-    New-Item -Path $path -Force | Out-Null 
+if (!(Test-Path $path)) {
+    New-Item -Path $path -Force | Out-Null
 }
 
 # Get current value
@@ -77,7 +77,7 @@ if ($settings -notlike "*VRROptimizeEnable=1*") {
     } else {
         $settings += "VRROptimizeEnable=1;"
     }
-    
+
     Set-ItemProperty -Path $path -Name "DirectXUserGlobalSettings" -Value $settings -Type String -Force
     Write-Host "VRR enabled in Windows settings" -ForegroundColor Green
 } else {
@@ -110,7 +110,7 @@ fn tweak_no_gpu_scaling() -> Tweak {
             Write-Host "Re-enabling GPU scaling..." -ForegroundColor Cyan
 
             # NVIDIA
-            $nvidiaPaths = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Video\*\0000" -Name "DriverDesc" -EA 0 | 
+            $nvidiaPaths = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Video\*\0000" -Name "DriverDesc" -EA 0 |
                 Where-Object { $_.DriverDesc -like "*NVIDIA*" }
 
             foreach ($nv in $nvidiaPaths) {
@@ -118,7 +118,7 @@ fn tweak_no_gpu_scaling() -> Tweak {
             }
 
             # AMD
-            $amdPaths = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\*" -Name "DriverDesc" -EA 0 | 
+            $amdPaths = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\*" -Name "DriverDesc" -EA 0 |
                 Where-Object { $_.DriverDesc -like "*AMD*" -or $_.DriverDesc -like "*Radeon*" }
 
             foreach ($amd in $amdPaths) {
@@ -145,7 +145,7 @@ Write-Host "Disabling GPU scaling..." -ForegroundColor Cyan
 $changed = $false
 
 # NVIDIA: Disable GPU scaling
-$nvidiaPaths = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Video\*\0000" -Name "DriverDesc" -EA 0 | 
+$nvidiaPaths = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Video\*\0000" -Name "DriverDesc" -EA 0 |
     Where-Object { $_.DriverDesc -like "*NVIDIA*" }
 
 foreach ($nv in $nvidiaPaths) {
@@ -156,7 +156,7 @@ foreach ($nv in $nvidiaPaths) {
 }
 
 # AMD: Disable GPU scaling
-$amdPaths = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\*" -Name "DriverDesc" -EA 0 | 
+$amdPaths = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\*" -Name "DriverDesc" -EA 0 |
     Where-Object { $_.DriverDesc -like "*AMD*" -or $_.DriverDesc -like "*Radeon*" }
 
 foreach ($amd in $amdPaths) {
@@ -275,7 +275,7 @@ Requires NVIDIA GPU.".to_string(),
             script: r#"
 Write-Host "Disabling NVIDIA Low Latency Mode..." -ForegroundColor Cyan
 
-$nvidiaPaths = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\*" -Name "DriverDesc" -EA 0 | 
+$nvidiaPaths = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\*" -Name "DriverDesc" -EA 0 |
     Where-Object { $_.DriverDesc -like "*NVIDIA*" }
 
 $changed = $false
@@ -307,7 +307,7 @@ if ($val.LowLatencyMode -eq 2) { "True" } else { "False" }
             script: r#"
 Write-Host "Enabling NVIDIA Ultra Low Latency Mode..." -ForegroundColor Cyan
 
-$nvidiaPaths = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\*" -Name "DriverDesc" -EA 0 | 
+$nvidiaPaths = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\*" -Name "DriverDesc" -EA 0 |
     Where-Object { $_.DriverDesc -like "*NVIDIA*" }
 
 $changed = $false

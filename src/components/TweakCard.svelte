@@ -12,7 +12,7 @@
     let showRevertConfirm = false;
 
     function handleRevertClick() {
-        if (tweak.enabled && tweak.warning_level === 'Dangerous') {
+        if (!tweak.enabled && tweak.warning_level === 'Dangerous') {
             showRevertConfirm = true;
         } else {
             doToggle();
@@ -25,13 +25,22 @@
 
     async function doToggle() {
         if (isApplying) return;
+        let dangerousAcknowledgement: string | null = null;
+        if (!tweak.enabled && tweak.warning_level === 'Dangerous') {
+            const expected = `APPLY ${tweak.id}`;
+            dangerousAcknowledgement = prompt(
+                `POWER USER CONTROL\n\n${tweak.name}\n\n${tweak.description}\n\n` +
+                `Only continue for a specific reason and with a recovery plan. Type ${expected} to apply.`
+            );
+            if (dangerousAcknowledgement !== expected) return;
+        }
         isApplying = true;
         showRevertConfirm = false;
         try {
             if (tweak.enabled) {
                 await invoke("undo_tweak", { id: tweak.id });
             } else {
-                await invoke("apply_tweak", { id: tweak.id });
+                await invoke("apply_tweak", { id: tweak.id, dangerousAcknowledgement });
             }
             dispatch("toggle");
         } catch (e) {
@@ -56,17 +65,17 @@
         <div class="revert-warning">
             <div class="warning-header">
                 <AlertTriangle size={14} />
-                <span>Reverting Dangerous Tweak</span>
+                <span>Apply Dangerous Tweak</span>
             </div>
             <p class="warning-text">
-                Reverting this tweak may affect system stability or security. This action cannot be undone easily.
+                This tweak may reduce system stability or security. Review its description before continuing.
             </p>
             <div class="warning-actions">
                 <button class="cancel-btn" onclick={cancelRevert} disabled={isApplying}>
                     Cancel
                 </button>
                 <button class="confirm-btn" onclick={doToggle} disabled={isApplying}>
-                    {isApplying ? "Reverting..." : "Revert Anyway"}
+                    {isApplying ? "Applying..." : "Apply Anyway"}
                 </button>
             </div>
         </div>
@@ -115,10 +124,6 @@
         box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.3);
     }
 
-    .tweak-card.enabled {
-        /* No border/background change on card body */
-    }
-
     .header {
         display: flex;
         justify-content: space-between;
@@ -143,6 +148,7 @@
         flex: 1;
         display: -webkit-box;
         -webkit-line-clamp: 3;
+        line-clamp: 3;
         -webkit-box-orient: vertical;
         overflow: hidden;
     }

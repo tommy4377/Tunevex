@@ -11,12 +11,13 @@
     .card-grid {
         display: grid;
         grid-template-columns: var(--columns);
+        grid-auto-rows: minmax(168px, auto);
+        align-content: start;
         justify-content: start;
         gap: var(--gap);
         overflow-y: auto;
         flex: 1;
-        padding: 24px;
-        padding-top: 4px;
+        padding: 16px 24px 24px;
         min-height: 0;
     }
 </style>

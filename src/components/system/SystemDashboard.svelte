@@ -69,7 +69,7 @@
 
 <div class="system-container">
     {#if currentView === "dashboard"}
-        <CardGrid columns="repeat(3, 1fr)">
+        <CardGrid columns="repeat(auto-fit, minmax(210px, 1fr))">
             {#each sections.filter((s) => s.tweaks().length > 0) as section}
                 <Card
                     icon={section.icon}

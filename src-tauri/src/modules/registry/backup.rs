@@ -36,8 +36,10 @@ pub struct RegistryBackup {
 }
 
 impl RegistryBackup {
-    pub fn new(_path: PathBuf) -> Self {
-        RegistryBackup::default()
+    pub fn new(path: PathBuf) -> Self {
+        // Preserve previously captured values. Starting from an empty manager
+        // here used to overwrite every other tweak's rollback data.
+        Self::load(path).unwrap_or_default()
     }
 
     pub fn backup_value(&mut self, root: &str, path: &str, key: &str) -> Result<()> {

@@ -114,7 +114,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 },
             ],
         },
-        
+
         // CEIP - kept in privacy (registry-based)
         Tweak {
             id: "priv_disable_ceip".to_string(),
@@ -153,7 +153,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Disable Windows Error Reporting
         Tweak {
             id: "priv_disable_wer".to_string(),
@@ -204,7 +204,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 }
             ]
         },
-        
+
         // Disable Input Telemetry
         Tweak {
             id: "priv_disable_input_telemetry".to_string(),

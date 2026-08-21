@@ -1,23 +1,17 @@
-//! Windows Activation Module
+//! License status and official activation helpers.
 //!
-//! Integration with Microsoft Activation Scripts (MAS) for Windows/Office activation.
-//! Refactored for separate Windows/Office management.
+//! This module intentionally uses only Windows/Office's installed licensing
+//! tools. It never downloads or executes third-party activation scripts.
 
 use crate::modules::types::{Tweak, TweakCategory, TweakOperation, TweakType, WarningLevel};
 
-/// Returns all Activation tweaks
 pub fn get_activation_tweaks() -> Vec<Tweak> {
     vec![
-        // ============================================
-        // WINDOWS SECTION
-        // ============================================
-
-        // 1. Check Windows Status
         Tweak {
             id: "activation_check_windows".to_string(),
             category: TweakCategory::Activation,
-            name: "Check Windows Status".to_string(),
-            description: "instantly checks Windows activation status via WMI.".to_string(),
+            name: "Check Windows License".to_string(),
+            description: "Shows the license status reported by Windows.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             tweak_type: TweakType::Action,
@@ -26,51 +20,21 @@ pub fn get_activation_tweaks() -> Vec<Tweak> {
             revert_operations: None,
             operations: vec![TweakOperation::Powershell {
                 script: r#"
-function Get-LicenseStatus($code) {
-    switch ($code) {
-        0 { "Unlicensed" }
-        1 { "Licensed" }
-        2 { "OOBE Grace" }
-        3 { "Token Store Grace" }
-        4 { "Non-Genuine Grace" }
-        5 { "Notification" }
-        6 { "Extended Grace" }
-        default { "Unknown ($code)" }
-    }
-}
-
-Write-Host "=== WINDOWS STATUS ===" -ForegroundColor Cyan
-try {
-    $licenses = Get-CimInstance SoftwareLicensingProduct -Filter "PartialProductKey IS NOT NULL" -ErrorAction Stop | Where-Object { $_.Name -like "*Windows*" }
-    if ($licenses) {
-        foreach ($l in $licenses) {
-            $status = Get-LicenseStatus $l.LicenseStatus
-            $color = if ($status -eq "Licensed") { "Green" } else { "Red" }
-            
-            Write-Host "[$($l.Name)]" -ForegroundColor White
-            Write-Host "  Status: " -NoNewline; Write-Host $status -ForegroundColor $color
-            Write-Host "  Key (Partial): $($l.PartialProductKey)"
-            Write-Host "  Description: $($l.Description)"
-            Write-Host ""
-        }
-    } else {
-        Write-Host "No active Windows license found." -ForegroundColor Red
-    }
-} catch {
-    Write-Host "WMI Check failed, falling back to legacy slmgr..." -ForegroundColor Red
-    cscript //nologo "$env:SystemRoot\System32\slmgr.vbs" /dli
-}
+$ErrorActionPreference = 'Stop'
+Write-Host '=== WINDOWS LICENSE STATUS ===' -ForegroundColor Cyan
+$licenses = Get-CimInstance SoftwareLicensingProduct -Filter "PartialProductKey IS NOT NULL" |
+    Where-Object { $_.Name -like '*Windows*' }
+if (-not $licenses) { Write-Host 'No installed Windows product key was found.' -ForegroundColor Yellow; exit 0 }
+$licenses | Select-Object Name, Description, PartialProductKey, LicenseStatus | Format-List
 "#.to_string(),
             }],
         },
-
-        // 2. Activate Windows (HWID)
         Tweak {
-            id: "activation_hwid".to_string(),
+            id: "activation_windows_online".to_string(),
             category: TweakCategory::Activation,
-            name: "Activate Windows (HWID)".to_string(),
-            description: "Permanent digital license. Survives reinstalls. Personal use only.".to_string(),
-            warning_level: WarningLevel::Dangerous,
+            name: "Activate Windows Online".to_string(),
+            description: "Asks Microsoft's built-in licensing service to activate the currently installed genuine product key.".to_string(),
+            warning_level: WarningLevel::Safe,
             requires_restart: false,
             tweak_type: TweakType::Action,
             enabled: false,
@@ -78,64 +42,19 @@ try {
             revert_operations: None,
             operations: vec![TweakOperation::Powershell {
                 script: r#"
-$ErrorActionPreference = "Stop"
-$url = "https://raw.githubusercontent.com/massgravel/Microsoft-Activation-Scripts/refs/heads/master/MAS/All-In-One-Version-KL/MAS_AIO.cmd"
-$path = "$env:LOCALAPPDATA\TommyTweaker\mas\mas_aio.cmd"
-
-# Force re-download: delete stale cache before downloading
-if (Test-Path $path) {
-    Remove-Item $path -Force
-}
-Write-Host "Downloading latest MAS script..." -ForegroundColor Cyan
-New-Item -ItemType Directory -Force (Split-Path $path) | Out-Null
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-Invoke-WebRequest -Uri $url -OutFile $path
-Write-Host "Download complete." -ForegroundColor Green
-
-Write-Host "Starting MAS (HWID)..." -ForegroundColor Green
-$process = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$path`" /HWID" -PassThru -NoNewWindow -Wait
-if ($process.ExitCode -eq 0) {
-    Write-Host "Activation process completed." -ForegroundColor Green
-} else {
-    Write-Host "Activation process failed with code $($process.ExitCode)" -ForegroundColor Red
-}
+$ErrorActionPreference = 'Stop'
+$slmgr = Join-Path $env:SystemRoot 'System32\slmgr.vbs'
+$process = Start-Process -FilePath 'cscript.exe' -ArgumentList @('//nologo', $slmgr, '/ato') -Wait -PassThru -NoNewWindow
+if ($process.ExitCode -ne 0) { throw "Windows activation failed with exit code $($process.ExitCode)." }
+Write-Host 'Windows activation request completed.' -ForegroundColor Green
 "#.to_string(),
             }],
         },
-
-        // 3. Deactivate Windows (Remove Key)
-        Tweak {
-            id: "activation_remove_windows".to_string(),
-            category: TweakCategory::Activation,
-            name: "Deactivate Windows".to_string(),
-            description: "Removes validation key and uninstalls product key.".to_string(),
-            warning_level: WarningLevel::Careful,
-            requires_restart: true,
-            tweak_type: TweakType::Action,
-            enabled: false,
-            check: None,
-            revert_operations: None,
-            operations: vec![TweakOperation::Powershell {
-                script: r#"
-Write-Host "Deactivating Windows..." -ForegroundColor Yellow
-cscript //nologo "$env:SystemRoot\System32\slmgr.vbs" /upk
-cscript //nologo "$env:SystemRoot\System32\slmgr.vbs" /cpky
-cscript //nologo "$env:SystemRoot\System32\slmgr.vbs" /rearm
-Write-Host "Done. Restart required." -ForegroundColor Green
-"#.to_string(),
-            }],
-        },
-
-        // ============================================
-        // OFFICE SECTION
-        // ============================================
-
-        // 4. Check Office Status
         Tweak {
             id: "activation_check_office".to_string(),
             category: TweakCategory::Activation,
-            name: "Check Office Status".to_string(),
-            description: "Checks Office activation status.".to_string(),
+            name: "Check Office License".to_string(),
+            description: "Shows the license status reported by the installed Office licensing tool.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             tweak_type: TweakType::Action,
@@ -144,37 +63,26 @@ Write-Host "Done. Restart required." -ForegroundColor Green
             revert_operations: None,
             operations: vec![TweakOperation::Powershell {
                 script: r#"
-Write-Host "=== OFFICE STATUS ===" -ForegroundColor Cyan
-$officePaths = @(
-    "${env:ProgramFiles}\Microsoft Office\Office16\ospp.vbs",
-    "${env:ProgramFiles(x86)}\Microsoft Office\Office16\ospp.vbs"
+$ErrorActionPreference = 'Stop'
+$paths = @(
+  "$env:ProgramFiles\Microsoft Office\Office16\ospp.vbs",
+  "${env:ProgramFiles(x86)}\Microsoft Office\Office16\ospp.vbs",
+  "$env:ProgramFiles\Microsoft Office\root\Office16\ospp.vbs",
+  "${env:ProgramFiles(x86)}\Microsoft Office\root\Office16\ospp.vbs"
 )
-$found = $false
-foreach ($path in $officePaths) {
-    if (Test-Path $path) {
-        $found = $true
-        $output = cscript //nologo $path /dstatus 2>&1
-        $output | ForEach-Object {
-            if ($_ -match "LICENSE STATUS:  ---LICENSED---") { Write-Host $_ -ForegroundColor Green }
-            elseif ($_ -match "LICENSE STATUS:") { Write-Host $_ -ForegroundColor Red }
-            elseif ($_ -match "PRODUCT ID:" -or $_ -match "SKU ID:") { }
-            else { Write-Host $_ }
-        }
-        break
-    }
-}
-if (-not $found) { Write-Host "Office not installed." -ForegroundColor Gray }
+$tool = $paths | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $tool) { throw 'The Office licensing tool was not found. Office may not be installed.' }
+& cscript.exe //nologo $tool /dstatus
+if ($LASTEXITCODE -ne 0) { throw "Office license check failed with exit code $LASTEXITCODE." }
 "#.to_string(),
             }],
         },
-
-        // 5. Activate Office (Ohook)
         Tweak {
-            id: "activation_ohook".to_string(),
+            id: "activation_office_online".to_string(),
             category: TweakCategory::Activation,
-            name: "Activate Office (Ohook)".to_string(),
-            description: "Permanent Office activation. Offline. Personal use only.".to_string(),
-            warning_level: WarningLevel::Dangerous,
+            name: "Activate Office Online".to_string(),
+            description: "Asks Office's built-in licensing tool to activate the currently installed genuine product key.".to_string(),
+            warning_level: WarningLevel::Safe,
             requires_restart: false,
             tweak_type: TweakType::Action,
             enabled: false,
@@ -182,53 +90,17 @@ if (-not $found) { Write-Host "Office not installed." -ForegroundColor Gray }
             revert_operations: None,
             operations: vec![TweakOperation::Powershell {
                 script: r#"
-$ErrorActionPreference = "Stop"
-$url = "https://raw.githubusercontent.com/massgravel/Microsoft-Activation-Scripts/refs/heads/master/MAS/All-In-One-Version-KL/MAS_AIO.cmd"
-$path = "$env:LOCALAPPDATA\TommyTweaker\mas\mas_ohook.cmd"
-
-# Force re-download: delete stale cache before downloading
-if (Test-Path $path) {
-    Remove-Item $path -Force
-}
-Write-Host "Downloading latest MAS script..." -ForegroundColor Cyan
-New-Item -ItemType Directory -Force (Split-Path $path) | Out-Null
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-Invoke-WebRequest -Uri $url -OutFile $path
-Write-Host "Download complete." -ForegroundColor Green
-
-Write-Host "Starting MAS (Ohook)..." -ForegroundColor Green
-$process = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$path`" /Ohook" -PassThru -NoNewWindow -Wait
-if ($process.ExitCode -eq 0) {
-    Write-Host "Activation process completed." -ForegroundColor Green
-} else {
-    Write-Host "Activation process failed with code $($process.ExitCode)" -ForegroundColor Red
-}
-"#.to_string(),
-            }],
-        },
-
-        // 6. Deactivate Office
-        Tweak {
-            id: "activation_remove_office".to_string(),
-            category: TweakCategory::Activation,
-            name: "Deactivate Office".to_string(),
-            description: "Removes Ohook and Office activation.".to_string(),
-            warning_level: WarningLevel::Careful,
-            requires_restart: false,
-            tweak_type: TweakType::Action,
-            enabled: false,
-            check: None,
-            revert_operations: None,
-            operations: vec![TweakOperation::Powershell {
-                script: r#"
-$path = "$env:LOCALAPPDATA\TommyTweaker\mas\mas_aio.cmd"
-if (!(Test-Path $path)) {
-   Write-Host "MAS script not found. Please run 'Activate Office' check first to download it properly." -ForegroundColor Red
-   exit 1
-}
-Write-Host "Removing Office Activation..." -ForegroundColor Yellow
-$process = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$path`" /Ohook /Uninstall" -PassThru -NoNewWindow -Wait
-Write-Host "Deactivation completed." -ForegroundColor Green
+$ErrorActionPreference = 'Stop'
+$paths = @(
+  "$env:ProgramFiles\Microsoft Office\Office16\ospp.vbs",
+  "${env:ProgramFiles(x86)}\Microsoft Office\Office16\ospp.vbs",
+  "$env:ProgramFiles\Microsoft Office\root\Office16\ospp.vbs",
+  "${env:ProgramFiles(x86)}\Microsoft Office\root\Office16\ospp.vbs"
+)
+$tool = $paths | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $tool) { throw 'The Office licensing tool was not found. Office may not be installed.' }
+& cscript.exe //nologo $tool /act
+if ($LASTEXITCODE -ne 0) { throw "Office activation failed with exit code $LASTEXITCODE." }
 "#.to_string(),
             }],
         },

@@ -32,15 +32,13 @@
     $: windowsTweaks = allTweaks.filter(
         (t) =>
             t.id.includes("check_windows") ||
-            t.id === "activation_hwid" ||
-            t.id === "activation_remove_windows",
+            t.id === "activation_windows_online",
     );
 
     $: officeTweaks = allTweaks.filter(
         (t) =>
             t.id.includes("check_office") ||
-            t.id === "activation_ohook" ||
-            t.id === "activation_remove_office",
+            t.id === "activation_office_online",
     );
 
     // Modal State
@@ -174,6 +172,7 @@
         margin-bottom: 8px;
         background: linear-gradient(to right, var(--text-color), var(--text-muted));
         -webkit-background-clip: text;
+        background-clip: text;
         -webkit-text-fill-color: transparent;
     }
 

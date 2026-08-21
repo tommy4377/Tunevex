@@ -371,6 +371,7 @@
         margin: 0 0 4px 0;
         background: linear-gradient(90deg, #fff, #999);
         -webkit-background-clip: text;
+        background-clip: text;
         -webkit-text-fill-color: transparent;
     }
 
@@ -394,6 +395,12 @@
     @media (max-width: 900px) {
         .main-grid {
             grid-template-columns: 1fr;
+            flex: none;
+            min-height: auto;
+        }
+
+        .column {
+            overflow: visible;
         }
     }
 

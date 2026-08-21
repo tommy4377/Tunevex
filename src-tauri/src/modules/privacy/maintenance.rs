@@ -40,7 +40,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 TweakOperation::RegistrySet { root_key: "HKCU".to_string(), path: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\StorageSense\\Parameters\\StoragePolicy".to_string(), key: "256".to_string(), value: RegistryValue::DWord(0) }
             ]
         },
-        
+
         // Disable Reserved Storage (DISM)
         Tweak {
             id: "priv_disable_reserved_storage".to_string(),
@@ -68,7 +68,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 }
             ]
         },
-        
+
         // Disable Automatic Maintenance WakeUp
         Tweak {
             id: "priv_disable_maintenance_wakeup".to_string(),

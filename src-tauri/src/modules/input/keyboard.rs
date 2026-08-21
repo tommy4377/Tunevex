@@ -10,7 +10,7 @@ pub fn get_keyboard_tweaks() -> Vec<Tweak> {
             id: "input_keyboard_speed".to_string(),
             category: TweakCategory::MouseInput,
             name: "Maximize Keyboard Repeat Speed".to_string(),
-            description: "Sets keyboard repeat rate to maximum (31) and delay to minimum (0) for faster typing.".to_string(),
+            description: "Sets the keyboard repeat rate to its maximum value (31).".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true, // Needs restart/logoff
             revert_operations: Some(vec![
@@ -20,19 +20,13 @@ pub fn get_keyboard_tweaks() -> Vec<Tweak> {
                     key: "KeyboardSpeed".to_string(),
                     value: RegistryValue::String("31".to_string()), // Default usually 31
                 },
-                TweakOperation::RegistrySet {
-                    root_key: "HKCU".to_string(),
-                    path: "Control Panel\\Keyboard".to_string(),
-                    key: "KeyboardDelay".to_string(),
-                    value: RegistryValue::String("1".to_string()), // Default usually 1
-                },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
                 root_key: "HKCU".to_string(),
                 path: "Control Panel\\Keyboard".to_string(),
-                key: "KeyboardDelay".to_string(),
-                expected_value: RegistryValue::String("0".to_string()),
+                key: "KeyboardSpeed".to_string(),
+                expected_value: RegistryValue::String("31".to_string()),
             }),
             operations: vec![
                 TweakOperation::RegistrySet {
@@ -41,15 +35,9 @@ pub fn get_keyboard_tweaks() -> Vec<Tweak> {
                     key: "KeyboardSpeed".to_string(),
                     value: RegistryValue::String("31".to_string()),
                 },
-                TweakOperation::RegistrySet {
-                    root_key: "HKCU".to_string(),
-                    path: "Control Panel\\Keyboard".to_string(),
-                    key: "KeyboardDelay".to_string(),
-                    value: RegistryValue::String("0".to_string()),
-                },
             ]
         },
-        
+
         // Disable Sticky Keys popup
         Tweak {
             id: "input_disable_sticky_keys".to_string(),
@@ -82,7 +70,7 @@ pub fn get_keyboard_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Disable Filter Keys popup
         Tweak {
             id: "input_disable_filter_keys".to_string(),
@@ -115,7 +103,7 @@ pub fn get_keyboard_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Disable Toggle Keys popup
         Tweak {
             id: "input_disable_toggle_keys".to_string(),
@@ -148,7 +136,7 @@ pub fn get_keyboard_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Disable Touch Keyboard Features
         Tweak {
             id: "input_disable_touch_keyboard".to_string(),
@@ -193,7 +181,7 @@ pub fn get_keyboard_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Enable NumLock on Startup
         Tweak {
             id: "input_numlock_startup".to_string(),

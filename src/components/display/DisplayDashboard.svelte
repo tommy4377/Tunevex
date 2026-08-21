@@ -37,7 +37,7 @@
 
 <div class="display-container">
     {#if currentView === "dashboard"}
-        <CardGrid columns="repeat(3, 1fr)">
+        <CardGrid columns="repeat(auto-fit, minmax(210px, 1fr))">
             <Card
                 icon={Monitor}
                 title="Monitor Configuration"

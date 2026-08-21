@@ -112,6 +112,15 @@
 
     async function toggleTweak(tweak: Tweak) {
         if (loadingIds.has(tweak.id)) return; // Already loading
+        let dangerousAcknowledgement: string | null = null;
+        if (!tweak.enabled && tweak.warning_level === "Dangerous") {
+            const expected = `APPLY ${tweak.id}`;
+            dangerousAcknowledgement = prompt(
+                `POWER USER CONTROL\n\n${tweak.name}\n\n${tweak.description}\n\n` +
+                `Only continue for a specific reason and with a recovery plan. Type ${expected} to apply.`
+            );
+            if (dangerousAcknowledgement !== expected) return;
+        }
 
         // Add to loading set
         loadingIds.add(tweak.id);
@@ -130,7 +139,7 @@
                 await invoke("undo_tweak", { id: tweak.id });
                 tweak.enabled = false;
             } else {
-                await invoke("apply_tweak", { id: tweak.id });
+                await invoke("apply_tweak", { id: tweak.id, dangerousAcknowledgement });
                 if (tweak.tweak_type !== "Action") {
                     tweak.enabled = true;
                 }
@@ -138,6 +147,8 @@
             tweaks = tweaks; // Trigger reactivity
         } catch (e) {
             console.error("Failed to toggle tweak:", e);
+            showModal = true;
+            modalTitle = `Failed: ${tweak.name}`;
             modalLogs = [...modalLogs, `Error: ${e}`];
         } finally {
             // Remove from loading set
@@ -199,9 +210,9 @@
                 >
                     {#if loadingIds.has(tweak.id)}
                         <span class="btn-spinner"></span>
-                        {tweak.enabled ? "Reverting..." : "Applying..."}
+                        {tweak.tweak_type === "Action" ? "Running..." : tweak.enabled ? "Reverting..." : "Applying..."}
                     {:else}
-                        {tweak.enabled ? "Enabled" : "Disabled"}
+                        {tweak.tweak_type === "Action" ? "Run" : tweak.enabled ? "Enabled" : "Disabled"}
                     {/if}
                 </button>
             </div>
@@ -212,8 +223,6 @@
                 <p>No tweaks available in this category yet.</p>
             </div>
         {/if}
-        <!-- Spacer to ensure last item is never covered by anything -->
-        <div style="height: 120px; width: 100%; flex-shrink: 0;"></div>
     </div>
 </div>
 
@@ -223,7 +232,7 @@
         flex-direction: column;
         height: 100%;
         overflow: hidden;
-        padding: 0 24px;
+        padding: 0;
     }
 
     .header {
@@ -248,7 +257,7 @@
         overflow-y: auto;
         padding-right: 8px;
         padding-top: 4px; /* Prevent hover clipping at top */
-        /* Padding bottom is handled by spacer div now for better cross-browser reliability */
+        padding-bottom: 32px;
     }
 
     .tweak-item {
@@ -258,7 +267,7 @@
         padding: 16px 20px;
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid var(--border-color);
-        border-radius: 16px; /* High rounding */
+        border-radius: var(--radius-card);
         margin-bottom: 12px;
         transition: all 0.2s;
     }
@@ -266,7 +275,7 @@
     .tweak-item:hover {
         background: rgba(255, 255, 255, 0.04);
         border-color: var(--accent-color);
-        transform: translateX(4px);
+        transform: translateY(-1px);
     }
 
     .info {
@@ -295,6 +304,7 @@
         margin: 0;
         display: -webkit-box;
         -webkit-line-clamp: 2;
+        line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
     }
@@ -357,5 +367,11 @@
         to {
             transform: rotate(360deg);
         }
+    }
+
+    @media (max-width: 940px) {
+        .list-container { padding: 0; }
+        .tweak-item { padding: 14px 15px; gap: 12px; }
+        .description { -webkit-line-clamp: 3; line-clamp: 3; }
     }
 </style>

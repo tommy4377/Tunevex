@@ -26,7 +26,6 @@
                 t.id.startsWith("debloat_msi") ||
                 t.id.startsWith("debloat_acer") ||
                 t.id.startsWith("debloat_razer") ||
-                t.id.startsWith("debloat_mcafee") ||
                 t.id.startsWith("debloat_norton") ||
                 t.id === "debloat_onedrive" ||
                 t.id === "debloat_thirdparty" ||

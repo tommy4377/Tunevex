@@ -3,7 +3,6 @@ pub mod ai;
 pub mod cpu;
 pub mod debloat;
 pub mod display;
-pub mod filesystem;
 pub mod gaming;
 pub mod gpu;
 pub mod input;

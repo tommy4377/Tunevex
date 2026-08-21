@@ -38,7 +38,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 TweakOperation::Command { cmd: "dism".to_string(), args: vec!["/Online".to_string(), "/Disable-Feature".to_string(), "/FeatureName:WorkFolders-Client".to_string(), "/NoRestart".to_string()] },
             ]
         },
-        
+
         Tweak {
             id: "debloat_disable_ie_features".to_string(),
             category: TweakCategory::DebloatTelemetry,
@@ -59,7 +59,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 TweakOperation::Command { cmd: "dism".to_string(), args: vec!["/Online".to_string(), "/Disable-Feature".to_string(), "/FeatureName:Internet-Explorer-Optional-amd64".to_string(), "/NoRestart".to_string()] }
             ]
         },
-        
+
         Tweak {
             id: "debloat_disable_mediaplayer".to_string(),
             category: TweakCategory::DebloatTelemetry,
@@ -80,7 +80,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 TweakOperation::Command { cmd: "dism".to_string(), args: vec!["/Online".to_string(), "/Disable-Feature".to_string(), "/FeatureName:WindowsMediaPlayer".to_string(), "/NoRestart".to_string()] }
             ]
         },
-        
+
         Tweak {
             id: "debloat_disable_wordpad".to_string(),
             category: TweakCategory::DebloatTelemetry,
