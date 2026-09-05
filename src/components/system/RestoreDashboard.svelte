@@ -106,18 +106,6 @@
         margin: 0;
     }
 
-    .restore-card {
-        background: var(--layer-card);
-        backdrop-filter: blur(20px);
-        border: var(--border-glass);
-        border-radius: var(--radius-card);
-        padding: 24px;
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
     .input-group {
         display: flex;
         flex-direction: column;

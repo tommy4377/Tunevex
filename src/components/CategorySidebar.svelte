@@ -25,6 +25,8 @@
 
     const categories: { id: TweakCategory; label: string; icon: any }[] = [
         { id: "Home", label: "Home", icon: Home },
+        { id: "AiAdvisor", label: "AI Advisor", icon: Sparkles },
+        { id: "AllTweaks", label: "All Tweaks", icon: Zap },
         { id: "Activation", label: "Activation", icon: Key },
         { id: "Network", label: "Network", icon: Network },
         { id: "SecurityPrivacy", label: "Security", icon: Lock },
@@ -62,19 +64,20 @@
 
 <style>
     .sidebar {
-        width: 240px;
+        width: clamp(176px, 19vw, 210px);
         background: transparent;
         border-right: 1px solid var(--border-color);
         padding: 16px 0;
         display: flex;
         flex-direction: column;
-        justify-content: center; /* Center items vertically */
+        justify-content: flex-start;
+        min-width: 176px;
     }
 
     .menu {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 1px;
         padding: 0 12px;
         /* Ensure menu doesn't overflow if too tall when centered */
         max-height: 100%;
@@ -114,5 +117,10 @@
 
     .label {
         margin-top: 1px; /* Optical handling */
+    }
+
+    @media (max-height: 680px) {
+        .sidebar { padding: 8px 0; }
+        button { padding-block: 6px; }
     }
 </style>

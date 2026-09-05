@@ -1,6 +1,5 @@
 use crate::modules::types::{
-    FileOp, RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType,
-    WarningLevel,
+    RegistryValue, Tweak, TweakCategory, TweakCheck, TweakOperation, TweakType, WarningLevel,
 };
 
 /// Application Telemetry (NVIDIA, Office, VS, Chrome, Firefox, etc.)
@@ -44,7 +43,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 TweakOperation::Command { cmd: "cmd".to_string(), args: vec!["/c".to_string(), "rmdir".to_string(), "/s".to_string(), "/q".to_string(), "%ProgramData%\\NVIDIA Corporation\\CrashDumps".to_string()] }
             ]
         },
-        
+
         // Office Telemetry
         Tweak {
             id: "priv_office_telemetry".to_string(),
@@ -109,7 +108,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Visual Studio Telemetry
         Tweak {
             id: "priv_vs_telemetry".to_string(),
@@ -160,43 +159,54 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 TweakOperation::ServiceDisable { name: "VSStandardCollectorService150".to_string() }
             ]
         },
-        
+
         // VS Code Telemetry
         Tweak {
             id: "priv_vscode_telemetry".to_string(),
             category: TweakCategory::Privacy,
             name: "Disable VS Code Telemetry".to_string(),
-            description: "Modifies VS Code settings.json to disable telemetry, crash reports, and experiments.".to_string(),
+            description: "Backs up and replaces VS Code settings.json with a privacy preset that disables telemetry, crash reports, experiments, and release notes.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            revert_operations: Some(vec![
-                TweakOperation::FileOperation(FileOp::Write {
-                    path: "%APPDATA%\\Code\\User\\settings.json".to_string(),
-                    content: r#"{
-    "telemetry.telemetryLevel": "all",
-    "telemetry.enableTelemetry": true,
-    "telemetry.enableCrashReporter": true,
-    "workbench.enableExperiments": true,
-    "update.showReleaseNotes": true
-}"#.to_string(),
-                })
-            ]),
+            revert_operations: Some(vec![TweakOperation::Powershell {
+                script: r#"
+$settings = Join-Path $env:APPDATA "Code\User\settings.json"
+$backup = "$settings.tunevex.bak"
+if (!(Test-Path -LiteralPath $backup)) {
+    throw "VS Code settings backup not found: $backup"
+}
+Copy-Item -LiteralPath $backup -Destination $settings -Force
+Write-Host "Restored the VS Code settings backup: $backup" -ForegroundColor Green
+"#
+                .to_string(),
+            }]),
             tweak_type: TweakType::Action, enabled: false,
             check: None,
-            operations: vec![
-                TweakOperation::FileOperation(FileOp::Write {
-                    path: "%APPDATA%\\Code\\User\\settings.json".to_string(),
-                    content: r#"{
+            operations: vec![TweakOperation::Powershell {
+                script: r#"
+$settings = Join-Path $env:APPDATA "Code\User\settings.json"
+$backup = "$settings.tunevex.bak"
+$directory = Split-Path -Parent $settings
+New-Item -ItemType Directory -Path $directory -Force | Out-Null
+if ((Test-Path -LiteralPath $settings) -and !(Test-Path -LiteralPath $backup)) {
+    Copy-Item -LiteralPath $settings -Destination $backup -Force
+    Write-Host "Backed up existing VS Code settings to: $backup" -ForegroundColor Yellow
+}
+@'
+{
     "telemetry.telemetryLevel": "off",
     "telemetry.enableTelemetry": false,
     "telemetry.enableCrashReporter": false,
     "workbench.enableExperiments": false,
     "update.showReleaseNotes": false
-}"#.to_string(),
-                })
-            ]
+}
+'@ | Set-Content -LiteralPath $settings -Encoding UTF8 -Force
+Write-Host "Applied the VS Code privacy settings preset" -ForegroundColor Green
+"#
+                .to_string(),
+            }]
         },
-        
+
         // .NET CLI Telemetry
         Tweak {
             id: "priv_dotnet_telemetry".to_string(),
@@ -219,7 +229,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment".to_string(), key: "DOTNET_CLI_TELEMETRY_OPTOUT".to_string(), value: RegistryValue::String("1".to_string()) }
             ]
         },
-        
+
         // PowerShell Telemetry
         Tweak {
             id: "priv_powershell_telemetry".to_string(),
@@ -242,7 +252,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment".to_string(), key: "POWERSHELL_TELEMETRY_OPTOUT".to_string(), value: RegistryValue::String("1".to_string()) }
             ]
         },
-        
+
         // Chrome Telemetry
         Tweak {
             id: "priv_chrome_telemetry".to_string(),
@@ -296,7 +306,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Firefox Telemetry (registry for enterprise)
         Tweak {
             id: "priv_firefox_telemetry".to_string(),
@@ -339,7 +349,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // ============================================
         // Background Apps
         // ============================================

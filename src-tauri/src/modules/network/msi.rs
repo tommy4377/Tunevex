@@ -24,16 +24,16 @@ pub fn get_network_msi_tweaks() -> Vec<Tweak> {
             id: "net_msi_nic_normal".to_string(),
             category: TweakCategory::Network,
             name: "Enable MSI Mode on NIC (Normal Priority)".to_string(),
-            description: "Enables MSI with Priority 1 on network adapters. Safer option for compatibility.".to_string(),
+            description: "Enables MSI with Normal priority (2) on supported PCI network adapters. Revert restores saved device values.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::MsiEnabledOnNet { priority: 1 }),
+            check: Some(TweakCheck::MsiEnabledOnNet { priority: 2 }),
             revert_operations: Some(vec![
                 TweakOperation::MsiRemoveNet,
             ]),
             operations: vec![
-                TweakOperation::MsiSetNet { priority: 1 },
+                TweakOperation::MsiSetNet { priority: 2 },
             ]
         },
         Tweak {

@@ -1,3 +1,4 @@
+use super::ChatTweakAction;
 use crate::modules::utils::dirs::get_app_dir;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -26,6 +27,8 @@ pub struct ChatMessage {
     pub role: String,
     pub content: String,
     pub timestamp: u64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tweak_actions: Vec<ChatTweakAction>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,6 +77,31 @@ pub struct AiMemoryStore {
     pub condensed_context: Option<String>,
 }
 
+pub fn validate_session_id(id: &str) -> Result<(), String> {
+    if id.is_empty()
+        || id.len() > 80
+        || !id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+    {
+        return Err("Invalid chat session id.".to_string());
+    }
+    Ok(())
+}
+
+fn validate_chat_session(session: &ChatSession) -> Result<(), String> {
+    validate_session_id(&session.id)?;
+    if session.title.len() > 200 || session.messages.len() > 200 {
+        return Err("Chat session exceeds the storage limit.".to_string());
+    }
+    if session.messages.iter().any(|message| {
+        !matches!(message.role.as_str(), "user" | "model") || message.content.len() > 32_000
+    }) {
+        return Err("Chat session contains an invalid message.".to_string());
+    }
+    Ok(())
+}
+
 impl AiMemoryStore {
     pub fn load() -> Self {
         get_memory_path()
@@ -106,6 +134,7 @@ impl AiMemoryStore {
 }
 
 pub fn save_chat_session(session: &ChatSession) -> Result<(), String> {
+    validate_chat_session(session)?;
     let dir = get_chats_dir()?;
     let path = dir.join(format!("{}.json", session.id));
     let json = serde_json::to_string_pretty(session).map_err(|e| e.to_string())?;
@@ -125,6 +154,12 @@ pub fn list_chat_sessions() -> Vec<ChatSessionMeta> {
         .filter_map(|e| {
             let content = fs::read_to_string(e.path()).ok()?;
             let s: ChatSession = serde_json::from_str(&content).ok()?;
+            validate_chat_session(&s).ok()?;
+            let entry_path = e.path();
+            let file_id = entry_path.file_stem()?.to_str()?;
+            if file_id != s.id {
+                return None;
+            }
             Some(ChatSessionMeta {
                 id: s.id,
                 title: s.title,
@@ -138,13 +173,17 @@ pub fn list_chat_sessions() -> Vec<ChatSessionMeta> {
 }
 
 pub fn load_chat_session(id: &str) -> Result<ChatSession, String> {
+    validate_session_id(id)?;
     let dir = get_chats_dir()?;
     let path = dir.join(format!("{}.json", id));
     let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&content).map_err(|e| e.to_string())
+    let session: ChatSession = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    validate_chat_session(&session)?;
+    Ok(session)
 }
 
 pub fn delete_chat_session(id: &str) -> Result<(), String> {
+    validate_session_id(id)?;
     let dir = get_chats_dir()?;
     let path = dir.join(format!("{}.json", id));
     fs::remove_file(path).map_err(|e| e.to_string())
@@ -163,4 +202,17 @@ fn now_unix() -> u64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_session_id;
+
+    #[test]
+    fn chat_ids_cannot_escape_the_chat_directory() {
+        for invalid in ["", "../memory", "..\\memory", "C:temp", "chat.json"] {
+            assert!(validate_session_id(invalid).is_err(), "accepted {invalid}");
+        }
+        assert!(validate_session_id("chat_2026-08-21-abc123").is_ok());
+    }
 }

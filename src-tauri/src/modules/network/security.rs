@@ -131,9 +131,9 @@ pub fn get_security_tweaks() -> Vec<Tweak> {
                 TweakOperation::NetworkInterfacesDelete { key: "NetbiosOptions".to_string() }
             ]),
             operations: vec![
-                TweakOperation::NetworkInterfacesSet { 
-                    key: "NetbiosOptions".to_string(), 
-                    value: RegistryValue::DWord(2) 
+                TweakOperation::NetworkInterfacesSet {
+                    key: "NetbiosOptions".to_string(),
+                    value: RegistryValue::DWord(2)
                 }
             ]
         },

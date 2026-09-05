@@ -3,11 +3,7 @@ use crate::modules::types::{
 };
 
 pub fn get_monitor_tweaks() -> Vec<Tweak> {
-    vec![
-        tweak_max_refresh_rate(),
-        tweak_dpi_100(),
-        tweak_8bit_color(),
-    ]
+    vec![tweak_max_refresh_rate(), tweak_dpi_100()]
 }
 
 fn tweak_max_refresh_rate() -> Tweak {
@@ -15,13 +11,11 @@ fn tweak_max_refresh_rate() -> Tweak {
         id: "display_max_refresh_rate".to_string(),
         category: TweakCategory::DisplayMonitor,
         name: "Set Monitor to Maximum Refresh Rate".to_string(),
-        description: "Automatically sets your monitor to its maximum supported refresh rate (120Hz/144Hz/165Hz/240Hz/360Hz).".to_string(),
+        description: "Sets the primary monitor to the highest supported refresh rate at its current resolution and color depth. Current state is detected; re-running is safe. No automatic rollback is available.".to_string(),
         warning_level: WarningLevel::Safe,
         requires_restart: false,
-        revert_operations: Some(vec![
-            TweakOperation::Command { cmd: "echo".to_string(), args: vec!["Monitor refresh rate can only be changed manually in Windows Settings".to_string()] }
-        ]),
-        tweak_type: TweakType::Toggle, enabled: false,
+        revert_operations: None,
+        tweak_type: TweakType::Action, enabled: false,
         check: Some(TweakCheck::Powershell {
             script: r#"
 Add-Type @"
@@ -30,9 +24,9 @@ using System.Runtime.InteropServices;
 public class DisplayConfig {
     [DllImport("user32.dll")]
     public static extern int EnumDisplaySettings(string deviceName, int modeNum, ref DEVMODE devMode);
-    
+
     public const int ENUM_CURRENT_SETTINGS = -1;
-    
+
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     public struct DEVMODE {
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
@@ -75,7 +69,7 @@ $devmode = New-Object DisplayConfig+DEVMODE
 $devmode.dmSize = [System.Runtime.InteropServices.Marshal]::SizeOf($devmode)
 
 # Get current display settings
-[DisplayConfig]::EnumDisplaySettings($null, [DisplayConfig]::ENUM_CURRENT_SETTINGS, [ref]$devmode)
+if ([DisplayConfig]::EnumDisplaySettings($null, [DisplayConfig]::ENUM_CURRENT_SETTINGS, [ref]$devmode) -eq 0) { throw "Cannot query current display mode" }
 $currentHz = $devmode.dmDisplayFrequency
 
 # Find max Hz for current resolution
@@ -84,14 +78,14 @@ $modeNum = 0
 while ($true) {
     $testMode = New-Object DisplayConfig+DEVMODE
     $testMode.dmSize = [System.Runtime.InteropServices.Marshal]::SizeOf($testMode)
-    
+
     $result = [DisplayConfig]::EnumDisplaySettings($null, $modeNum, [ref]$testMode)
     if ($result -eq 0) { break }
-    
-    if ($testMode.dmPelsWidth -eq $devmode.dmPelsWidth -and 
+
+    if ($testMode.dmPelsWidth -eq $devmode.dmPelsWidth -and
         $testMode.dmPelsHeight -eq $devmode.dmPelsHeight -and
         $testMode.dmBitsPerPel -eq $devmode.dmBitsPerPel) {
-        
+
         if ($testMode.dmDisplayFrequency -gt $maxHz) {
             $maxHz = $testMode.dmDisplayFrequency
         }
@@ -111,14 +105,14 @@ using System.Runtime.InteropServices;
 public class DisplayConfig {
     [DllImport("user32.dll")]
     public static extern int EnumDisplaySettings(string deviceName, int modeNum, ref DEVMODE devMode);
-    
+
     [DllImport("user32.dll")]
     public static extern int ChangeDisplaySettings(ref DEVMODE devMode, int flags);
-    
+
     public const int ENUM_CURRENT_SETTINGS = -1;
     public const int CDS_UPDATEREGISTRY = 0x01;
     public const int DISP_CHANGE_SUCCESSFUL = 0;
-    
+
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     public struct DEVMODE {
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
@@ -181,21 +175,21 @@ $modeNum = 0
 while ($true) {
     $testMode = New-Object DisplayConfig+DEVMODE
     $testMode.dmSize = [System.Runtime.InteropServices.Marshal]::SizeOf($testMode)
-    
+
     $result = [DisplayConfig]::EnumDisplaySettings($null, $modeNum, [ref]$testMode)
     if ($result -eq 0) { break }
-    
+
     # Check if same resolution as current
-    if ($testMode.dmPelsWidth -eq $devmode.dmPelsWidth -and 
+    if ($testMode.dmPelsWidth -eq $devmode.dmPelsWidth -and
         $testMode.dmPelsHeight -eq $devmode.dmPelsHeight -and
         $testMode.dmBitsPerPel -eq $devmode.dmBitsPerPel) {
-        
+
         if ($testMode.dmDisplayFrequency -gt $maxHz) {
             $maxHz = $testMode.dmDisplayFrequency
             $maxMode = $testMode
         }
     }
-    
+
     $modeNum++
 }
 
@@ -203,14 +197,14 @@ if ($maxHz -eq $currentHz) {
     Write-Host "Monitor already at maximum refresh rate ($maxHz Hz)" -ForegroundColor Green
 } else {
     Write-Host "Setting refresh rate to $maxHz Hz..." -ForegroundColor Cyan
-    
+
     $maxMode.dmFields = 0x00400000  # DM_DISPLAYFREQUENCY
     $changeResult = [DisplayConfig]::ChangeDisplaySettings([ref]$maxMode, [DisplayConfig]::CDS_UPDATEREGISTRY)
-    
+
     if ($changeResult -eq [DisplayConfig]::DISP_CHANGE_SUCCESSFUL) {
         Write-Host "Refresh rate set to $maxHz Hz successfully!" -ForegroundColor Green
     } else {
-        Write-Host "Failed to change refresh rate (Error code: $changeResult)" -ForegroundColor Red
+        throw "Failed to change refresh rate (error code: $changeResult)"
     }
 }
         "#.to_string(),
@@ -233,6 +227,7 @@ fn tweak_dpi_100() -> Tweak {
             $desktopPath = "HKCU:\Control Panel\Desktop"
             Remove-ItemProperty -Path $desktopPath -Name "LogPixels" -Force -EA 0
             Remove-ItemProperty -Path $desktopPath -Name "Win8DpiScaling" -Force -EA 0
+            Remove-ItemProperty -Path $desktopPath -Name "EnablePerProcessSystemDPI" -Force -EA 0
 
             $path = "HKCU:\Control Panel\Desktop\WindowMetrics"
             Remove-ItemProperty -Path $path -Name "AppliedDPI" -Force -EA 0
@@ -272,6 +267,7 @@ Write-Host "IMPORTANT: Sign out and sign in for changes to take effect" -Foregro
     }
 }
 
+#[cfg(any())]
 fn tweak_8bit_color() -> Tweak {
     Tweak {
         id: "display_8bit_color".to_string(),
@@ -303,13 +299,13 @@ using System.Runtime.InteropServices;
 public class DisplayConfig {
     [DllImport("user32.dll")]
     public static extern int EnumDisplaySettings(string deviceName, int modeNum, ref DEVMODE devMode);
-    
+
     [DllImport("user32.dll")]
     public static extern int ChangeDisplaySettings(ref DEVMODE devMode, int flags);
-    
+
     public const int ENUM_CURRENT_SETTINGS = -1;
     public const int CDS_UPDATEREGISTRY = 0x01;
-    
+
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     public struct DEVMODE {
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
@@ -358,11 +354,11 @@ Write-Host "Current color depth: $currentBpp bpp" -ForegroundColor Yellow
 
 if ($currentBpp -ne 32) {
     // 32 bpp = 8 bit per channel (RGBA)
-    $devmode.dmBitsPerPel = 32  
+    $devmode.dmBitsPerPel = 32
     $devmode.dmFields = 0x00080000  # DM_BITSPERPEL
-    
+
     $result = [DisplayConfig]::ChangeDisplaySettings([ref]$devmode, [DisplayConfig]::CDS_UPDATEREGISTRY)
-    
+
     if ($result -eq 0) {
         Write-Host "Color depth set to 8-bit (32bpp)" -ForegroundColor Green
     } else {

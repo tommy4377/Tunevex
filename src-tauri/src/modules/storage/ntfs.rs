@@ -12,7 +12,7 @@ pub fn get_ntfs_tweaks() -> Vec<Tweak> {
             description:
                 "Disables last access time updates on files for improved performance and privacy."
                     .to_string(),
-            warning_level: WarningLevel::Safe,
+            warning_level: WarningLevel::Careful,
             requires_restart: false,
             tweak_type: TweakType::Toggle, enabled: false,
             revert_operations: Some(vec![TweakOperation::Command {
@@ -45,7 +45,7 @@ pub fn get_ntfs_tweaks() -> Vec<Tweak> {
             name: "Disable NTFS 8.3 Name Creation".to_string(),
             description: "Disables legacy 8.3 short filename creation for improved performance."
                 .to_string(),
-            warning_level: WarningLevel::Safe,
+            warning_level: WarningLevel::Careful,
             requires_restart: false,
             tweak_type: TweakType::Toggle, enabled: false,
             revert_operations: Some(vec![TweakOperation::Command {
@@ -74,7 +74,7 @@ pub fn get_ntfs_tweaks() -> Vec<Tweak> {
 
 Only works on Windows 11 24H2 or newer.
 Provides lower latency and better IOPS for NVMe SSDs.".to_string(),
-            warning_level: WarningLevel::Safe,
+            warning_level: WarningLevel::Careful,
             requires_restart: true,
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
@@ -114,23 +114,53 @@ Recommended only for systems with UPS or laptops with good battery.".to_string()
             warning_level: WarningLevel::Careful,
             requires_restart: false,
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::CommandOutputContains {
-                cmd: "powershell".to_string(),
-                args: vec!["-NoProfile".to_string(), "-Command".to_string(), "(Get-PhysicalDisk | Where-Object { -not $_.WriteCacheEnabled }).Count".to_string()],
-                contains: "0".to_string(),
+            check: Some(TweakCheck::Powershell {
+                script: r#"
+$disks = @(Get-CimInstance -Namespace "root/Microsoft/Windows/Storage" -ClassName MSFT_PhysicalDisk -ErrorAction SilentlyContinue)
+if ($disks.Count -gt 0 -and @($disks | Where-Object { -not $_.IsWriteCacheEnabled }).Count -eq 0) { "True" } else { "False" }
+"#
+                .to_string(),
+                expected_output: "True".to_string(),
             }),
-            revert_operations: Some(vec![
-                TweakOperation::Command {
-                    cmd: "powershell".to_string(),
-                    args: vec!["-NoProfile".to_string(), "-Command".to_string(), "Get-PhysicalDisk | Set-PhysicalDisk -WriteCacheEnabled $false".to_string()]
-                }
-            ]),
-            operations: vec![
-                TweakOperation::Command {
-                    cmd: "powershell".to_string(),
-                    args: vec!["-NoProfile".to_string(), "-Command".to_string(), "Get-PhysicalDisk | Set-PhysicalDisk -WriteCacheEnabled $true".to_string()]
-                }
-            ],
+            revert_operations: Some(vec![TweakOperation::Powershell {
+                script: r#"
+$statePath = Join-Path $env:ProgramData "Tunevex\write-cache-state.json"
+if (!(Test-Path -LiteralPath $statePath)) { throw "Original disk write-cache state is unavailable: $statePath" }
+$saved = @(Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json)
+$disks = @(Get-CimInstance -Namespace "root/Microsoft/Windows/Storage" -ClassName MSFT_PhysicalDisk -ErrorAction Stop)
+$failures = @()
+foreach ($disk in $disks) {
+    $original = $saved | Where-Object { $_.UniqueId -eq $disk.UniqueId } | Select-Object -First 1
+    if ($null -eq $original) { continue }
+    $result = Invoke-CimMethod -InputObject $disk -MethodName SetWriteCache -Arguments @{ WriteCacheEnabled = [bool]$original.IsWriteCacheEnabled } -ErrorAction Stop
+    if ($result.ReturnValue -ne 0) { $failures += "$($disk.FriendlyName): $($result.ReturnValue)" }
+}
+if ($failures.Count -gt 0) { throw "Could not restore write caching on: $($failures -join ', ')" }
+Remove-Item -LiteralPath $statePath -Force
+Write-Host "Restored the original write-cache state for supported physical disks." -ForegroundColor Green
+"#
+                .to_string(),
+            }]),
+            operations: vec![TweakOperation::Powershell {
+                script: r#"
+$directory = Join-Path $env:ProgramData "Tunevex"
+$statePath = Join-Path $directory "write-cache-state.json"
+New-Item -ItemType Directory -Path $directory -Force | Out-Null
+$disks = @(Get-CimInstance -Namespace "root/Microsoft/Windows/Storage" -ClassName MSFT_PhysicalDisk -ErrorAction Stop)
+if ($disks.Count -eq 0) { throw "Windows did not report any physical disks through MSFT_PhysicalDisk" }
+if (!(Test-Path -LiteralPath $statePath)) {
+    $disks | Select-Object UniqueId, FriendlyName, IsWriteCacheEnabled | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $statePath -Encoding UTF8 -Force
+}
+$failures = @()
+foreach ($disk in $disks) {
+    $result = Invoke-CimMethod -InputObject $disk -MethodName SetWriteCache -Arguments @{ WriteCacheEnabled = $true } -ErrorAction Stop
+    if ($result.ReturnValue -ne 0) { $failures += "$($disk.FriendlyName): $($result.ReturnValue)" }
+}
+if ($failures.Count -gt 0) { throw "Write caching is unsupported or failed on: $($failures -join ', ')" }
+Write-Host "Enabled write caching on all supported physical disks; original state was saved to $statePath." -ForegroundColor Green
+"#
+                .to_string(),
+            }],
         },
 
         // ============================================
@@ -144,7 +174,7 @@ Recommended only for systems with UPS or laptops with good battery.".to_string()
 
 Recommended for SSDs where defrag is unnecessary and can cause extra writes.
 Windows should auto-detect SSDs, but this ensures it's disabled.".to_string(),
-            warning_level: WarningLevel::Safe,
+            warning_level: WarningLevel::Careful,
             requires_restart: false,
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::ScheduledTaskDisabled { name: "\\Microsoft\\Windows\\Defrag\\ScheduledDefrag".to_string() }),
@@ -163,7 +193,7 @@ Windows should auto-detect SSDs, but this ensures it's disabled.".to_string(),
             category: TweakCategory::FileSystem,
             name: "Increase NTFS Memory Cache".to_string(),
             description: "Increases NTFS paged pool memory usage for better metadata caching.".to_string(),
-            warning_level: WarningLevel::Safe,
+            warning_level: WarningLevel::Careful,
             requires_restart: true,
             tweak_type: TweakType::Toggle,
             enabled: false,
@@ -190,7 +220,7 @@ Windows should auto-detect SSDs, but this ensures it's disabled.".to_string(),
             category: TweakCategory::FileSystem,
             name: "Disable NTFS File Tunneling".to_string(),
             description: "Disables metadata preservation (tunneling) on file delete/recreate.".to_string(),
-            warning_level: WarningLevel::Safe,
+            warning_level: WarningLevel::Careful,
             requires_restart: true,
             tweak_type: TweakType::Toggle,
             enabled: false,

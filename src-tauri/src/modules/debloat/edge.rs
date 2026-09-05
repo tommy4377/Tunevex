@@ -31,7 +31,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "EdgeShoppingAssistantEnabled".to_string(), value: RegistryValue::DWord(0) },
             ]
         },
-        
+
         Tweak {
             id: "debloat_edge_startup".to_string(),
             category: TweakCategory::DebloatTelemetry,
@@ -55,7 +55,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "RunStartUpSystemCheck".to_string(), value: RegistryValue::DWord(0) },
             ]
         },
-        
+
         Tweak {
             id: "debloat_edge_sync".to_string(),
             category: TweakCategory::DebloatTelemetry,
@@ -79,7 +79,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "EdgeCollectionsEnabled".to_string(), value: RegistryValue::DWord(0) },
             ]
         },
-        
+
         Tweak {
             id: "debloat_edge_telemetry".to_string(),
             category: TweakCategory::DebloatTelemetry,
@@ -105,7 +105,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 TweakOperation::RegistrySet { root_key: "HKLM".to_string(), path: "SOFTWARE\\Policies\\Microsoft\\Edge".to_string(), key: "MetricsReportingEnabled".to_string(), value: RegistryValue::DWord(0) },
             ]
         },
-        
+
         Tweak {
             id: "debloat_edge_autostart".to_string(),
             category: TweakCategory::DebloatTelemetry,

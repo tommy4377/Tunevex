@@ -22,9 +22,9 @@ Write-Host "Starting bloatware removal..." -ForegroundColor Cyan
 
 foreach ($appPattern in $apps) {{
     Write-Host "Processing: $appPattern" -ForegroundColor White
-    
+
     $packages = Get-AppxPackage -AllUsers | Where-Object {{ $_.Name -like "*$appPattern*" }}
-    
+
     if ($packages) {{
         foreach ($pkg in $packages) {{
             try {{
@@ -39,9 +39,9 @@ foreach ($appPattern in $apps) {{
     }} else {{
         $notFound++
     }}
-    
+
     $provisioned = Get-AppxProvisionedPackage -Online | Where-Object {{ $_.DisplayName -like "*$appPattern*" }}
-    
+
     if ($provisioned) {{
         foreach ($prov in $provisioned) {{
             try {{
@@ -134,7 +134,7 @@ if (-not $installed) { "True" } else { "False" }
                 }
             ]
         },
-        
+
         Tweak {
             id: "debloat_ms_comm".to_string(),
             category: TweakCategory::DebloatTelemetry,
@@ -161,7 +161,7 @@ if (!(Get-AppxPackage -Name "*windowscommunicationsapps*" -ErrorAction SilentlyC
                 }
             ]
         },
-        
+
         Tweak {
             id: "debloat_ms_outlook".to_string(),
             category: TweakCategory::DebloatTelemetry,
@@ -187,7 +187,7 @@ if (!(Get-AppxPackage -Name "*OutlookForWindows*" -ErrorAction SilentlyContinue)
                 }
             ]
         },
-        
+
         Tweak {
             id: "debloat_ms_phonelink".to_string(),
             category: TweakCategory::DebloatTelemetry,
@@ -214,7 +214,7 @@ if (!(Get-AppxPackage -Name "*YourPhone*" -ErrorAction SilentlyContinue)) { "Tru
                 }
             ]
         },
-        
+
         Tweak {
             id: "debloat_onedrive".to_string(),
             category: TweakCategory::DebloatTelemetry,
@@ -275,7 +275,7 @@ Write-Host "OneDrive removed" -ForegroundColor Green
                 }
             ]
         },
-        
+
         // ============================================
         // Third-Party Bloatware
         // ============================================
@@ -315,7 +315,7 @@ if (!(Get-AppxPackage -Name "*Spotify*" -ErrorAction SilentlyContinue)) { "True"
                 }
             ]
         },
-        
+
         // ============================================
         // OEM Bloatware
         // ============================================
@@ -351,7 +351,7 @@ if (!(Get-AppxPackage -Name "*HPSupportAssistant*" -ErrorAction SilentlyContinue
                 }
             ]
         },
-        
+
         Tweak {
             id: "debloat_dell".to_string(),
             category: TweakCategory::DebloatTelemetry,
@@ -379,7 +379,7 @@ if (!(Get-AppxPackage -Name "*DellSupportAssistforPCs*" -ErrorAction SilentlyCon
                 }
             ]
         },
-        
+
         Tweak {
             id: "debloat_lenovo".to_string(),
             category: TweakCategory::DebloatTelemetry,
@@ -407,7 +407,7 @@ if (!(Get-AppxPackage -Name "*LenovoVantage*" -ErrorAction SilentlyContinue)) { 
                 }
             ]
         },
-        
+
         Tweak {
             id: "debloat_asus".to_string(),
             category: TweakCategory::DebloatTelemetry,
@@ -467,10 +467,10 @@ foreach ($app in $apps) {
     # AppX
     $pkg = Get-AppxPackage -Name "*$app*" -AllUsers -EA 0
     if ($pkg) { $pkg | Remove-AppxPackage -AllUsers -EA 0; $removed++ }
-    
+
     # Win32 (Basic search)
-    Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*$app*" } | ForEach-Object { 
-        $_.Uninstall(); $removed++ 
+    Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*$app*" } | ForEach-Object {
+        $_.Uninstall(); $removed++
     }
 }
 Write-Host "Removed $removed MSI apps" -ForegroundColor Green
@@ -510,10 +510,10 @@ foreach ($app in $apps) {
     # AppX
     $pkg = Get-AppxPackage -Name "*$app*" -AllUsers -EA 0
     if ($pkg) { $pkg | Remove-AppxPackage -AllUsers -EA 0; $removed++ }
-    
+
     # Win32
-    Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*$app*" } | ForEach-Object { 
-        $_.Uninstall(); $removed++ 
+    Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*$app*" } | ForEach-Object {
+        $_.Uninstall(); $removed++
     }
 }
 Write-Host "Removed $removed Acer apps" -ForegroundColor Green
@@ -550,50 +550,11 @@ Write-Host "Removing Razer bloatware..." -ForegroundColor Cyan
 $removed = 0
 foreach ($app in $apps) {
     # Win32 (Razer software is mostly Win32)
-    Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*$app*" } | ForEach-Object { 
-        $_.Uninstall(); $removed++ 
+    Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*$app*" } | ForEach-Object {
+        $_.Uninstall(); $removed++
     }
 }
 Write-Host "Removed $removed Razer apps" -ForegroundColor Green
-"#.to_string(),
-                }
-            ]
-        },
-
-        // Security Bloatware - McAfee
-        Tweak {
-            id: "debloat_mcafee".to_string(),
-            category: TweakCategory::DebloatTelemetry,
-            name: "Remove McAfee Antivirus".to_string(),
-            description: "Removes McAfee trial software using official removal tool (MCPR).".to_string(),
-            warning_level: WarningLevel::Safe,
-            requires_restart: true,
-            revert_operations: Some(vec![
-                TweakOperation::Powershell { script: r#"Write-Host "Reinstall McAfee from website if desired" -ForegroundColor Yellow"#.to_string() }
-            ]),
-            tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Powershell {
-                script: r#"
-if (!(Get-Service -DisplayName "*McAfee*" -ErrorAction SilentlyContinue)) { "True" } else { "False" }
-"#.to_string(),
-                expected_output: "True".to_string(),
-            }),
-            operations: vec![
-                TweakOperation::Powershell {
-                    script: r#"
-Write-Host "Downloading McAfee Removal Tool (MCPR)..." -ForegroundColor Cyan
-$url = "https://download.mcafee.com/molbin/iss-loc/SupportTools/MCPR/MCPR.exe"
-$dest = "$env:TEMP\MCPR.exe"
-try {
-    Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
-    Write-Host "Running MCPR..." -ForegroundColor Cyan
-    # Run with silent flags if supported, typically MCPR is interactive but we can try basic silent args
-    $args = "-p StopServices,MFSY,PEF,MXD,CSP,Sustainability,MOCP,MFP,APPSTATS,Auth,EMproxy,FWdiver,HW,MAS,MAT,MBK,MCPR,McProxy,McSvcHost,VUL,MHN,MNA,MOBK,MPFP,MPFPCU,MPS,SHRED,MPSCU,MQC,MQCCU,MSAD,MSHR,MSK,MSKCU,MWL,NMC,RedirSvc,VS,REMEDIATION,MSC,YAP,TRUEKEY,LAM,PCB,Symlink,SafeConnect,MGS,WMIRemover,RESIDUE -v -s"
-    Start-Process -FilePath $dest -ArgumentList $args -Wait
-    Write-Host "McAfee removal completed. Restart required." -ForegroundColor Green
-} catch {
-    Write-Host "Failed to download/run MCPR: $_" -ForegroundColor Red
-}
 "#.to_string(),
                 }
             ]
@@ -624,8 +585,8 @@ $apps = @("NortonLifeLock", "Norton Security", "Norton 360", "Symantec")
 Write-Host "Removing Norton software..." -ForegroundColor Cyan
 $removed = 0
 foreach ($app in $apps) {
-    Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*$app*" } | ForEach-Object { 
-        $_.Uninstall(); $removed++ 
+    Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*$app*" } | ForEach-Object {
+        $_.Uninstall(); $removed++
     }
 }
 Write-Host "Removed $removed Norton apps" -ForegroundColor Green
@@ -667,7 +628,7 @@ Write-Host "Teams Chat removed from taskbar" -ForegroundColor Green
                 }
             ]
         },
-        
+
         Tweak {
             id: "debloat_gaming".to_string(),
             category: TweakCategory::DebloatTelemetry,
@@ -694,7 +655,7 @@ if (!(Get-AppxPackage -Name "*GamingApp*" -ErrorAction SilentlyContinue)) { "Tru
                 }
             ]
         },
-        
+
         // Widgets removal
         Tweak {
             id: "debloat_widgets".to_string(),
@@ -731,7 +692,7 @@ Write-Host "Widgets removed" -ForegroundColor Green
                 }
             ]
         },
-        
+
         // AppX Prevention
         Tweak {
             id: "debloat_prevent_reinstall".to_string(),
@@ -766,7 +727,7 @@ Write-Host "AppX reinstallation prevention enabled" -ForegroundColor Green
                 }
             ]
         },
-        
+
         // ============================================
         // DANGEROUS: Full Microsoft Edge Removal
         // ============================================
@@ -817,21 +778,21 @@ if (Test-Path $uninstallPath) {
 # Step 3: Find Edge version and uninstaller
 $EdgePath = "C:\Program Files (x86)\Microsoft\Edge\Application"
 if (Test-Path $EdgePath) {
-    $EdgeVersion = Get-ChildItem $EdgePath -Directory | 
-        Where-Object { $_.Name -match '^\d+\.\d+' } | 
-        Sort-Object { [version]($_.Name -replace '\..*$', '') } -Descending | 
+    $EdgeVersion = Get-ChildItem $EdgePath -Directory |
+        Where-Object { $_.Name -match '^\d+\.\d+' } |
+        Sort-Object { [version]($_.Name -replace '\..*$', '') } -Descending |
         Select-Object -First 1 -ExpandProperty Name
-    
+
     if ($EdgeVersion) {
         $UninstallCmd = "$EdgePath\$EdgeVersion\Installer\setup.exe"
-        
+
         if (Test-Path $UninstallCmd) {
             Write-Host "[2/6] Uninstalling Edge version $EdgeVersion..." -ForegroundColor Yellow
-            
+
             $process = Start-Process -FilePath $UninstallCmd `
                 -ArgumentList "--uninstall --system-level --verbose-logging --force-uninstall" `
                 -Wait -PassThru -NoNewWindow
-            
+
             if ($process.ExitCode -eq 0) {
                 Write-Host "[3/6] Edge uninstalled successfully" -ForegroundColor Green
             } else {
@@ -880,7 +841,7 @@ Write-Host "`nEdge removal complete! Restart recommended." -ForegroundColor Gree
                 }
             ]
         },
-        
+
         // ============================================
         // CAREFUL: Remove Microsoft Store
         // ============================================
@@ -938,10 +899,10 @@ foreach ($pkg in $pkgs) {
     $store = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore"
     New-Item "$store\Deprovisioned\$($pkg.PackageFamilyName)" -Force | Out-Null
     New-Item "$store\EndOfLife\S-1-5-18\$($pkg.PackageFullName)" -Force | Out-Null
-    
+
     # Set non-removable policy to 0
     dism /Online /Set-NonRemovableAppPolicy /PackageFamily:$($pkg.PackageFamilyName) /NonRemovable:0 2>&1 | Out-Null
-    
+
     # Remove package
     Remove-AppxPackage -Package $pkg.PackageFullName -AllUsers -EA 0
 }

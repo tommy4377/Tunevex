@@ -3,7 +3,6 @@ pub mod ai;
 pub mod cpu;
 pub mod debloat;
 pub mod display;
-pub mod filesystem;
 pub mod gaming;
 pub mod gpu;
 pub mod input;
@@ -12,6 +11,7 @@ pub mod legacy_vibrancy; // Explicitly expose it for direct use if needed, or vi
 
 pub mod network;
 pub mod privacy;
+pub mod profiles;
 pub mod registry;
 pub mod security;
 pub mod startup;

@@ -132,13 +132,12 @@ pub enum TweakOperation {
         enable_split: bool,
     },
     /// Enable MSI mode on all devices of a given PCI class (Display, SCSIAdapter, Net, USB, HDC).
-    /// Writes MSISupported=1, MessageNumberLimit=1, Priority=priority to registry.
+    /// Writes MSISupported=1 and Affinity Policy\DevicePriority, preserving MessageNumberLimit.
     MsiSet {
         class: String,
         priority: u32,
     },
-    /// Remove MSI settings from all devices of a given PCI class.
-    /// Deletes MSISupported, MessageNumberLimit, Priority registry values.
+    /// Restore this tweak's saved per-device MSI values. Never guess driver defaults.
     MsiRemove {
         class: String,
     },
@@ -164,6 +163,14 @@ pub enum TweakOperation {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TweakCheck {
+    /// Match exact key=value tokens in netsh's executable TCP dump.
+    TcpGlobal {
+        settings: Vec<(String, String)>,
+    },
+    MsiEnabledForClass {
+        class: String,
+        priority: u32,
+    },
     Registry {
         root_key: String,
         path: String,
@@ -184,10 +191,14 @@ pub enum TweakCheck {
     /// Returns true when at least one network interface's static NameServer
     /// registry value contains the specified IP address.
     /// Path: HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\{GUID}\NameServer
-    DnsServersContain { ip: String },
+    DnsServersContain {
+        ip: String,
+    },
     /// Returns true only when ALL of the listed registry key/value pairs match.
     /// Each entry is (root_key, path, key, expected_value).
-    MultiRegistry { checks: Vec<RegistryCheck> },
+    MultiRegistry {
+        checks: Vec<RegistryCheck>,
+    },
     /// Reads Windows Defender status natively from the registry (no PowerShell).
     ///
     /// Checks performed (all must be satisfied for `enabled = true`):
@@ -202,7 +213,9 @@ pub enum TweakCheck {
     },
     /// Returns true if ALL paths in `paths` appear as value names under
     ///   HKLM\\SOFTWARE\\Microsoft\\Windows Defender\\Exclusions\\Paths
-    DefenderExclusionPath { paths: Vec<String> },
+    DefenderExclusionPath {
+        paths: Vec<String>,
+    },
     /// Run an arbitrary binary and return true if its combined stdout+stderr
     /// output contains the given substring (case-insensitive).
     /// Used to check bcdedit /enum, powercfg /q, and similar CLI tools
@@ -214,22 +227,40 @@ pub enum TweakCheck {
     },
     /// Returns true when the specified registry key path does NOT exist at all.
     /// Useful for checking that a device/setting has been removed.
-    RegistryKeyAbsent { root_key: String, path: String },
+    RegistryKeyAbsent {
+        root_key: String,
+        path: String,
+    },
     /// Returns true if the specified scheduled task is disabled
-    ScheduledTaskDisabled { name: String },
+    ScheduledTaskDisabled {
+        name: String,
+    },
     /// Returns true if the specified service is disabled
-    ServiceDisabled { name: String },
+    ServiceDisabled {
+        name: String,
+    },
     /// Returns true if the specified service is set to the expected startup mode
     /// (auto, manual, demand, disabled, etc.)
-    ServiceMode { name: String, mode: String },
+    ServiceMode {
+        name: String,
+        mode: String,
+    },
     /// Returns true if all specified services are disabled
-    MultiServiceDisabled { names: Vec<String> },
+    MultiServiceDisabled {
+        names: Vec<String>,
+    },
     /// Check if MSI is enabled globally for all PCI device classes at the specified priority.
-    MsiEnabledGlobally { priority: u32 },
+    MsiEnabledGlobally {
+        priority: u32,
+    },
     /// Check if MSI is enabled on all network adapters at the specified priority.
-    MsiEnabledOnNet { priority: u32 },
+    MsiEnabledOnNet {
+        priority: u32,
+    },
     /// Returns true if all specified scheduled tasks are disabled
-    MultiScheduledTaskDisabled { names: Vec<String> },
+    MultiScheduledTaskDisabled {
+        names: Vec<String>,
+    },
     /// Check if a registry value exists on ALL network interfaces with the expected value.
     /// Returns true only when ALL interfaces have the value.
     NetworkInterfacesCheck {

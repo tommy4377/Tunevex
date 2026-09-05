@@ -84,8 +84,8 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "net_tcp_1323_opts".to_string(),
             category: TweakCategory::Network,
-            name: "Enable TCP Timestamps & Window Scaling".to_string(),
-            description: "Enables RFC 1323 options (Tcp1323Opts=3).".to_string(),
+            name: "Enable TCP Timestamps".to_string(),
+            description: "Enables RFC 1323 timestamps through netsh. Revert explicitly disables timestamps; window scaling and RSS are independent.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
             revert_operations: Some(vec![
@@ -93,21 +93,12 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
                     root_key: "HKLM".to_string(),
                     path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
                     key: "Tcp1323Opts".to_string(),
-                }
+                },
+                TweakOperation::Command { cmd: "netsh".into(), args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "timestamps=disabled".into()] }
             ]), tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::Registry {
-                root_key: "HKLM".to_string(),
-                path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
-                key: "Tcp1323Opts".to_string(),
-                expected_value: RegistryValue::DWord(3),
-            }),
+            check: Some(TweakCheck::TcpGlobal { settings: vec![("timestamps".into(), "enabled".into())] }),
             operations: vec![
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters".to_string(),
-                    key: "Tcp1323Opts".to_string(),
-                    value: RegistryValue::DWord(3),
-                }
+                TweakOperation::Command { cmd: "netsh".into(), args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "timestamps=enabled".into()] }
             ]
         },
         Tweak {
@@ -175,17 +166,35 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
             description: "Ensures TCP Auto-Tuning is set to 'Normal'.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            revert_operations: None,
-            tweak_type: TweakType::Action, enabled: false,
-            check: Some(TweakCheck::CommandOutputContains {
-                cmd: "netsh".to_string(),
-                args: vec!["int".to_string(), "tcp".to_string(), "show".to_string(), "global".to_string()],
-                contains: "Normal".to_string(),
-            }),
+            revert_operations: Some(vec![TweakOperation::Powershell {
+                script: r#"
+$ErrorActionPreference = 'Stop'
+$file = Join-Path $env:ProgramData 'Tunevex\backups\autotuning.txt'
+$value = (Get-Content -Raw -LiteralPath $file -ErrorAction Stop).Trim()
+if ($value -notin @('disabled', 'highlyrestricted', 'restricted', 'normal', 'experimental')) { throw 'Invalid saved TCP Auto-Tuning level' }
+netsh int tcp set global "autotuninglevel=$value"
+if ($LASTEXITCODE -ne 0) { throw 'Failed to restore TCP Auto-Tuning' }
+Remove-Item -LiteralPath $file
+"#.into(),
+            }]),
+            tweak_type: TweakType::Toggle, enabled: false,
+            check: Some(TweakCheck::TcpGlobal { settings: vec![("autotuninglevel".into(), "normal".into())] }),
             operations: vec![
-                TweakOperation::Command {
-                    cmd: "netsh".to_string(),
-                    args: vec!["int".into(), "tcp".into(), "set".into(), "global".into(), "autotuninglevel=normal".into()],
+                TweakOperation::Powershell {
+                    script: r#"
+$ErrorActionPreference = 'Stop'
+$file = Join-Path $env:ProgramData 'Tunevex\backups\autotuning.txt'
+if (!(Test-Path -LiteralPath $file)) {
+    $dump = netsh int tcp dump
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot query TCP Auto-Tuning' }
+    $match = [regex]::Match(($dump -join ' '), '\bautotuninglevel=(disabled|highlyrestricted|restricted|normal|experimental)\b')
+    if (!$match.Success) { throw 'Cannot read the current TCP Auto-Tuning level' }
+    New-Item -ItemType Directory -Force -Path (Split-Path $file) | Out-Null
+    $match.Groups[1].Value | Set-Content -LiteralPath $file -ErrorAction Stop
+}
+netsh int tcp set global autotuninglevel=normal
+if ($LASTEXITCODE -ne 0) { throw 'Failed to set TCP Auto-Tuning' }
+"#.into(),
                 }
             ]
         },
@@ -202,11 +211,7 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
                     args: vec!["int".to_string(), "tcp".to_string(), "set".to_string(), "global".to_string(), "ecncapability=disabled".to_string()],
                 }
             ]), tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::CommandOutputContains {
-                cmd: "netsh".to_string(),
-                args: vec!["int".to_string(), "tcp".to_string(), "show".to_string(), "global".to_string()],
-                contains: "Enabled".to_string(),
-            }),
+            check: Some(TweakCheck::TcpGlobal { settings: vec![("ecncapability".into(), "enabled".into())] }),
             operations: vec![
                 TweakOperation::Command {
                     cmd: "netsh".to_string(),
@@ -339,10 +344,9 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
                     args: vec!["int".into(), "tcp".into(), "set".into(), "supplemental".into(), "template=internet".into(), "congestionprovider=cubic".into()],
                 }
             ]), tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::CommandOutputContains {
-                cmd: "netsh".to_string(),
-                args: vec!["int".to_string(), "tcp".to_string(), "show".to_string(), "supplemental".to_string()],
-                contains: "BBR".to_string(),
+            check: Some(TweakCheck::Powershell {
+                script: "(Get-NetTCPSetting -SettingName Internet -ErrorAction Stop).CongestionProvider -in @('BBR', 'BBR2')".into(),
+                expected_output: "True".into(),
             }),
             operations: vec![
                 TweakOperation::Command {
@@ -388,11 +392,7 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::CommandOutputContains {
-                cmd: "netsh".to_string(),
-                args: vec!["int".to_string(), "tcp".to_string(), "show".to_string(), "global".to_string()],
-                contains: "2000".to_string(),
-            }),
+            check: Some(TweakCheck::TcpGlobal { settings: vec![("initialrto".into(), "2000".into())] }),
             revert_operations: Some(vec![
                 TweakOperation::Command {
                     cmd: "netsh".to_string(),
@@ -446,10 +446,9 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
             requires_restart: false,
             tweak_type: TweakType::Toggle,
             enabled: false,
-            check: Some(TweakCheck::CommandOutputContains {
-                cmd: "netsh".to_string(),
-                args: vec!["interface".to_string(), "teredo".to_string(), "show".to_string(), "state".to_string()],
-                contains: "disabled".to_string(),
+            check: Some(TweakCheck::Powershell {
+                script: "(Get-NetTeredoConfiguration -PolicyStore PersistentStore -ErrorAction Stop).Type -eq 'Disabled'".into(),
+                expected_output: "True".into(),
             }),
             revert_operations: Some(vec![TweakOperation::Command {
                 cmd: "netsh".to_string(),
@@ -517,16 +516,15 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
         Tweak {
             id: "net_tcp_heuristics_disable".to_string(),
             category: TweakCategory::Network,
-            name: "Disable TCP Receive-Side Scaling Heuristics".to_string(),
+            name: "Disable TCP Window Scaling Heuristics".to_string(),
             description: "Disables Windows TCP heuristics that can interfere with throughput on modern high-speed connections.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
             tweak_type: TweakType::Toggle,
             enabled: false,
-            check: Some(TweakCheck::CommandOutputContains {
-                cmd: "netsh".to_string(),
-                args: vec!["int".to_string(), "tcp".to_string(), "show".to_string(), "heuristics".to_string()],
-                contains: "disabled".to_string(),
+            check: Some(TweakCheck::Powershell {
+                script: "(Get-NetTCPSetting -SettingName Internet -ErrorAction Stop).ScalingHeuristics -eq 'Disabled'".into(),
+                expected_output: "True".into(),
             }),
             revert_operations: Some(vec![TweakOperation::Command {
                 cmd: "netsh".to_string(),
@@ -546,11 +544,7 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
             requires_restart: false,
             tweak_type: TweakType::Toggle,
             enabled: false,
-            check: Some(TweakCheck::CommandOutputContains {
-                cmd: "netsh".to_string(),
-                args: vec!["int".to_string(), "tcp".to_string(), "show".to_string(), "global".to_string()],
-                contains: "fastopen: enabled".to_string(),
-            }),
+            check: Some(TweakCheck::TcpGlobal { settings: vec![("fastopen".into(), "enabled".into()), ("fastopenfallback".into(), "enabled".into())] }),
             revert_operations: Some(vec![
                 TweakOperation::Command {
                     cmd: "netsh".to_string(),
@@ -581,10 +575,9 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
             requires_restart: false,
             tweak_type: TweakType::Toggle,
             enabled: false,
-            check: Some(TweakCheck::CommandOutputContains {
-                cmd: "netsh".to_string(),
-                args: vec!["int".to_string(), "tcp".to_string(), "show".to_string(), "supplemental".to_string(), "template=custom".to_string()],
-                contains: "icw=10".to_string(),
+            check: Some(TweakCheck::Powershell {
+                script: "(Get-NetTCPSetting -SettingName InternetCustom -ErrorAction Stop).InitialCongestionWindowMss -eq 10".into(),
+                expected_output: "True".into(),
             }),
             revert_operations: Some(vec![TweakOperation::Command {
                 cmd: "netsh".to_string(),

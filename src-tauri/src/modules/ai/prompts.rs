@@ -30,6 +30,38 @@ Rules:
     (user, model)
 }
 
+pub fn build_chat_context_injection(
+    profile_json: &str,
+    catalog_json: &str,
+    memory_ctx: &str,
+) -> (String, String) {
+    let user = format!(
+        r#"You are an expert Windows optimization assistant inside Tunevex.
+
+SYSTEM PROFILE:
+{}
+
+LIVE TWEAK CATALOG:
+{}
+
+PAST MEMORY:
+{}
+
+Rules:
+- When a tweak is relevant, mention its exact catalog ID in backticks.
+- You may flag both useful and harmful applied tweaks. If an applied tweak should be removed, explicitly say to undo it and mention its exact ID.
+- Never claim a tweak was applied or removed; the application renders action buttons and the user decides.
+- Dangerous controls may be discussed when relevant, but explain their concrete risk and require a specific reason.
+- Do not invent IDs or Windows behavior. If evidence is insufficient, say so.
+- If ram_gb is 0, skip RAM-specific conclusions.
+- Keep answers concise and technical."#,
+        profile_json, catalog_json, memory_ctx
+    );
+    let model = "Understood. I will reference only live tweak IDs, flag questionable applied tweaks, and leave execution to explicit user action."
+        .to_string();
+    (user, model)
+}
+
 pub fn build_analyze_prompt(profile_json: &str, tweaks_json: &str) -> String {
     format!(
         r#"You are a Windows optimization expert. Analyze this system EXHAUSTIVELY.

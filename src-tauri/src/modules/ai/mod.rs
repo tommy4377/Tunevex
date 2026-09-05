@@ -29,6 +29,20 @@ pub struct RecommendedTweak {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct ChatReply {
+    pub content: String,
+    pub tweak_actions: Vec<ChatTweakAction>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatTweakAction {
+    pub id: String,
+    pub name: String,
+    pub operation: String,
+    pub warning_level: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TweakConflict {
     pub tweak_ids: Vec<String>,
     pub issue: String,

@@ -61,7 +61,7 @@ pub fn get_mouse_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Mouse Sensitivity Default
         Tweak {
             id: "input_mouse_sensitivity_default".to_string(),
@@ -87,7 +87,7 @@ pub fn get_mouse_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Minimize Mouse Hover Time
         Tweak {
             id: "input_mouse_hover_time".to_string(),
@@ -120,7 +120,7 @@ pub fn get_mouse_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Disable Mouse Trails
         Tweak {
             id: "input_disable_mouse_trails".to_string(),
@@ -152,7 +152,7 @@ pub fn get_mouse_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Disable Snap To Default Button
         Tweak {
             id: "input_disable_snap_to".to_string(),

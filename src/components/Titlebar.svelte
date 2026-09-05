@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { onMount } from "svelte";
+  import { ShieldCheck } from "lucide-svelte";
 
   const appWindow = getCurrentWindow();
   let isMaximized = false;
@@ -41,10 +42,11 @@
 <div class="titlebar">
   <div class="drag-region" data-tauri-drag-region>
     <div class="window-title">Tunevex</div>
+    <div class="admin-label" title="This application runs elevated because tweaks change system settings."><ShieldCheck size={11} /> Administrator</div>
   </div>
 
   <div class="window-controls">
-    <button class="control green" title="Maximize"></button>
+    <button class="control green" on:click={toggleMaximize} title={isMaximized ? "Restore" : "Maximize"}></button>
     <button class="control yellow" on:click={minimize} title="Minimize"
     ></button>
     <button class="control red" on:click={close} title="Close"></button>
@@ -85,6 +87,8 @@
     color: var(--text-color, #ccc);
     pointer-events: none;
   }
+
+  .admin-label { display: flex; align-items: center; gap: 4px; margin-left: 10px; color: var(--warning); font-size: 10px; opacity: 0.82; pointer-events: none; }
 
   .window-controls {
     display: flex;

@@ -11,3 +11,4 @@ pub use dns::*;
 pub use msi::*;
 pub use nic::*;
 pub use svchost::*;
+pub mod device_backup;

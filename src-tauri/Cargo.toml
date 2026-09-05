@@ -1,6 +1,6 @@
 [package]
 name = "tunevex"
-version = "0.5.0"
+version = "0.6.0"
 description = "Windows system tuning and optimization utility"
 authors = ["tommy4377"]
 edition = "2021"
@@ -47,7 +47,6 @@ reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
 keyring = { version = "3", features = ["windows-native"] }
 
 # HTTP plugin for Tauri
-tauri-plugin-http = "2"
 
 # Windows Dependencies (Now Mandatory)
 winreg = "0.52"
@@ -64,7 +63,7 @@ features = [
     "Win32_UI_Shell",
     "Win32_Storage_FileSystem",
     "Win32_System_IO",
-    "Win32_System_Ioctl", 
+    "Win32_System_Ioctl",
     "Win32_System_Console",
     "Win32_Security",
     "Win32_NetworkManagement_IpHelper",

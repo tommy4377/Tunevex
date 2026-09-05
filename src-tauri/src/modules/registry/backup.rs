@@ -36,38 +36,33 @@ pub struct RegistryBackup {
 }
 
 impl RegistryBackup {
-    pub fn new(_path: PathBuf) -> Self {
-        RegistryBackup::default()
+    pub fn new(path: PathBuf) -> Self {
+        // Preserve previously captured values. Starting from an empty manager
+        // here used to overwrite every other tweak's rollback data.
+        Self::load(path).unwrap_or_default()
     }
 
     pub fn backup_value(&mut self, root: &str, path: &str, key: &str) -> Result<()> {
-        use crate::modules::registry::operations::{get_root_key, open_subkey, read_value};
+        use crate::modules::registry::operations::{get_root_key, read_value};
         use winreg::enums::KEY_READ;
 
         let root_key = get_root_key(root);
         // Try to read existing value
-        let original = if let Ok(subkey) = open_subkey(&root_key, path, KEY_READ) {
-            read_value(&subkey, key).ok()
-        } else {
-            None
+        let original = match root_key.open_subkey_with_flags(path, KEY_READ) {
+            Ok(subkey) => match subkey.get_raw_value(key) {
+                Ok(_) => Some(read_value(&subkey, key)?),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+                Err(e) => return Err(e.into()),
+            },
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+            Err(e) => return Err(e.into()),
         };
 
         let id = format!("{}::{}::{}", root, path, key);
         let current_build = get_current_build();
 
-        // Logic: Backup if missing OR if current backup is from different/older build?
-        // Actually, for a Tweak Tool, if the user toggles ON, we backup.
-        // If they toggle OFF, we restore.
-        // If they toggle ON again, we should probably backup the NEW state if it differs from our old backup?
-        // Or if the OS updated, the "default" might have changed, so our old backup is dangerous.
-
-        let needs_backup = if let Some(entry) = self.entries.get(&id) {
-            entry.os_build != current_build
-        } else {
-            true
-        };
-
-        if needs_backup {
+        // Keep the first snapshot until a successful revert consumes it.
+        if !self.entries.contains_key(&id) {
             self.entries.insert(
                 id.clone(),
                 BackupEntry {
@@ -98,7 +93,11 @@ impl RegistryBackup {
             if let Some(val) = &entry.original_value {
                 write_value(&subkey, key, val)?;
             } else {
-                let _ = subkey.delete_value(key);
+                if let Err(e) = subkey.delete_value(key) {
+                    if e.kind() != std::io::ErrorKind::NotFound {
+                        return Err(e.into());
+                    }
+                }
             }
             return Ok(true);
         }

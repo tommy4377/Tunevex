@@ -39,16 +39,6 @@ pub fn get_gaming_tweaks() -> Vec<Tweak> {
                     key: "UseNexusForGameBarEnabled".to_string(),
                     value: RegistryValue::DWord(1),
                 },
-                TweakOperation::RegistrySet {
-                    root_key: "HKCU".to_string(),
-                    path: "SOFTWARE\\Microsoft\\GameBar".to_string(),
-                    key: "AutoGameModeEnabled".to_string(),
-                    value: RegistryValue::DWord(1),
-                },
-                TweakOperation::ServiceSetMode { name: "XblAuthManager".to_string(), mode: "demand".to_string() },
-                TweakOperation::ServiceSetMode { name: "XblGameSave".to_string(), mode: "demand".to_string() },
-                TweakOperation::ServiceSetMode { name: "XboxGipSvc".to_string(), mode: "demand".to_string() },
-                TweakOperation::ServiceSetMode { name: "XboxNetApiSvc".to_string(), mode: "demand".to_string() },
             ]),
             tweak_type: TweakType::Toggle, enabled: false,
             check: Some(TweakCheck::Registry {
@@ -73,19 +63,9 @@ pub fn get_gaming_tweaks() -> Vec<Tweak> {
                 TweakOperation::RegistrySet {
                     root_key: "HKCU".to_string(),
                     path: "SOFTWARE\\Microsoft\\GameBar".to_string(),
-                    key: "AutoGameModeEnabled".to_string(),
-                    value: RegistryValue::DWord(0),
-                },
-                TweakOperation::RegistrySet {
-                    root_key: "HKCU".to_string(),
-                    path: "SOFTWARE\\Microsoft\\GameBar".to_string(),
                     key: "GamePanelStartupTipIndex".to_string(),
                     value: RegistryValue::DWord(3),
                 },
-                TweakOperation::ServiceDisable { name: "XblAuthManager".to_string() },
-                TweakOperation::ServiceDisable { name: "XblGameSave".to_string() },
-                TweakOperation::ServiceDisable { name: "XboxGipSvc".to_string() },
-                TweakOperation::ServiceDisable { name: "XboxNetApiSvc".to_string() },
             ]
         },
 

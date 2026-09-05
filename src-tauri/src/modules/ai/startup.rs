@@ -2,6 +2,7 @@ use super::memory::{AiMemoryStore, MemoryKind};
 use super::{gemini, profiler};
 use crate::modules::startup::types::{SafetyRating, StartupItem};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StartupRecommendation {
@@ -96,7 +97,7 @@ pub async fn scan_startup_with_ai(
 
     let raw = gemini::call_gemini(messages, true).await?;
 
-    let result: StartupScanResult = serde_json::from_str(&raw)
+    let mut result: StartupScanResult = serde_json::from_str(&raw)
         .or_else(|_: serde_json::Error| {
             #[derive(Deserialize)]
             struct RawRec {
@@ -127,6 +128,30 @@ pub async fn scan_startup_with_ai(
             })
         })
         .map_err(|e: String| format!("Failed to parse startup scan: {}\nRaw: {:.300}", e, raw))?;
+
+    // Treat model output as untrusted: bind every recommendation back to the
+    // exact item supplied by the native scanner and enforce critical-item
+    // protection in code, not just in the prompt.
+    let known: HashMap<&str, &StartupItem> =
+        items.iter().map(|item| (item.id.as_str(), item)).collect();
+    result.recommendations.retain_mut(|recommendation| {
+        let Some(item) = known.get(recommendation.item_id.as_str()) else {
+            return false;
+        };
+        if !matches!(
+            recommendation.action.as_str(),
+            "disable" | "keep" | "investigate"
+        ) {
+            return false;
+        }
+        recommendation.item_name = item.name.clone();
+        if matches!(item.safety_rating, SafetyRating::Critical) {
+            recommendation.action = "keep".to_string();
+            recommendation.priority = "high".to_string();
+            recommendation.reason = "Protected critical Windows startup component.".to_string();
+        }
+        true
+    });
 
     let mut mem = AiMemoryStore::load();
     mem.add(MemoryKind::Recommendation {

@@ -63,7 +63,7 @@ pub fn get_update_tweaks() -> Vec<Tweak> {
             category: TweakCategory::SecurityPrivacy,
             name: "Disable Automatic Driver Updates".to_string(),
             description: "Prevents Windows Update from automatically installing drivers. Keeps your custom GPU/NIC drivers.".to_string(),
-            warning_level: WarningLevel::Safe,
+            warning_level: WarningLevel::Careful,
             requires_restart: false,
             tweak_type: TweakType::Toggle, enabled: false,
             revert_operations: Some(vec![

@@ -43,8 +43,7 @@
         for (const tweak of tweaks.filter((t) => t.warning_level === "Safe")) {
             if (!tweak.enabled) {
                 try {
-                    await invoke("apply_tweak", { id: tweak.id });
-                    tweak.enabled = true;
+                    tweak.enabled = await invoke<boolean | null>("apply_tweak", { id: tweak.id });
                 } catch (e) {
                     console.error(`Failed to apply tweak ${tweak.id}:`, e);
                 }
@@ -69,7 +68,7 @@
 
 <div class="system-container">
     {#if currentView === "dashboard"}
-        <CardGrid columns="repeat(3, 1fr)">
+        <CardGrid columns="repeat(auto-fit, minmax(210px, 1fr))">
             {#each sections.filter((s) => s.tweaks().length > 0) as section}
                 <Card
                     icon={section.icon}

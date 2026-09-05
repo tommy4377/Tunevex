@@ -60,11 +60,10 @@
         align-items: flex-start;
         transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        height: 100%;
+        height: auto;
         width: 100%;
         overflow: hidden;
-        min-height: 140px;
-        max-height: 180px;
+        min-height: 168px;
     }
 
     .clickable {
@@ -99,7 +98,7 @@
     }
 
     p {
-        margin: 0 0 16px 0; /* REDUCED from 24px */
+        margin: 0 0 12px 0;
         color: var(--text-muted);
         font-size: 13px; /* REDUCED from 14px */
         line-height: 1.5;
@@ -107,6 +106,7 @@
         width: 100%;
         display: -webkit-box;
         -webkit-line-clamp: 2;
+        line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
         word-break: break-word;

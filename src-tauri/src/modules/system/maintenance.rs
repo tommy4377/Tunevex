@@ -54,12 +54,25 @@ pub async fn clear_temp_files() -> Result<String, String> {
             if let Ok(entries) = fs::read_dir(&temp_dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-
-                    let size = if path.is_file() {
-                        fs::metadata(&path).map(|m| m.len()).unwrap_or(0)
-                    } else {
-                        0
+                    let Ok(metadata) = fs::symlink_metadata(&path) else {
+                        continue;
                     };
+                    if metadata.file_type().is_symlink() {
+                        continue;
+                    }
+                    // Active installers and applications commonly hold recent
+                    // temp files. Only remove entries that have been idle for a
+                    // full day; locked entries remain untouched.
+                    let old_enough = metadata
+                        .modified()
+                        .ok()
+                        .and_then(|modified| modified.elapsed().ok())
+                        .is_some_and(|age| age.as_secs() >= 24 * 60 * 60);
+                    if !old_enough {
+                        continue;
+                    }
+
+                    let size = if path.is_file() { metadata.len() } else { 0 };
 
                     let deleted = if path.is_dir() {
                         fs::remove_dir_all(&path).is_ok()
@@ -97,9 +110,14 @@ pub async fn flush_dns_cache() -> Result<String, String> {
             .creation_flags(0x08000000)
             .output();
 
-        match output {
-            Ok(o) if o.status.success() => Ok("DNS flushed".to_string()),
-            _ => Ok("DNS flushed".to_string()),
+        let output = output.map_err(|e| format!("Could not start ipconfig: {e}"))?;
+        if output.status.success() {
+            Ok("DNS flushed".to_string())
+        } else {
+            Err(format!(
+                "ipconfig /flushdns failed: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ))
         }
     })
     .await
@@ -122,15 +140,27 @@ pub async fn reset_network() -> Result<String, String> {
             .creation_flags(0x08000000)
             .output();
 
-        if result.is_ok() {
-            success_count += 1;
+        match result {
+            Ok(output) if output.status.success() => success_count += 1,
+            Ok(output) => {
+                return Err(format!(
+                    "{} {} failed: {}",
+                    cmd,
+                    args.join(" "),
+                    String::from_utf8_lossy(&output.stderr).trim()
+                ))
+            }
+            Err(error) => return Err(format!("Could not start {cmd}: {error}")),
         }
     }
 
     if success_count == commands.len() {
         Ok("Reset done".to_string())
     } else {
-        Ok("Partial reset".to_string())
+        Err(format!(
+            "Only {success_count} of {} network reset steps succeeded.",
+            commands.len()
+        ))
     }
 }
 
@@ -365,9 +395,12 @@ pub fn get_system_tweaks() -> Vec<Tweak> {
             description: "Frees the ~7GB of disk space Windows reserves for future updates. Useful on small SSDs. Windows Update may temporarily re-reserve space during feature updates.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
-            tweak_type: TweakType::Action,
+            tweak_type: TweakType::Toggle,
             enabled: false,
-            check: None,
+            check: Some(TweakCheck::Powershell {
+                script: "(Get-WindowsReservedStorageState -ErrorAction Stop).ReservedStorageState -eq 'Disabled'".into(),
+                expected_output: "True".into(),
+            }),
             revert_operations: Some(vec![TweakOperation::Command {
                 cmd: "DISM.exe".to_string(),
                 args: vec!["/Online".to_string(), "/Set-ReservedStorageState".to_string(), "/State:Enabled".to_string()],

@@ -23,7 +23,8 @@ export type TweakCategory =
     | 'Restore'
     | 'Activation'
     | 'Home'
-    | 'AiAdvisor';
+    | 'AiAdvisor'
+    | 'AllTweaks';
 
 export type TweakType = 'Toggle' | 'Action';
 
@@ -35,9 +36,35 @@ export interface Tweak {
     warning_level: WarningLevel;
     tweak_type: TweakType;
     requires_restart: boolean;
-    enabled?: boolean; // Frontend state
+    enabled?: boolean | null; // null/undefined = not yet detected
     check?: TweakCheck;
     revert_warning?: string; // Shown when reverting a Dangerous tweak
+}
+
+export type ProfileOperation = 'enable' | 'disable' | 'run' | 'skip';
+
+export interface ProfilePreviewEntry {
+    id: string;
+    name: string;
+    category: string;
+    tweak_type: TweakType;
+    operation: ProfileOperation;
+    current_enabled: boolean | null;
+    can_revert: boolean;
+    queryable: boolean;
+    warning_level: WarningLevel;
+    requires_restart: boolean;
+}
+
+export interface ProfileIssue {
+    id?: string;
+    reason: string;
+}
+
+export interface ProfileImportPreview {
+    name: string;
+    entries: ProfilePreviewEntry[];
+    issues: ProfileIssue[];
 }
 
 export type TweakCheck =

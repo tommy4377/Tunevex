@@ -15,6 +15,11 @@ pub const ALLOWED_COMMANDS: &[&str] = &[
     "del",
     "rmdir",
     "dism",
+    "ipconfig",
+    "lodctr",
+    "net",
+    "rundll32",
+    "w32tm",
 ];
 
 pub const ALLOWED_WRITE_ROOTS: &[&str] = &[
@@ -26,6 +31,9 @@ pub const ALLOWED_WRITE_ROOTS: &[&str] = &[
 
 pub fn validate_command(cmd: &str) -> Result<(), String> {
     let cmd_path = PathBuf::from(cmd);
+    if cmd_path.components().count() != 1 {
+        return Err("Commands must use an allow-listed executable name, not a path.".to_string());
+    }
     let exe_name = cmd_path
         .file_stem()
         .and_then(|s| s.to_str())
@@ -63,7 +71,8 @@ fn is_under_allowed_root(p: &std::path::Path) -> bool {
     let s = p.to_string_lossy().to_lowercase();
     ALLOWED_WRITE_ROOTS
         .iter()
-        .any(|r| s.starts_with(&r.to_lowercase()))
+        .map(|root| root.trim_end_matches(['\\', '/']).to_lowercase())
+        .any(|root| s == root || s.starts_with(&format!("{root}\\")))
 }
 
 pub fn safe_path_existing(raw: &str) -> Result<PathBuf, String> {
@@ -111,4 +120,18 @@ pub fn safe_path_new(raw: &str) -> Result<PathBuf, String> {
         ));
     }
     Ok(full)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_under_allowed_root, validate_command};
+    use std::path::Path;
+
+    #[test]
+    fn command_paths_and_prefix_confusion_are_rejected() {
+        assert!(validate_command("powershell.exe").is_ok());
+        assert!(validate_command(r"C:\Temp\powershell.exe").is_err());
+        assert!(!is_under_allowed_root(Path::new(r"C:\UsersEvil\payload")));
+        assert!(is_under_allowed_root(Path::new(r"C:\Users\Public\payload")));
+    }
 }

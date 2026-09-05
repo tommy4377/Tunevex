@@ -48,7 +48,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Disable Sync Provider Notifications (File Explorer Ads)
         Tweak {
             id: "priv_disable_sync_notifs".to_string(),
@@ -81,7 +81,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Tailored Experiences
         Tweak {
             id: "priv_disable_tailored".to_string(),
@@ -125,7 +125,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Suggested Content
         Tweak {
             id: "priv_disable_suggestions".to_string(),
@@ -206,7 +206,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Comprehensive Privacy All-in-One
         Tweak {
             id: "priv_all_in_one".to_string(),

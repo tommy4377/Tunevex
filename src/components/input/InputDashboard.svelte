@@ -27,7 +27,7 @@
 
 <div class="input-container">
     {#if currentView === "dashboard"}
-        <CardGrid columns="repeat(3, 1fr)">
+        <CardGrid columns="repeat(auto-fit, minmax(210px, 1fr))">
             <Card
                 icon={Mouse}
                 title="Mouse Optimization"

@@ -230,7 +230,7 @@
             {#if !collapsedSections.all}
                 <div class="section-body">
                     <p class="not-reviewed-note">
-                        These items were scanned but not mentioned in the AI recommendations. 
+                        These items were scanned but not mentioned in the AI recommendations.
                         They were likely considered safe/unchanging by the AI.
                     </p>
                     {#each unreviewedItems as item}

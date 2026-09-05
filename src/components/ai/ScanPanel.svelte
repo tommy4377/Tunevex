@@ -2,9 +2,10 @@
   import { invoke } from "@tauri-apps/api/core";
   import { Sparkles, AlertTriangle, Plus, Minus, Check } from "lucide-svelte";
   import Button from "../ui/Button.svelte";
+  import type { Tweak } from "$lib/types";
 
   type Priority = "high" | "medium" | "low";
-  interface Rec { id: string; priority: Priority; reason: string; selected: boolean; }
+  interface Rec { id: string; priority: Priority; reason: string; selected: boolean; warning_level?: string; }
   interface Conflict { tweak_ids: string[]; issue: string; }
   interface Analysis {
     system_summary: string;
@@ -16,6 +17,9 @@
   let scanning = false;
   let analysis: Analysis | null = null;
   let error = "";
+  let applying = false;
+  let applyMessage = "";
+  export let allTweaks: Tweak[] = [];
 
   async function scan() {
     scanning = true;
@@ -24,7 +28,10 @@
       const raw = await invoke<Analysis>("ai_analyze");
       analysis = {
         ...raw,
-        add:    raw.add.map(r => ({ ...r, selected: true })),
+        add: raw.add.map(r => {
+          const tweak = allTweaks.find(t => t.id === r.id);
+          return { ...r, warning_level: tweak?.warning_level, selected: tweak?.warning_level === "Safe" };
+        }),
         remove: raw.remove.map(r => ({ ...r, selected: true })),
       };
     } catch (e) {
@@ -36,10 +43,23 @@
 
   async function applySelected() {
     if (!analysis) return;
-    for (const r of analysis.remove.filter(r => r.selected))
-      await invoke("undo_tweak", { id: r.id });
-    for (const a of analysis.add.filter(a => a.selected))
-      await invoke("apply_tweak", { id: a.id });
+    const selectedAdd = analysis.add.filter(r => r.selected);
+    const elevatedRisk = selectedAdd.filter(r => r.warning_level !== "Safe");
+    if (elevatedRisk.length && !confirm(`Apply ${elevatedRisk.length} caution-level recommendation(s)? Review each description first.`)) return;
+    applying = true;
+    error = "";
+    applyMessage = "";
+    try {
+      for (const r of analysis.remove.filter(r => r.selected))
+        await invoke("undo_tweak", { id: r.id });
+      for (const a of selectedAdd)
+        await invoke("apply_tweak", { id: a.id });
+      applyMessage = "Selected changes completed.";
+    } catch (e) {
+      error = `Stopped after a failed change: ${e as string}`;
+    } finally {
+      applying = false;
+    }
   }
 </script>
 
@@ -129,7 +149,8 @@
     {/if}
 
     <div class="action-bar">
-      <Button onclick={applySelected}>Apply Selected</Button>
+      {#if applyMessage}<span class="success">{applyMessage}</span>{/if}
+      <Button onclick={applySelected} disabled={applying}>{applying ? "Applying..." : "Apply Selected"}</Button>
     </div>
   {/if}
 </div>
@@ -224,4 +245,5 @@
     border-top: var(--border-glass);
   }
   .error { color: var(--danger); font-size: 13px; }
+  .success { color: var(--success); font-size: 12px; margin-right: auto; }
 </style>

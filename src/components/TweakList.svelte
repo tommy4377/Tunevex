@@ -86,6 +86,7 @@
     let modalLogs: string[] = [];
     let processingTweakId: string | null = null;
     let unlistenOutput: (() => void) | null = null;
+    let failedIds = new Set<string>();
 
     onMount(async () => {
         // Listen for streaming output
@@ -112,9 +113,20 @@
 
     async function toggleTweak(tweak: Tweak) {
         if (loadingIds.has(tweak.id)) return; // Already loading
+        let dangerousAcknowledgement: string | null = null;
+        if (!tweak.enabled && tweak.warning_level === "Dangerous") {
+            const expected = `APPLY ${tweak.id}`;
+            dangerousAcknowledgement = prompt(
+                `POWER USER CONTROL\n\n${tweak.name}\n\n${tweak.description}\n\n` +
+                `Only continue for a specific reason and with a recovery plan. Type ${expected} to apply.`
+            );
+            if (dangerousAcknowledgement !== expected) return;
+        }
 
         // Add to loading set
         loadingIds.add(tweak.id);
+        failedIds.delete(tweak.id);
+        failedIds = failedIds;
         loadingIds = loadingIds; // Trigger reactivity
 
         // Setup modal for Action types or Activation category
@@ -127,17 +139,19 @@
 
         try {
             if (tweak.enabled && tweak.tweak_type !== "Action") {
-                await invoke("undo_tweak", { id: tweak.id });
-                tweak.enabled = false;
+                tweak.enabled = await invoke<boolean | null>("undo_tweak", { id: tweak.id });
             } else {
-                await invoke("apply_tweak", { id: tweak.id });
-                if (tweak.tweak_type !== "Action") {
-                    tweak.enabled = true;
-                }
+                tweak.enabled = await invoke<boolean | null>("apply_tweak", { id: tweak.id, dangerousAcknowledgement });
             }
             tweaks = tweaks; // Trigger reactivity
         } catch (e) {
+            failedIds.add(tweak.id);
+            failedIds = failedIds;
+            tweak.enabled = await invoke<boolean | null>("get_tweak_state", { id: tweak.id }).catch(() => null);
+            tweaks = tweaks;
             console.error("Failed to toggle tweak:", e);
+            showModal = true;
+            modalTitle = `Failed: ${tweak.name}`;
             modalLogs = [...modalLogs, `Error: ${e}`];
         } finally {
             // Remove from loading set
@@ -192,16 +206,17 @@
 
                 <button
                     class="toggle-btn"
-                    class:on={tweak.enabled}
+                    class:on={tweak.enabled === true && !failedIds.has(tweak.id)}
+                    class:failed={failedIds.has(tweak.id)}
                     class:loading={loadingIds.has(tweak.id)}
                     disabled={loadingIds.has(tweak.id)}
                     on:click={() => toggleTweak(tweak)}
                 >
                     {#if loadingIds.has(tweak.id)}
                         <span class="btn-spinner"></span>
-                        {tweak.enabled ? "Reverting..." : "Applying..."}
+                        {tweak.tweak_type === "Action" ? "Running..." : tweak.enabled ? "Reverting..." : "Applying..."}
                     {:else}
-                        {tweak.enabled ? "Enabled" : "Disabled"}
+                        {failedIds.has(tweak.id) ? "Failed · Retry" : tweak.tweak_type === "Action" ? (tweak.check && tweak.enabled ? "Enabled · Run" : "Run") : tweak.enabled == null ? "Check / Apply" : tweak.enabled ? "Enabled" : "Disabled"}
                     {/if}
                 </button>
             </div>
@@ -212,18 +227,22 @@
                 <p>No tweaks available in this category yet.</p>
             </div>
         {/if}
-        <!-- Spacer to ensure last item is never covered by anything -->
-        <div style="height: 120px; width: 100%; flex-shrink: 0;"></div>
     </div>
 </div>
 
 <style>
+    .toggle-btn.failed {
+        background: var(--toggle-off-bg);
+        color: #f87171;
+        border-color: #f87171;
+        box-shadow: none;
+    }
     .list-container {
         display: flex;
         flex-direction: column;
         height: 100%;
         overflow: hidden;
-        padding: 0 24px;
+        padding: 0;
     }
 
     .header {
@@ -248,7 +267,7 @@
         overflow-y: auto;
         padding-right: 8px;
         padding-top: 4px; /* Prevent hover clipping at top */
-        /* Padding bottom is handled by spacer div now for better cross-browser reliability */
+        padding-bottom: 32px;
     }
 
     .tweak-item {
@@ -258,7 +277,7 @@
         padding: 16px 20px;
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid var(--border-color);
-        border-radius: 16px; /* High rounding */
+        border-radius: var(--radius-card);
         margin-bottom: 12px;
         transition: all 0.2s;
     }
@@ -266,7 +285,7 @@
     .tweak-item:hover {
         background: rgba(255, 255, 255, 0.04);
         border-color: var(--accent-color);
-        transform: translateX(4px);
+        transform: translateY(-1px);
     }
 
     .info {
@@ -295,6 +314,7 @@
         margin: 0;
         display: -webkit-box;
         -webkit-line-clamp: 2;
+        line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
     }
@@ -329,7 +349,7 @@
     }
     .toggle-btn.on:hover {
         background: rgba(129, 140, 248, 0.26);
-        box-shadow: 0 0 14px rgba(129, 140, 248, 0.3);
+        box-shadow: var(--toggle-on-glow);
     }
     .toggle-btn.loading { opacity: 0.7; cursor: wait; pointer-events: none; }
     .toggle-btn:disabled { cursor: not-allowed; }
@@ -357,5 +377,11 @@
         to {
             transform: rotate(360deg);
         }
+    }
+
+    @media (max-width: 940px) {
+        .list-container { padding: 0; }
+        .tweak-item { padding: 14px 15px; gap: 12px; }
+        .description { -webkit-line-clamp: 3; line-clamp: 3; }
     }
 </style>

@@ -9,6 +9,7 @@
         Key,
         Search,
         BarChart3,
+        MoreHorizontal,
     } from "lucide-svelte";
     import { Card, CardGrid, BackButton } from "../ui";
     import DefenderSection from "./DefenderSection.svelte";
@@ -20,6 +21,7 @@
     import SmartScreenSection from "./SmartScreenSection.svelte";
     import ErrorReportingSection from "./ErrorReportingSection.svelte";
     import type { Tweak } from "$lib/types";
+    import TweakList from "../TweakList.svelte";
 
     export let allTweaks: Tweak[] = [];
 
@@ -32,7 +34,8 @@
         | "hardening"
         | "auth"
         | "smartscreen"
-        | "errorreporting" = "dashboard";
+        | "errorreporting"
+        | "other" = "dashboard";
 
     // Filters
     $: defenderTweaks = allTweaks.filter(
@@ -122,6 +125,11 @@
                 t.id === "sec_disable_corp_wer"),
     );
 
+    $: groupedTweaks = [defenderTweaks, firewallTweaks, uacTweaks, mitigationTweaks, hardeningTweaks, authTweaks, smartscreenTweaks, errorTweaks].flat();
+    $: otherTweaks = allTweaks.filter(
+        (t) => t.category === "SecurityPrivacy" && !groupedTweaks.includes(t),
+    );
+
     const sections = [
         {
             id: "defender",
@@ -182,12 +190,20 @@
             tweaks: () => errorTweaks,
             variant: "safe",
         },
+        {
+            id: "other",
+            icon: MoreHorizontal,
+            title: "Additional Hardening",
+            desc: "Update, firmware, remote-service, and newer protection controls.",
+            tweaks: () => otherTweaks,
+            variant: "safe",
+        },
     ] as const;
 </script>
 
 <div class="security-container">
     {#if currentView === "dashboard"}
-        <CardGrid columns="repeat(3, 1fr)" gap="16px">
+        <CardGrid columns="repeat(auto-fit, minmax(210px, 1fr))" gap="16px">
             {#each sections.filter((s) => s.tweaks().length > 0) as section}
                 <Card
                     icon={section.icon}
@@ -218,6 +234,8 @@
                 <SmartScreenSection tweaks={smartscreenTweaks} />
             {:else if currentView === "errorreporting"}
                 <ErrorReportingSection tweaks={errorTweaks} />
+            {:else if currentView === "other"}
+                <TweakList tweaks={otherTweaks} showHeader={false} />
             {/if}
         </div>
     {/if}

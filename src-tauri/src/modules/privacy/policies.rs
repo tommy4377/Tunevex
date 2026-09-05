@@ -70,7 +70,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Disable RSoP Logging
         Tweak {
             id: "priv_disable_rsop".to_string(),
@@ -136,7 +136,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 },
             ]
         },
-        
+
         // Disable Smart App Control
         Tweak {
             id: "priv_disable_smart_app_control".to_string(),

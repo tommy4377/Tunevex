@@ -1,15 +1,15 @@
-# Tunevex v0.5.0
+# Tunevex v0.6.0
 
-Startup analyzer
+Profiles and rollback reliability
 
 Tunevex is a Windows system tuning and optimization utility built with Rust, Tauri and Svelte.
 
 ## Highlights
 
-- Startup scanning across common Windows autostart locations
-- Safety classification and critical entry protection
-- AI assisted startup recommendations
-- Detailed startup scan reports
+- Portable JSON tweak profiles
+- Import preview and validation
+- More accurate live state detection
+- Improved backup and rollback behavior
 
 ## Safety
 
