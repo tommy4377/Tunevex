@@ -9,7 +9,7 @@ use crate::modules::registry::operations::apply_registry_tweak;
 use crate::modules::startup::toggle_item;
 use crate::modules::startup::types::StartupItem;
 use crate::modules::tweaks::{
-    apply_msi_remove, apply_msi_set, apply_svc_host_split_all, check_tweak_enabled,
+    apply_msi_remove, apply_msi_set, apply_svc_host_split_all,
     control_defender_services, get_current_windows_build, reset_dns_servers,
     set_defender_exclusions, set_dns_servers, set_nic_property, win11_only_tweaks, TweakContext,
 };
@@ -63,23 +63,18 @@ pub async fn apply_dns_server(primary: String, secondary: String) -> Result<(), 
 #[tauri::command]
 pub async fn get_tweaks(
     ctx: State<'_, Mutex<TweakContext>>,
-    state: State<'_, Mutex<AppState>>,
-) -> Result<Vec<Tweak>, String> {
+) -> Result<Vec<serde_json::Value>, String> {
     // Extract data and immediately drop the locks
     let tweaks = {
         let context = ctx.lock().map_err(|e| e.to_string())?;
         context.tweaks.clone()
     };
-    let applied = {
-        let app_state = state.lock().map_err(|e| e.to_string())?;
-        app_state.applied_tweaks.clone()
-    };
-
     let build = get_current_windows_build();
     let min_builds = win11_only_tweaks();
 
     // Move heavy I/O (registry, sc, schtasks) to blocking thread pool
     tokio::task::spawn_blocking(move || {
+        let _guard = crate::modules::tweaks::TWEAK_ENGINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         tweaks
             .iter()
             .filter(|t| {
@@ -88,15 +83,9 @@ pub async fn get_tweaks(
                     .map_or(true, |&min| build >= min)
             })
             .map(|t| {
-                let mut tweak = t.clone();
-                // First, check actual system state via TweakCheck if available
-                if let Some(ref check) = tweak.check {
-                    tweak.enabled = check_tweak_enabled(check);
-                } else {
-                    // Fallback to app state for tweaks without explicit checks
-                    tweak.enabled = applied.contains(&tweak.id);
-                }
-                tweak
+                let mut value = serde_json::to_value(t).expect("serializable tweak");
+                value["enabled"] = serde_json::json!(t.check.as_ref().and_then(crate::modules::tweaks::check_tweak_state));
+                value
             })
             .collect::<Vec<_>>()
     })
@@ -109,18 +98,12 @@ pub async fn get_tweaks(
 #[tauri::command]
 pub async fn get_tweaks_fast(
     ctx: State<'_, Mutex<TweakContext>>,
-    state: State<'_, Mutex<AppState>>,
-) -> Result<Vec<Tweak>, String> {
+) -> Result<Vec<serde_json::Value>, String> {
     // BUG-M1 fix: acquire, clone, drop each lock before acquiring the next
     let tweaks = {
         let context = ctx.lock().map_err(|e| e.to_string())?;
         context.tweaks.clone()
     }; // ctx guard dropped here
-
-    let applied = {
-        let app_state = state.lock().map_err(|e| e.to_string())?;
-        app_state.applied_tweaks.clone()
-    }; // state guard dropped here
 
     let build = get_current_windows_build();
     let min_builds = win11_only_tweaks();
@@ -132,9 +115,10 @@ pub async fn get_tweaks_fast(
                 .get(t.id.as_str())
                 .map_or(true, |&min| build >= min)
         })
-        .map(|mut t| {
-            t.enabled = applied.contains(&t.id);
-            t
+        .map(|t| {
+            let mut value = serde_json::to_value(t).expect("serializable tweak");
+            value["enabled"] = serde_json::Value::Null;
+            value
         })
         .collect())
 }
@@ -164,14 +148,15 @@ pub async fn check_category(
 
     // Run checks in background thread - SEQUENTIAL (no rayon)
     tokio::task::spawn_blocking(move || {
+        let _guard = crate::modules::tweaks::TWEAK_ENGINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         // Sequential execution - avoids thread pool saturation
-        let results: Vec<(String, bool)> = tweaks
+        let results: Vec<(String, Option<bool>)> = tweaks
             .iter()
             .filter_map(|tweak| {
                 tweak
                     .check
                     .as_ref()
-                    .map(|check| (tweak.id.clone(), check_tweak_enabled(check)))
+                    .map(|check| (tweak.id.clone(), crate::modules::tweaks::check_tweak_state(check)))
             })
             .collect();
 
@@ -200,13 +185,24 @@ pub async fn check_category(
 }
 
 #[tauri::command]
+pub async fn get_tweak_state(id: String, ctx: State<'_, Mutex<TweakContext>>) -> Result<Option<bool>, String> {
+    let check = ctx.lock().map_err(|e| e.to_string())?.tweaks.iter()
+        .find(|t| t.id == id).ok_or("Tweak ID not found")?.check.clone();
+    tokio::task::spawn_blocking(move || {
+        let _guard = crate::modules::tweaks::TWEAK_ENGINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        check.as_ref().and_then(crate::modules::tweaks::check_tweak_state)
+    })
+        .await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn apply_tweak(
     id: String,
     dangerous_acknowledgement: Option<String>,
     ctx: State<'_, Mutex<TweakContext>>,
     state: State<'_, Mutex<AppState>>,
     app: tauri::AppHandle,
-) -> Result<(), String> {
+) -> Result<Option<bool>, String> {
     // 1. Find the tweak (Keep lock critical section short)
     let tweak = {
         let context = ctx.lock().map_err(|e| e.to_string())?;
@@ -254,13 +250,15 @@ pub async fn apply_tweak(
     let app_closure = app.clone();
 
     tokio::task::spawn_blocking(move || -> Result<(), String> {
+        let _guard = crate::modules::tweaks::TWEAK_ENGINE_LOCK.lock().map_err(|e| e.to_string())?;
         let id = id_closure;
         let app = app_closure;
 
         // Create a single backup manager for all registry operations
         let backup_path = crate::modules::utils::dirs::get_registry_backup_path()
             .map_err(|e| format!("Cannot determine registry backup path: {}", e))?;
-        let mut backup_mgr = RegistryBackup::new(backup_path.clone());
+        let mut backup_mgr = RegistryBackup::load(backup_path.clone())
+            .map_err(|e| format!("Cannot read registry rollback data: {e}"))?;
 
         for op in &tweak_clone.operations {
             if let TweakOperation::Command { cmd, .. } = op {
@@ -376,7 +374,7 @@ pub async fn apply_tweak(
 
                     // Write script to stdin (not CLI arg)
                     if let Some(mut stdin) = child.stdin.take() {
-                        writeln!(stdin, "{}", script)
+                        writeln!(stdin, "& {{ $ErrorActionPreference = 'Stop';\n{}\n}}\n", script)
                             .map_err(|e| format!("Failed to write script to stdin: {}", e))?;
                     }
 
@@ -589,7 +587,7 @@ pub async fn apply_tweak(
                 }
                 TweakOperation::NetAdapterProperty { property, value } => {
                     println!("  -> NetAdapterProperty: {} = {}", property, value);
-                    set_nic_property(property, value)
+                    set_nic_property(&id, property, value)
                         .map_err(|e| format!("NetAdapterProperty error: {}", e))?;
                     println!("  -> NetAdapterProperty Success");
                 }
@@ -625,25 +623,25 @@ pub async fn apply_tweak(
                 }
                 TweakOperation::MsiSet { class, priority } => {
                     println!("  -> MsiSet: class={}, priority={}", class, priority);
-                    apply_msi_set(&class, *priority)
+                    apply_msi_set(&id, &class, *priority)
                         .map_err(|e| format!("MsiSet error: {}", e))?;
                     println!("  -> MsiSet Success");
                 }
                 TweakOperation::MsiRemove { class } => {
                     println!("  -> MsiRemove: class={}", class);
-                    apply_msi_remove(&class)
+                    apply_msi_remove(&id)
                         .map_err(|e| format!("MsiRemove error: {}", e))?;
                     println!("  -> MsiRemove Success");
                 }
                 TweakOperation::MsiSetNet { priority } => {
                     println!("  -> MsiSetNet: priority={}", priority);
-                    apply_msi_set("Net", *priority)
+                    apply_msi_set(&id, "Net", *priority)
                         .map_err(|e| format!("MsiSetNet error: {}", e))?;
                     println!("  -> MsiSetNet Success");
                 }
                 TweakOperation::MsiRemoveNet => {
                     println!("  -> MsiRemoveNet");
-                    apply_msi_remove("Net")
+                    apply_msi_remove(&id)
                         .map_err(|e| format!("MsiRemoveNet error: {}", e))?;
                     println!("  -> MsiRemoveNet Success");
                 }
@@ -697,7 +695,7 @@ pub async fn apply_tweak(
         }),
     );
 
-    Ok(())
+    get_tweak_state(id, ctx).await
 }
 
 fn validate_dangerous_acknowledgement(
@@ -785,7 +783,7 @@ pub async fn undo_tweak(
     ctx: State<'_, Mutex<TweakContext>>,
     state: State<'_, Mutex<AppState>>,
     app: tauri::AppHandle,
-) -> Result<(), String> {
+) -> Result<Option<bool>, String> {
     {
         let state_path = crate::modules::utils::dirs::get_state_path()
             .map_err(|e| format!("Cannot determine state path: {e}"))?;
@@ -821,11 +819,13 @@ pub async fn undo_tweak(
     let app_clone = app.clone();
 
     tokio::task::spawn_blocking(move || -> Result<(), String> {
+        let _guard = crate::modules::tweaks::TWEAK_ENGINE_LOCK.lock().map_err(|e| e.to_string())?;
         let id = id_clone;
         let _app = app_clone;
 
         // Try to load backup manager for registry operations
-        let backup_mgr = RegistryBackup::load(backup_path.clone()).ok();
+        let mut backup_mgr = RegistryBackup::load(backup_path.clone())
+            .map_err(|e| format!("Cannot read registry rollback data: {e}"))?;
 
         // Track which registry keys were restored from backup (to avoid double-revert)
         let mut restored_keys: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -844,7 +844,8 @@ pub async fn undo_tweak(
                     path,
                     key,
                 } => {
-                    if let Some(ref mgr) = backup_mgr {
+                    {
+                        let mgr = &backup_mgr;
                         if mgr
                             .restore_tweak_backup(root_key, path, key)
                             .map_err(|e| format!("Failed to restore registry backup: {e}"))?
@@ -857,10 +858,20 @@ pub async fn undo_tweak(
             }
         }
 
+        let device_settings = tweak.operations.iter().any(|op| matches!(op,
+            TweakOperation::MsiSet { .. } | TweakOperation::MsiSetNet { .. } | TweakOperation::NetAdapterProperty { .. }));
+        if device_settings {
+            crate::modules::tweaks::helpers::device_backup::restore(&id)?;
+        }
+
         // Then, execute explicit revert operations (skip keys already restored from backup)
         println!("[TWEAK REVERT] Reverting ID: {}", id);
         if let Some(ref revert_ops) = tweak.revert_operations {
             for (i, op) in revert_ops.iter().enumerate() {
+                if device_settings && matches!(op,
+                    TweakOperation::MsiSet { .. } | TweakOperation::MsiSetNet { .. }
+                    | TweakOperation::MsiRemove { .. } | TweakOperation::MsiRemoveNet
+                    | TweakOperation::NetAdapterProperty { .. }) { continue; }
                 println!(
                     "[TWEAK REVERT] Operation {}/{}: {:?}",
                     i + 1,
@@ -921,7 +932,7 @@ pub async fn undo_tweak(
 
                         // Write script to stdin (not CLI arg)
                         if let Some(mut stdin) = child.stdin.take() {
-                            writeln!(stdin, "{}", script)
+                            writeln!(stdin, "& {{ $ErrorActionPreference = 'Stop';\n{}\n}}\n", script)
                                 .map_err(|e| format!("Failed to write script to stdin: {}", e))?;
                         }
 
@@ -1062,7 +1073,7 @@ pub async fn undo_tweak(
                     }
                     TweakOperation::NetAdapterProperty { property, value } => {
                         println!("  -> Revert NetAdapterProperty: {} = {}", property, value);
-                        if let Err(e) = set_nic_property(property, value) {
+                        if let Err(e) = set_nic_property(&id, property, value) {
                             eprintln!("Warning: Revert NetAdapterProperty failed: {}", e);
                         }
                     }
@@ -1101,22 +1112,22 @@ pub async fn undo_tweak(
                     }
                     TweakOperation::MsiSet { class, priority } => {
                         println!("  -> Revert MsiSet: class={}, priority={}", class, priority);
-                        apply_msi_set(class, *priority)
+                        apply_msi_set(&id, class, *priority)
                             .map_err(|e| format!("Revert MsiSet failed: {e}"))?;
                     }
                     TweakOperation::MsiRemove { class } => {
                         println!("  -> Revert MsiRemove: class={}", class);
-                        apply_msi_remove(class)
+                        apply_msi_remove(&id)
                             .map_err(|e| format!("Revert MsiRemove failed: {e}"))?;
                     }
                     TweakOperation::MsiSetNet { priority } => {
                         println!("  -> Revert MsiSetNet: priority={}", priority);
-                        apply_msi_set("Net", *priority)
+                        apply_msi_set(&id, "Net", *priority)
                             .map_err(|e| format!("Revert MsiSetNet failed: {e}"))?;
                     }
                     TweakOperation::MsiRemoveNet => {
                         println!("  -> Revert MsiRemoveNet");
-                        apply_msi_remove("Net")
+                        apply_msi_remove(&id)
                             .map_err(|e| format!("Revert MsiRemoveNet failed: {e}"))?;
                     }
                     TweakOperation::NetworkInterfacesSet { key, value: _ } => {
@@ -1137,6 +1148,8 @@ pub async fn undo_tweak(
             }
         }
 
+        for key in restored_keys { backup_mgr.entries.remove(&key); }
+        backup_mgr.save(backup_path).map_err(|e| format!("Cannot finish registry rollback journal: {e}"))?;
         Ok(())
     })
     .await
@@ -1163,7 +1176,7 @@ pub async fn undo_tweak(
         }),
     );
 
-    Ok(())
+    get_tweak_state(id, ctx).await
 }
 
 // ─── AI Commands ───────────────────────────────────────────────────────────────

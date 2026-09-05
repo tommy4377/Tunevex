@@ -239,7 +239,7 @@ pub fn get_adapter_tweaks() -> Vec<Tweak> {
             description: "Ensures Jumbo Packet is disabled (1514 bytes).".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            tweak_type: TweakType::Action,
+            tweak_type: TweakType::Toggle,
             enabled: false,
             check: Some(TweakCheck::NetAdapterProperty {
                 property: "*JumboPacket".to_string(),
@@ -249,7 +249,8 @@ pub fn get_adapter_tweaks() -> Vec<Tweak> {
                 property: "*JumboPacket".to_string(),
                 value: "1514".to_string(),
             }],
-            revert_operations: None,
+            // Device snapshot restoration runs before explicit rollback operations.
+            revert_operations: Some(vec![]),
         },
         // ── 7. TCP Chimney Offload ────────────────────────────────────────
         // Uses `netsh int tcp set global chimney=disabled`.
@@ -504,7 +505,7 @@ pub fn get_adapter_tweaks() -> Vec<Tweak> {
                 .to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: false,
-            tweak_type: TweakType::Action,
+            tweak_type: TweakType::Toggle,
             enabled: false,
             check: Some(TweakCheck::NetAdapterProperty {
                 property: "*SpeedDuplex".to_string(),
@@ -514,7 +515,7 @@ pub fn get_adapter_tweaks() -> Vec<Tweak> {
                 property: "*SpeedDuplex".to_string(),
                 value: "0".to_string(), // Auto Negotiation
             }],
-            revert_operations: None,
+            revert_operations: Some(vec![]),
         },
         // ── 13. Energy Efficient Ethernet (EEE) ───────────────────────────
         // *EEE:  0 = Disabled, 1 = Enabled

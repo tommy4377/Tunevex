@@ -11,14 +11,11 @@ fn tweak_max_refresh_rate() -> Tweak {
         id: "display_max_refresh_rate".to_string(),
         category: TweakCategory::DisplayMonitor,
         name: "Set Monitor to Maximum Refresh Rate".to_string(),
-        description: "Automatically sets your monitor to its maximum supported refresh rate (120Hz/144Hz/165Hz/240Hz/360Hz).".to_string(),
+        description: "Sets the primary monitor to the highest supported refresh rate at its current resolution and color depth. Current state is detected; re-running is safe. No automatic rollback is available.".to_string(),
         warning_level: WarningLevel::Safe,
         requires_restart: false,
         revert_operations: None,
         tweak_type: TweakType::Action, enabled: false,
-        check: None,
-        /* Previous state checking was removed because this is an action and
-           Windows does not expose a reliable generic rollback target.
         check: Some(TweakCheck::Powershell {
             script: r#"
 Add-Type @"
@@ -72,7 +69,7 @@ $devmode = New-Object DisplayConfig+DEVMODE
 $devmode.dmSize = [System.Runtime.InteropServices.Marshal]::SizeOf($devmode)
 
 # Get current display settings
-[DisplayConfig]::EnumDisplaySettings($null, [DisplayConfig]::ENUM_CURRENT_SETTINGS, [ref]$devmode)
+if ([DisplayConfig]::EnumDisplaySettings($null, [DisplayConfig]::ENUM_CURRENT_SETTINGS, [ref]$devmode) -eq 0) { throw "Cannot query current display mode" }
 $currentHz = $devmode.dmDisplayFrequency
 
 # Find max Hz for current resolution
@@ -99,7 +96,7 @@ while ($true) {
 if ($currentHz -ge $maxHz) { "True" } else { "False" }
 "#.to_string(),
             expected_output: "True".to_string(),
-        }), */
+        }),
         operations: vec![TweakOperation::Powershell {
             script: r#"
 Add-Type @"

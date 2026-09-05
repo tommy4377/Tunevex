@@ -1,8 +1,7 @@
 use crate::modules::tweaks::{
-    check_tweak_enabled, get_current_windows_build, win11_only_tweaks, TweakContext,
+    check_tweak_state, get_current_windows_build, win11_only_tweaks, TweakContext,
 };
 use crate::modules::types::{Tweak, TweakType};
-use crate::modules::utils::security::{safe_path_existing, safe_path_new};
 use crate::modules::utils::state::AppState;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -56,7 +55,9 @@ pub struct ProfilePreviewEntry {
     category: String,
     tweak_type: String,
     operation: ProfileOperation,
-    current_enabled: bool,
+    current_enabled: Option<bool>,
+    can_revert: bool,
+    queryable: bool,
     warning_level: String,
     requires_restart: bool,
 }
@@ -75,21 +76,48 @@ pub struct ProfileImportPreview {
 }
 
 fn profile_path(raw: &str, existing: bool) -> Result<PathBuf, String> {
-    if !raw.to_ascii_lowercase().ends_with(".json") {
+    let requested = Path::new(raw);
+    if requested
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_none_or(|extension| !extension.eq_ignore_ascii_case("json"))
+    {
         return Err("Tweak profiles must use the .json extension.".to_string());
     }
-    if existing || Path::new(raw).exists() {
-        safe_path_existing(raw)
+
+    // The path comes from an explicit Open/Save dialog selection. Profile files
+    // are deliberately allowed outside the roots used to sandbox tweak file
+    // operations (for example on another drive or a removable device).
+    if existing || requested.exists() {
+        requested
+            .canonicalize()
+            .map_err(|error| format!("Could not resolve profile path '{}': {error}", raw))
     } else {
-        safe_path_new(raw)
+        let file_name = requested
+            .file_name()
+            .ok_or_else(|| "Choose a file name for the tweak profile.".to_string())?;
+        let parent = requested
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
+        let resolved_parent = parent.canonicalize().map_err(|error| {
+            format!(
+                "Could not resolve the selected profile directory '{}': {error}",
+                parent.display()
+            )
+        })?;
+        if !resolved_parent.is_dir() {
+            return Err(format!(
+                "The selected profile directory '{}' is not a directory.",
+                parent.display()
+            ));
+        }
+        Ok(resolved_parent.join(file_name))
     }
 }
 
-fn current_enabled(tweak: &Tweak, applied: &HashSet<String>) -> bool {
-    match &tweak.check {
-        Some(check) => check_tweak_enabled(check),
-        None => applied.contains(&tweak.id),
-    }
+fn current_enabled(tweak: &Tweak, _applied: &HashSet<String>) -> Option<bool> {
+    tweak.check.as_ref().and_then(check_tweak_state)
 }
 
 fn available_catalog(tweaks: Vec<Tweak>) -> Vec<Tweak> {
@@ -114,14 +142,13 @@ fn build_profile(
         return Err("Unknown export mode. Use 'active' or 'template'.".to_string());
     }
 
+    let _guard = crate::modules::tweaks::TWEAK_ENGINE_LOCK.lock().map_err(|e| e.to_string())?;
     let mut entries = Vec::new();
     for tweak in tweaks {
-        let enabled =
-            matches!(tweak.tweak_type, TweakType::Toggle) && current_enabled(tweak, applied);
-        let operation = match tweak.tweak_type {
-            TweakType::Toggle if enabled => ProfileOperation::Enable,
-            TweakType::Toggle => ProfileOperation::Disable,
-            TweakType::Action => ProfileOperation::Skip,
+        let operation = match current_enabled(tweak, applied) {
+            Some(true) => ProfileOperation::Enable,
+            Some(false) if tweak.tweak_type == TweakType::Toggle => ProfileOperation::Disable,
+            _ => ProfileOperation::Skip,
         };
         if mode == "active" && operation != ProfileOperation::Enable {
             continue;
@@ -191,7 +218,7 @@ fn parse_profile(
                 requested.operation,
                 ProfileOperation::Enable | ProfileOperation::Disable | ProfileOperation::Skip
             ),
-            TweakType::Action => matches!(
+            TweakType::Action => (tweak.check.is_some() && requested.operation == ProfileOperation::Enable) || matches!(
                 requested.operation,
                 ProfileOperation::Run | ProfileOperation::Skip
             ),
@@ -214,6 +241,8 @@ fn parse_profile(
             tweak_type: format!("{:?}", tweak.tweak_type),
             operation: requested.operation,
             current_enabled: current_enabled(tweak, applied),
+            can_revert: tweak.tweak_type == TweakType::Toggle,
+            queryable: tweak.check.is_some(),
             warning_level: format!("{:?}", tweak.warning_level),
             requires_restart: tweak.requires_restart,
         });
@@ -308,7 +337,10 @@ mod tests {
             "test",
             WarningLevel::Safe,
             false,
-            None,
+            Some(crate::modules::types::TweakCheck::Powershell {
+                script: if enabled { "'True'".into() } else { "'False'".into() },
+                expected_output: "True".into(),
+            }),
             vec![],
         );
         tweak.enabled = enabled;
@@ -318,13 +350,15 @@ mod tests {
     fn action(id: &str) -> Tweak {
         let mut tweak = toggle(id, false);
         tweak.tweak_type = TweakType::Action;
+        tweak.check = None;
         tweak
     }
 
     #[test]
     fn active_export_contains_only_enabled_toggles() {
-        let catalog = vec![toggle("on", false), toggle("off", false), action("cleanup")];
-        let applied = HashSet::from(["on".to_string()]);
+        let catalog = vec![toggle("on", true), toggle("off", false), action("cleanup")];
+        // Deliberately disagree with both Windows and UI history.
+        let applied = HashSet::from(["off".to_string()]);
         let profile = build_profile(&catalog, &applied, "active").unwrap();
         assert_eq!(profile.tweaks.len(), 1);
         assert_eq!(profile.tweaks[0].id, "on");
@@ -340,6 +374,18 @@ mod tests {
     }
 
     #[test]
+    fn unknown_queries_and_uncounted_clicks_export_skip() {
+        let mut unknown = toggle("unknown", true);
+        unknown.check = Some(crate::modules::types::TweakCheck::Powershell {
+            script: "throw 'query failed'".into(), expected_output: "True".into(),
+        });
+        let mut unqueryable = toggle("uncounted", true);
+        unqueryable.check = None;
+        let profile = build_profile(&[unknown, unqueryable], &HashSet::from(["uncounted".into()]), "template").unwrap();
+        assert!(profile.tweaks.iter().all(|t| t.operation == ProfileOperation::Skip));
+    }
+
+    #[test]
     fn import_rejects_operations_that_do_not_match_the_tweak_type() {
         let catalog = vec![toggle("toggle", false), action("action")];
         let json = r#"{
@@ -352,5 +398,18 @@ mod tests {
         let preview = parse_profile(json, &catalog, &HashSet::new()).unwrap();
         assert!(preview.entries.is_empty());
         assert_eq!(preview.issues.len(), 2);
+    }
+
+    #[test]
+    fn export_path_can_be_outside_tweak_operation_roots() {
+        let windows_dir = std::env::var_os("SystemRoot")
+            .map(PathBuf::from)
+            .expect("SystemRoot must be available on Windows");
+        let destination = windows_dir.join("tommytweaker-profile-path-test.json");
+
+        let resolved = profile_path(&destination.to_string_lossy(), false).unwrap();
+        let resolved_windows_dir = windows_dir.canonicalize().unwrap();
+
+        assert_eq!(resolved.parent(), Some(resolved_windows_dir.as_path()));
     }
 }

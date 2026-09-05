@@ -27,28 +27,15 @@ pub fn create_subkey(root: &RegKey, path: &str) -> Result<RegKey> {
 }
 
 pub fn read_value(key: &RegKey, name: &str) -> Result<RegistryValue> {
-    // Try reading as varying types. winreg doesn't strictly enforce types on read,
-    // but we need to map to our RegistryValue enum.
-    // This is a simplification; robust checking would query type first.
-
-    // Attempt String
-    if let Ok(s) = key.get_value::<String, _>(name) {
-        return Ok(RegistryValue::String(s));
-    }
-    // Attempt DWORD
-    if let Ok(u) = key.get_value::<u32, _>(name) {
-        return Ok(RegistryValue::DWord(u));
-    }
-    // Attempt QWORD
-    if let Ok(u) = key.get_value::<u64, _>(name) {
-        return Ok(RegistryValue::QWord(u));
-    }
-
-    // Fallback or specific error handling needed
-    Err(anyhow::anyhow!(
-        "Unsupported or missing registry value type for {}",
-        name
-    ))
+    let raw = key.get_raw_value(name)?;
+    Ok(match raw.vtype {
+        REG_SZ => RegistryValue::String(key.get_value(name)?),
+        REG_DWORD => RegistryValue::DWord(key.get_value(name)?),
+        REG_QWORD => RegistryValue::QWord(key.get_value(name)?),
+        REG_MULTI_SZ => RegistryValue::MultiString(key.get_value(name)?),
+        REG_BINARY => RegistryValue::Binary(raw.bytes),
+        _ => return Err(anyhow::anyhow!("Unsupported registry type for {name}; cannot safely back up")),
+    })
 }
 
 pub fn write_value(key: &RegKey, name: &str, value: &RegistryValue) -> Result<()> {
@@ -63,15 +50,7 @@ pub fn write_value(key: &RegKey, name: &str, value: &RegistryValue) -> Result<()
                 bytes: b.clone(),
             },
         )?,
-        RegistryValue::MultiString(_s) => {
-            // Basic implementation for MultiString if supported by wrapper or manual
-            // winreg supports MultiString via set_value if type matches?
-            // Actually, winreg traits handle Vec<String> as MultiString usually
-            // But we need to check trait impl
-            // For now, let's treat as error or simple TODO
-            // key.set_value(name, s)?
-            return Err(anyhow::anyhow!("MultiString not yet fully implemented"));
-        }
+        RegistryValue::MultiString(s) => key.set_value(name, s)?,
     };
     Ok(())
 }
@@ -97,8 +76,12 @@ pub fn apply_registry_tweak(op: &TweakOperation) -> Result<()> {
         } => {
             let root = get_root_key(root_key);
             // Request minimal rights: KEY_SET_VALUE to delete values
-            if let Ok(subkey) = open_subkey(&root, path, KEY_SET_VALUE | KEY_QUERY_VALUE) {
-                let _ = subkey.delete_value(key); // Ignore if already missing
+            match root.open_subkey_with_flags(path, KEY_SET_VALUE | KEY_QUERY_VALUE) {
+                Ok(subkey) => if let Err(e) = subkey.delete_value(key) {
+                    if e.kind() != std::io::ErrorKind::NotFound { return Err(e.into()); }
+                },
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
+                Err(e) => return Err(e.into()),
             }
             Ok(())
         }

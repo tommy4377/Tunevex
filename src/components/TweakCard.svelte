@@ -10,6 +10,7 @@
     const dispatch = createEventDispatcher();
     let isApplying = false;
     let showRevertConfirm = false;
+    let failure = "";
 
     function handleRevertClick() {
         if (!tweak.enabled && tweak.warning_level === 'Dangerous') {
@@ -35,15 +36,18 @@
             if (dangerousAcknowledgement !== expected) return;
         }
         isApplying = true;
+        failure = "";
         showRevertConfirm = false;
         try {
-            if (tweak.enabled) {
-                await invoke("undo_tweak", { id: tweak.id });
+            if (tweak.enabled && tweak.tweak_type !== "Action") {
+                tweak.enabled = await invoke<boolean | null>("undo_tweak", { id: tweak.id });
             } else {
-                await invoke("apply_tweak", { id: tweak.id, dangerousAcknowledgement });
+                tweak.enabled = await invoke<boolean | null>("apply_tweak", { id: tweak.id, dangerousAcknowledgement });
             }
             dispatch("toggle");
         } catch (e) {
+            failure = String(e);
+            tweak.enabled = await invoke<boolean | null>("get_tweak_state", { id: tweak.id }).catch(() => null);
             console.error("Failed to toggle tweak:", e);
         } finally {
             isApplying = false;
@@ -83,18 +87,21 @@
         <div class="footer">
             <button
                 class="apply-btn"
-                class:applied={tweak.enabled}
+                class:applied={tweak.enabled === true && !failure}
+                class:failed={!!failure}
+                title={failure}
                 class:loading={isApplying}
-                class:dangerous={tweak.enabled && tweak.warning_level === 'Dangerous'}
                 onclick={handleRevertClick}
                 disabled={isApplying}
             >
                 {#if isApplying}
                     <Loader2 class="spinner" size={16} />
+                {:else if failure}
+                    Failed · Retry
                 {:else if tweak.tweak_type === "Action"}
-                    Run
+                    {tweak.check && tweak.enabled ? "Enabled · Run" : "Run"}
                 {:else}
-                    {tweak.enabled ? "Enabled" : "Disabled"}
+                    {tweak.enabled == null ? "Check / Apply" : tweak.enabled ? "Enabled" : "Disabled"}
                 {/if}
             </button>
         </div>
@@ -102,6 +109,12 @@
 </div>
 
 <style>
+    .apply-btn.failed {
+        background: var(--toggle-off-bg);
+        color: #f87171;
+        border-color: #f87171;
+        box-shadow: none;
+    }
     .tweak-card {
         background: var(--layer-card);
         backdrop-filter: blur(12px) saturate(150%);
@@ -190,22 +203,13 @@
     }
 
     .apply-btn.applied:hover {
-        background: rgba(96, 205, 255, 0.3);
-        box-shadow: 0 0 16px rgba(96, 205, 255, 0.4);
+        background: rgba(129, 140, 248, 0.26);
+        box-shadow: var(--toggle-on-glow);
     }
 
     .apply-btn.loading {
         opacity: 0.7;
         cursor: wait;
-    }
-
-    .apply-btn.dangerous {
-        border-color: rgba(248, 113, 113, 0.4);
-    }
-
-    .apply-btn.dangerous:hover {
-        border-color: #f87171;
-        color: #f87171;
     }
 
     .apply-btn :global(.spinner) {

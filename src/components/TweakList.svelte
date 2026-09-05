@@ -86,6 +86,7 @@
     let modalLogs: string[] = [];
     let processingTweakId: string | null = null;
     let unlistenOutput: (() => void) | null = null;
+    let failedIds = new Set<string>();
 
     onMount(async () => {
         // Listen for streaming output
@@ -124,6 +125,8 @@
 
         // Add to loading set
         loadingIds.add(tweak.id);
+        failedIds.delete(tweak.id);
+        failedIds = failedIds;
         loadingIds = loadingIds; // Trigger reactivity
 
         // Setup modal for Action types or Activation category
@@ -136,16 +139,16 @@
 
         try {
             if (tweak.enabled && tweak.tweak_type !== "Action") {
-                await invoke("undo_tweak", { id: tweak.id });
-                tweak.enabled = false;
+                tweak.enabled = await invoke<boolean | null>("undo_tweak", { id: tweak.id });
             } else {
-                await invoke("apply_tweak", { id: tweak.id, dangerousAcknowledgement });
-                if (tweak.tweak_type !== "Action") {
-                    tweak.enabled = true;
-                }
+                tweak.enabled = await invoke<boolean | null>("apply_tweak", { id: tweak.id, dangerousAcknowledgement });
             }
             tweaks = tweaks; // Trigger reactivity
         } catch (e) {
+            failedIds.add(tweak.id);
+            failedIds = failedIds;
+            tweak.enabled = await invoke<boolean | null>("get_tweak_state", { id: tweak.id }).catch(() => null);
+            tweaks = tweaks;
             console.error("Failed to toggle tweak:", e);
             showModal = true;
             modalTitle = `Failed: ${tweak.name}`;
@@ -203,7 +206,8 @@
 
                 <button
                     class="toggle-btn"
-                    class:on={tweak.enabled}
+                    class:on={tweak.enabled === true && !failedIds.has(tweak.id)}
+                    class:failed={failedIds.has(tweak.id)}
                     class:loading={loadingIds.has(tweak.id)}
                     disabled={loadingIds.has(tweak.id)}
                     on:click={() => toggleTweak(tweak)}
@@ -212,7 +216,7 @@
                         <span class="btn-spinner"></span>
                         {tweak.tweak_type === "Action" ? "Running..." : tweak.enabled ? "Reverting..." : "Applying..."}
                     {:else}
-                        {tweak.tweak_type === "Action" ? "Run" : tweak.enabled ? "Enabled" : "Disabled"}
+                        {failedIds.has(tweak.id) ? "Failed · Retry" : tweak.tweak_type === "Action" ? (tweak.check && tweak.enabled ? "Enabled · Run" : "Run") : tweak.enabled == null ? "Check / Apply" : tweak.enabled ? "Enabled" : "Disabled"}
                     {/if}
                 </button>
             </div>
@@ -227,6 +231,12 @@
 </div>
 
 <style>
+    .toggle-btn.failed {
+        background: var(--toggle-off-bg);
+        color: #f87171;
+        border-color: #f87171;
+        box-shadow: none;
+    }
     .list-container {
         display: flex;
         flex-direction: column;
@@ -339,7 +349,7 @@
     }
     .toggle-btn.on:hover {
         background: rgba(129, 140, 248, 0.26);
-        box-shadow: 0 0 14px rgba(129, 140, 248, 0.3);
+        box-shadow: var(--toggle-on-glow);
     }
     .toggle-btn.loading { opacity: 0.7; cursor: wait; pointer-events: none; }
     .toggle-btn:disabled { cursor: not-allowed; }

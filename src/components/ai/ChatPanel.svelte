@@ -92,15 +92,13 @@
     error = "";
     try {
       if (action.operation === "undo") {
-        await invoke("undo_tweak", { id: action.id });
-        tweak.enabled = false;
+        tweak.enabled = await invoke<boolean | null>("undo_tweak", { id: action.id });
         action.operation = "apply";
       } else {
-        await invoke("apply_tweak", { id: action.id, dangerousAcknowledgement });
+        tweak.enabled = await invoke<boolean | null>("apply_tweak", { id: action.id, dangerousAcknowledgement });
         if (tweak.tweak_type === "Action") {
           action.completed = true;
         } else {
-          tweak.enabled = true;
           action.operation = "undo";
         }
       }

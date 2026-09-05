@@ -91,14 +91,19 @@
     const prevCat = currentCat;
     currentCat = c;
 
-    if (c && prevCat !== c && !checkedCategories.has(c)) {
+    if (!loading && c && prevCat !== c) {
+      checkedCategories.delete(c);
       checkCategoryNow(c);
     }
   });
 
   async function checkCategoryNow(cat: string) {
     const rustCategory = categoryMap[cat];
-    if (!rustCategory || checkedCategories.has(cat) || cat === "Home" || cat === "AiAdvisor" || cat === "AllTweaks") return;
+    if (cat === "AllTweaks") {
+      await reloadTweaks();
+      return;
+    }
+    if (!rustCategory || checkedCategories.has(cat) || cat === "Home" || cat === "AiAdvisor") return;
 
     checkedCategories.add(cat);
     try {
@@ -125,7 +130,8 @@
 
   async function reloadTweaks() {
     try {
-      tweaks = await invoke<Tweak[]>("get_tweaks_fast");
+      tweaks = await invoke<Tweak[]>("get_tweaks");
+      checkedCategories.clear();
     } catch (e) {
       error = `Failed to refresh tweak states: ${String(e)}`;
     }
@@ -136,7 +142,7 @@ onMount(async () => {
     tweaks = await invoke<Tweak[]>('get_tweaks_fast');
     loading = false;
 
-    unlistenCheckResult = await listen<{id: string, enabled: boolean}>('tweak-check-result', (event) => {
+    unlistenCheckResult = await listen<{id: string, enabled: boolean | null}>('tweak-check-result', (event) => {
       const { id, enabled } = event.payload;
       tweaks = tweaks.map(t => t.id === id ? { ...t, enabled } : t);
     });

@@ -79,7 +79,7 @@
 
     function isNoOp(entry: ProfilePreviewEntry) {
         return (entry.operation === "enable" && entry.current_enabled) ||
-            (entry.operation === "disable" && !entry.current_enabled) || entry.operation === "skip";
+            (entry.operation === "disable" && entry.current_enabled === false) || entry.operation === "skip";
     }
 
     function setOperation(entry: EditableEntry, operation: ProfileOperation) {
@@ -90,11 +90,12 @@
     }
 
     function availableOperations(entry: EditableEntry): ProfileOperation[] {
-        return entry.tweak_type === "Action" ? ["skip", "run"] : ["skip", "enable", "disable"];
+        return entry.can_revert ? ["skip", "enable", "disable"]
+            : entry.queryable ? ["skip", "enable", "run"] : ["skip", "run"];
     }
 
     async function applyProfile() {
-        const selected = entries.filter((entry) => entry.selected && !isNoOp(entry));
+        const selected = entries.filter((entry) => entry.selected && entry.operation !== "skip");
         if (selected.length === 0) {
             notice = { kind: "error", text: "Select at least one change to apply." };
             return;
@@ -108,6 +109,12 @@
         let skipped = 0;
         for (const [index, entry] of selected.entries()) {
             progress = `${index + 1} / ${selected.length}: ${entry.name}`;
+            entry.current_enabled = await invoke<boolean | null>("get_tweak_state", { id: entry.id }).catch(() => null);
+            if (isNoOp(entry)) {
+                entry.result = "Already in requested state";
+                skipped += 1;
+                continue;
+            }
             let dangerousAcknowledgement: string | null = null;
             if (entry.warning_level === "Dangerous" && (entry.operation === "enable" || entry.operation === "run")) {
                 const expected = `APPLY ${entry.id}`;
@@ -124,13 +131,13 @@
 
             try {
                 if (entry.operation === "disable") {
-                    await invoke("undo_tweak", { id: entry.id });
-                    entry.current_enabled = false;
+                    entry.current_enabled = await invoke<boolean | null>("undo_tweak", { id: entry.id });
                 } else {
-                    await invoke("apply_tweak", { id: entry.id, dangerousAcknowledgement });
-                    if (entry.operation === "enable") entry.current_enabled = true;
+                    entry.current_enabled = await invoke<boolean | null>("apply_tweak", { id: entry.id, dangerousAcknowledgement });
                 }
-                entry.result = "Applied";
+                entry.result = entry.operation === "run" ? "Completed"
+                    : entry.current_enabled === (entry.operation === "enable") ? "Verified"
+                    : "Completed; detected state differs or is unknown";
                 entry.selected = false;
                 completed += 1;
             } catch (error) {
@@ -139,6 +146,12 @@
             }
             entries = entries;
         }
+        // Later operations can overlap earlier ones; refresh every preview row.
+        const actual = await invoke<import("$lib/types").Tweak[]>("get_tweaks").catch(() => []);
+        for (const entry of entries) {
+            entry.current_enabled = actual.find(t => t.id === entry.id)?.enabled ?? null;
+        }
+        entries = entries;
         busy = false;
         progress = "";
         notice = failed
@@ -207,7 +220,7 @@
                             {#if entry.result}<small class:result-error={entry.result.startsWith("Failed")}>{entry.result}</small>{/if}
                         </div>
                         <div class="state">
-                            {#if entry.tweak_type === "Toggle"}<small>Now: {entry.current_enabled ? "enabled" : "disabled"}</small>{/if}
+                            {#if entry.queryable}<small>Now: {entry.current_enabled == null ? "unknown" : entry.current_enabled ? "enabled" : "disabled"}</small>{/if}
                             <select value={entry.operation} on:change={(event) => setOperation(entry, event.currentTarget.value as ProfileOperation)} disabled={busy}>
                                 {#each availableOperations(entry) as operation}<option value={operation}>{operation}</option>{/each}
                             </select>

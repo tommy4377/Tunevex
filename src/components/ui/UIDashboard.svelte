@@ -102,8 +102,7 @@
 
     async function applyTweak(tweak: Tweak) {
         try {
-            await invoke("apply_tweak", { id: tweak.id });
-            tweak.enabled = true;
+            tweak.enabled = await invoke<boolean | null>("apply_tweak", { id: tweak.id });
             allTweaks = [...allTweaks];
         } catch (e) {
             console.error("Failed to apply tweak:", e);
@@ -112,8 +111,7 @@
 
     async function revertTweak(tweak: Tweak) {
         try {
-            await invoke("undo_tweak", { id: tweak.id });
-            tweak.enabled = false;
+            tweak.enabled = await invoke<boolean | null>("undo_tweak", { id: tweak.id });
             allTweaks = [...allTweaks];
         } catch (e) {
             console.error("Failed to revert tweak:", e);

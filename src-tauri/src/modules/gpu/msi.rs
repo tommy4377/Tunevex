@@ -12,7 +12,7 @@ pub fn get_gpu_msi_tweaks() -> Vec<Tweak> {
             warning_level: WarningLevel::Careful,
             requires_restart: true,
             tweak_type: TweakType::Toggle, enabled: false,
-            check: Some(TweakCheck::MsiEnabledGlobally { priority: 3 }),
+            check: Some(TweakCheck::MsiEnabledForClass { class: "Display".into(), priority: 3 }),
             revert_operations: Some(vec![
                 TweakOperation::MsiRemove { class: "Display".to_string() },
             ]),

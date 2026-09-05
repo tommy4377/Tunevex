@@ -61,43 +61,43 @@ WARNING: Requires at least 4GB free disk space on system drive."
                     .to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: true,
-            tweak_type: TweakType::Action,
+            tweak_type: TweakType::Toggle,
             enabled: false,
-            check: None,
-            revert_operations: Some(vec![
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management"
-                        .to_string(),
-                    key: "AutoSetup".to_string(),
-                    value: RegistryValue::DWord(0),
-                },
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management"
-                        .to_string(),
-                    key: "PagingFiles".to_string(),
-                    value: RegistryValue::MultiString(vec!["C:\\pagefile.sys 0 0".to_string()]),
-                },
-            ]),
-            operations: vec![
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management"
-                        .to_string(),
-                    key: "AutoSetup".to_string(),
-                    value: RegistryValue::DWord(0),
-                },
-                TweakOperation::RegistrySet {
-                    root_key: "HKLM".to_string(),
-                    path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management"
-                        .to_string(),
-                    key: "PagingFiles".to_string(),
-                    value: RegistryValue::MultiString(vec![
-                        "C:\\pagefile.sys 4096 4096".to_string()
-                    ]),
-                },
-            ],
+            check: Some(TweakCheck::Powershell {
+                script: "$cs = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop; $p = @(Get-CimInstance Win32_PageFileSetting -ErrorAction Stop); (-not $cs.AutomaticManagedPagefile) -and $p.Count -eq 1 -and $p[0].Name -eq \"$env:SystemDrive\\pagefile.sys\" -and $p[0].InitialSize -eq 4096 -and $p[0].MaximumSize -eq 4096".into(),
+                expected_output: "True".into(),
+            }),
+            revert_operations: Some(vec![TweakOperation::Powershell {
+                script: r#"
+$ErrorActionPreference = 'Stop'
+$file = Join-Path $env:ProgramData 'TommyTweaker\backups\pagefile.json'
+if (!(Test-Path -LiteralPath $file)) { throw 'No saved pagefile configuration; refusing to guess the previous configuration' }
+$saved = Get-Content -Raw -LiteralPath $file | ConvertFrom-Json
+$cs = Get-CimInstance Win32_ComputerSystem
+$cs | Set-CimInstance -Property @{ AutomaticManagedPagefile = $false }
+Get-CimInstance Win32_PageFileSetting | Remove-CimInstance
+foreach ($p in $saved.Pages) {
+    New-CimInstance -ClassName Win32_PageFileSetting -Property @{ Name = [string]$p.Name; InitialSize = [uint32]$p.InitialSize; MaximumSize = [uint32]$p.MaximumSize } | Out-Null
+}
+$cs | Set-CimInstance -Property @{ AutomaticManagedPagefile = [bool]$saved.Automatic }
+Remove-Item -LiteralPath $file
+"#.to_string(),
+            }]),
+            operations: vec![TweakOperation::Powershell {
+                script: r#"
+$ErrorActionPreference = 'Stop'
+$file = Join-Path $env:ProgramData 'TommyTweaker\backups\pagefile.json'
+$cs = Get-CimInstance Win32_ComputerSystem
+if (!(Test-Path -LiteralPath $file)) {
+    $saved = @{ Automatic = $cs.AutomaticManagedPagefile; Pages = @(Get-CimInstance Win32_PageFileSetting | Select-Object Name, InitialSize, MaximumSize) }
+    New-Item -ItemType Directory -Force -Path (Split-Path $file) | Out-Null
+    $saved | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $file -ErrorAction Stop
+}
+$cs | Set-CimInstance -Property @{ AutomaticManagedPagefile = $false }
+Get-CimInstance Win32_PageFileSetting | Remove-CimInstance
+New-CimInstance -ClassName Win32_PageFileSetting -Property @{ Name = "$env:SystemDrive\pagefile.sys"; InitialSize = [uint32]4096; MaximumSize = [uint32]4096 } | Out-Null
+"#.to_string(),
+            }],
         },
         // ============================================
         // Disable Memory Compression

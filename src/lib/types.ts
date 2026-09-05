@@ -36,7 +36,7 @@ export interface Tweak {
     warning_level: WarningLevel;
     tweak_type: TweakType;
     requires_restart: boolean;
-    enabled?: boolean; // Frontend state
+    enabled?: boolean | null; // null/undefined = not yet detected
     check?: TweakCheck;
     revert_warning?: string; // Shown when reverting a Dangerous tweak
 }
@@ -49,7 +49,9 @@ export interface ProfilePreviewEntry {
     category: string;
     tweak_type: TweakType;
     operation: ProfileOperation;
-    current_enabled: boolean;
+    current_enabled: boolean | null;
+    can_revert: boolean;
+    queryable: boolean;
     warning_level: WarningLevel;
     requires_restart: boolean;
 }

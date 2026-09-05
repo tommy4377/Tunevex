@@ -395,9 +395,12 @@ pub fn get_system_tweaks() -> Vec<Tweak> {
             description: "Frees the ~7GB of disk space Windows reserves for future updates. Useful on small SSDs. Windows Update may temporarily re-reserve space during feature updates.".to_string(),
             warning_level: WarningLevel::Careful,
             requires_restart: false,
-            tweak_type: TweakType::Action,
+            tweak_type: TweakType::Toggle,
             enabled: false,
-            check: None,
+            check: Some(TweakCheck::Powershell {
+                script: "(Get-WindowsReservedStorageState -ErrorAction Stop).ReservedStorageState -eq 'Disabled'".into(),
+                expected_output: "True".into(),
+            }),
             revert_operations: Some(vec![TweakOperation::Command {
                 cmd: "DISM.exe".to_string(),
                 args: vec!["/Online".to_string(), "/Set-ReservedStorageState".to_string(), "/State:Enabled".to_string()],

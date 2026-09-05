@@ -143,6 +143,9 @@ fn build_tweak_catalog() -> Vec<Tweak> {
         "gaming_disable_gameinput",
     ];
     for tweak in &mut tweaks {
+        if tweak.operations.iter().any(|op| matches!(op, modules::types::TweakOperation::NetAdapterProperty { .. })) {
+            tweak.requires_restart = true;
+        }
         if POWER_USER_CONTROLS.contains(&tweak.id.as_str()) {
             tweak.warning_level = WarningLevel::Dangerous;
             tweak.description.push_str(power_user_risk_note(&tweak.id));
@@ -292,6 +295,7 @@ pub fn run() {
             commands::check_is_admin,
             commands::get_tweaks,
             commands::get_tweaks_fast,
+            commands::get_tweak_state,
             commands::check_category,
             crate::modules::profiles::export_tweak_profile,
             crate::modules::profiles::preview_tweak_profile,

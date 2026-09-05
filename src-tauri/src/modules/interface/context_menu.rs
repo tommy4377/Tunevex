@@ -16,9 +16,14 @@ pub fn get_context_menu_tweaks() -> Vec<Tweak> {
             description: "Restores the Windows 10 style full context menu on right-click.".to_string(),
             warning_level: WarningLevel::Safe,
             requires_restart: true,
-            tweak_type: TweakType::Action,
+            tweak_type: TweakType::Toggle,
             enabled: false,
-            check: None,
+            check: Some(TweakCheck::Registry {
+                root_key: "HKCU".into(),
+                path: r"Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32".into(),
+                key: "".into(),
+                expected_value: RegistryValue::String("".into()),
+            }),
             revert_operations: Some(vec![
                 TweakOperation::RegistryDelete { root_key: "HKCU".to_string(), path: r"Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32".to_string(), key: "".to_string() },
                 TweakOperation::Command { cmd: "cmd".to_string(), args: vec!["/c".to_string(), "taskkill".to_string(), "/F".to_string(), "/IM".to_string(), "explorer.exe".to_string(), "&&".to_string(), "start".to_string(), "explorer.exe".to_string()] }

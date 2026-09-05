@@ -13,7 +13,7 @@ pub fn check_command_output_contains(cmd: &str, args: &[String], contains: &str)
         .creation_flags(0x08000000)
         .output();
     match output {
-        Ok(out) => {
+        Ok(out) if out.status.success() => {
             let combined = format!(
                 "{}{}",
                 String::from_utf8_lossy(&out.stdout),
@@ -22,7 +22,7 @@ pub fn check_command_output_contains(cmd: &str, args: &[String], contains: &str)
             .to_lowercase();
             combined.contains(&contains.to_lowercase())
         }
-        Err(_) => false,
+        _ => false,
     }
 }
 
@@ -36,7 +36,7 @@ pub fn check_registry_key_absent(root_key: &str, path: &str) -> bool {
         "HKU" | "HKEY_USERS" => HKEY_USERS,
         _ => return false,
     };
-    RegKey::predef(hkey).open_subkey(path).is_err()
+    matches!(RegKey::predef(hkey).open_subkey(path), Err(e) if e.kind() == std::io::ErrorKind::NotFound)
 }
 
 pub fn check_registry_value(
@@ -85,7 +85,24 @@ pub fn check_registry_value(
     }
 }
 
+pub fn query_registry_value(root: &str, path: &str, name: &str, expected: &RegistryValue) -> Option<bool> {
+    let key = crate::modules::registry::operations::get_root_key(root);
+    match key.open_subkey(path) {
+        Ok(key) => match key.get_raw_value(name) {
+            Ok(_) => Some(check_registry_value(root, path, name, expected)),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Some(false),
+            Err(_) => None,
+        },
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Some(false),
+        Err(_) => None,
+    }
+}
+
 pub fn check_powershell_output(script: &str, expected_output: &str) -> bool {
+    query_powershell(script).is_some_and(|output| output.eq_ignore_ascii_case(expected_output.trim()))
+}
+
+pub fn query_powershell(script: &str) -> Option<String> {
     use std::io::Write;
     use std::process::Stdio;
     let mut child = match Command::new("powershell")
@@ -104,16 +121,75 @@ pub fn check_powershell_output(script: &str, expected_output: &str) -> bool {
         .spawn()
     {
         Ok(c) => c,
-        Err(_) => return false,
+        Err(_) => return None,
     };
     if let Some(mut stdin) = child.stdin.take() {
-        let _ = writeln!(stdin, "{}", script);
+        if writeln!(stdin, "& {{ $ErrorActionPreference = 'Stop';\n{}\n}}\n", script).is_err() {
+            let _ = child.kill();
+            let _ = child.wait();
+            return None;
+        }
     }
     match child.wait_with_output() {
-        Ok(out) => {
+        Ok(out) if out.status.success() => {
             let stdout = String::from_utf8_lossy(&out.stdout).trim().to_lowercase();
-            stdout == expected_output.trim().to_lowercase()
+            Some(stdout)
         }
-        Err(_) => false,
+        _ => None,
+    }
+}
+
+pub fn tcp_global_matches(output: &str, settings: &[(String, String)]) -> bool {
+    !settings.is_empty() && settings.iter().all(|(key, value)| {
+        output.lines().filter(|line| line.trim_start().starts_with("set global "))
+            .flat_map(str::split_whitespace)
+            .any(|token| token.split_once('=').is_some_and(|(k, v)|
+                k.eq_ignore_ascii_case(key) && v.eq_ignore_ascii_case(value)))
+    })
+}
+
+pub fn check_tcp_global(settings: &[(String, String)]) -> bool {
+    Command::new("netsh").args(["interface", "tcp", "dump"])
+        .creation_flags(0x08000000).output().ok()
+        .filter(|out| out.status.success())
+        .is_some_and(|out| tcp_global_matches(&String::from_utf8_lossy(&out.stdout), settings))
+}
+
+pub fn check_scheduled_task_disabled(name: &str) -> bool {
+    query_scheduled_task_disabled(name) == Some(true)
+}
+
+pub fn query_scheduled_task_disabled(name: &str) -> Option<bool> {
+    // Task Scheduler's COM Enabled property is independent of output language,
+    // task readiness, and unrelated settings such as idle or battery conditions.
+    let name = name.replace('\'', "''");
+    query_powershell(&format!(
+        "$s = New-Object -ComObject 'Schedule.Service'; $s.Connect(); -not $s.GetFolder('\\').GetTask('{name}').Enabled"
+    )).and_then(|s| match s.as_str() { "true" => Some(true), "false" => Some(false), _ => None })
+}
+
+#[cfg(test)]
+mod detector_tests {
+    use super::*;
+
+    #[test]
+    fn tcp_checks_match_only_the_requested_setting() {
+        let dump = "# enabled\nset global rss=enabled ecncapability=disabled timestamps=allowed fastopen=enabled fastopenfallback=disabled";
+        assert!(!tcp_global_matches(dump, &[("ecncapability".into(), "enabled".into())]));
+        assert!(!tcp_global_matches(dump, &[("timestamps".into(), "enabled".into())]));
+        assert!(tcp_global_matches(dump, &[("rss".into(), "enabled".into())]));
+        assert!(!tcp_global_matches(dump, &[("fastopen".into(), "enabled".into()), ("fastopenfallback".into(), "enabled".into())]));
+        assert!(!tcp_global_matches("", &[("rss".into(), "enabled".into())]));
+    }
+    #[test]
+    fn powershell_requires_success_and_exact_output() {
+        assert!(check_powershell_output("'True'", "True"));
+        assert!(!check_powershell_output("'False'", "True"));
+        assert!(!check_powershell_output("'True'; throw 'failed'", "True"));
+        assert!(!check_powershell_output("'not True'", "True"));
+    }
+    #[test]
+    fn missing_task_is_unknown_not_disabled() {
+        assert_eq!(query_scheduled_task_disabled(r"\TommyTweaker-Nonexistent-Detector-Test"), None);
     }
 }

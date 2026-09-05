@@ -10,8 +10,7 @@
     async function hardenAll() {
         for (const tweak of tweaks.filter((t) => t.warning_level === "Safe")) {
             if (!tweak.enabled) {
-                await invoke("apply_tweak", { id: tweak.id });
-                tweak.enabled = true;
+                tweak.enabled = await invoke<boolean | null>("apply_tweak", { id: tweak.id });
             }
         }
         tweaks = tweaks; // Trigger reactivity

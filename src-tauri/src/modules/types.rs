@@ -132,13 +132,12 @@ pub enum TweakOperation {
         enable_split: bool,
     },
     /// Enable MSI mode on all devices of a given PCI class (Display, SCSIAdapter, Net, USB, HDC).
-    /// Writes MSISupported=1, MessageNumberLimit=1, Priority=priority to registry.
+    /// Writes MSISupported=1 and Affinity Policy\DevicePriority, preserving MessageNumberLimit.
     MsiSet {
         class: String,
         priority: u32,
     },
-    /// Remove MSI settings from all devices of a given PCI class.
-    /// Deletes MSISupported, MessageNumberLimit, Priority registry values.
+    /// Restore this tweak's saved per-device MSI values. Never guess driver defaults.
     MsiRemove {
         class: String,
     },
@@ -164,6 +163,9 @@ pub enum TweakOperation {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TweakCheck {
+    /// Match exact key=value tokens in netsh's executable TCP dump.
+    TcpGlobal { settings: Vec<(String, String)> },
+    MsiEnabledForClass { class: String, priority: u32 },
     Registry {
         root_key: String,
         path: String,
