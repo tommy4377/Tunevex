@@ -12,6 +12,7 @@ It provides a wide array of system-level tweaks spanning:
 
 - **Rollback-aware toggles**: Registry values are captured before a live toggle changes them, and every toggle has an explicit state check and undo path.
 - **Honest one-shot actions**: App removals and maintenance operations are labelled as actions when an automatic rollback cannot be guaranteed.
+- **Portable tweak profiles**: Export enabled tweaks or an editable JSON catalog, validate imported profiles against the installed catalog, and review every operation before applying it.
 - **AI Advisor**: Optional Gemini 3.5 Flash integration stores its key in Windows Credential Manager, validates model output against the live catalog, and surfaces explicit Apply/Undo cards instead of silently changing the PC.
 - **Fast Execution**: Uses native Windows APIs (`winreg`, `sc.exe`, `schtasks.exe`) wherever possible to eliminate subprocess overhead.
 - **Fully Asynchronous**: Does not block the UI thread during heavy operations like compression or process scans.
@@ -41,6 +42,26 @@ npm run tauri build
 ```
 
 Debug builds include a localhost-only Tauri MCP bridge for UI and IPC automation. To run a restricted debug session for UI, AI, and per-user rollback tests, set `TOMMYTWEAKER_SKIP_ELEVATION=1` before `npm run tauri dev`; the bypass is ignored for release builds. Machine-level tweak testing still requires an elevated build.
+
+## Tweak profiles
+
+The **All Tweaks** page can export either the currently enabled stateful tweaks or a complete editable template. Profiles use a versioned JSON format and identify controls only by their stable catalog IDs; executable commands and scripts are never imported from the file.
+
+Toggle entries accept `enable`, `disable`, or `skip`. One-shot actions accept `run` or `skip`. Complete templates deliberately export actions as `skip`, so importing a generated template cannot run every cleanup or removal action by accident. The import preview lets you change operations and selection before anything is applied, and dangerous operations still require the same ID-scoped acknowledgement as the normal UI.
+
+```json
+{
+  "format": "tommytweaker-profile",
+  "version": 1,
+  "name": "My profile",
+  "generated_at_unix": 0,
+  "scope": "custom",
+  "tweaks": [
+    { "id": "example_toggle", "operation": "enable" },
+    { "id": "example_action", "operation": "run" }
+  ]
+}
+```
 
 ## Contributing
 

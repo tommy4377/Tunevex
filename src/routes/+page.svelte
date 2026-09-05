@@ -21,6 +21,7 @@
 
   import UIDashboard from "../components/ui/UIDashboard.svelte";
   import TweakList from "../components/TweakList.svelte";
+  import ProfileManager from "../components/ProfileManager.svelte";
   import type { Tweak } from "$lib/types";
   import { activeCategory } from "$lib/stores";
 
@@ -122,6 +123,14 @@
     isChecking = false;
   }
 
+  async function reloadTweaks() {
+    try {
+      tweaks = await invoke<Tweak[]>("get_tweaks_fast");
+    } catch (e) {
+      error = `Failed to refresh tweak states: ${String(e)}`;
+    }
+  }
+
 onMount(async () => {
   try {
     tweaks = await invoke<Tweak[]>('get_tweaks_fast');
@@ -212,18 +221,21 @@ onMount(async () => {
               <h1>All Tweaks</h1>
               <p>{filteredAllTweaks.length} of {tweaks.length} controls shown</p>
             </div>
-            <div class="all-tweaks-filters">
-              <input bind:value={allSearch} aria-label="Search tweaks" placeholder="Search name, description, or ID" />
-              <select bind:value={allRisk} aria-label="Filter by risk">
-                <option>All</option>
-                <option>Safe</option>
-                <option>Careful</option>
-                <option>Dangerous</option>
-              </select>
-              <select bind:value={allCategory} aria-label="Filter by category">
-                <option>All</option>
-                {#each allCategories as category}<option value={category}>{category}</option>{/each}
-              </select>
+            <div class="all-tweaks-tools">
+              <ProfileManager on:applied={reloadTweaks} />
+              <div class="all-tweaks-filters">
+                <input bind:value={allSearch} aria-label="Search tweaks" placeholder="Search name, description, or ID" />
+                <select bind:value={allRisk} aria-label="Filter by risk">
+                  <option>All</option>
+                  <option>Safe</option>
+                  <option>Careful</option>
+                  <option>Dangerous</option>
+                </select>
+                <select bind:value={allCategory} aria-label="Filter by category">
+                  <option>All</option>
+                  {#each allCategories as category}<option value={category}>{category}</option>{/each}
+                </select>
+              </div>
             </div>
           </header>
           <div class="all-tweaks-list">
@@ -323,6 +335,14 @@ onMount(async () => {
     min-width: 0;
   }
 
+  .all-tweaks-tools {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
+  }
+
   .all-tweaks-filters input,
   .all-tweaks-filters select {
     min-width: 0;
@@ -350,6 +370,7 @@ onMount(async () => {
   @media (max-width: 940px) {
     .page-heading { padding: 14px 16px 12px; }
     .all-tweaks-header { align-items: stretch; flex-direction: column; padding: 14px 16px 12px; }
+    .all-tweaks-tools { align-items: stretch; flex-direction: column; }
     .all-tweaks-filters { justify-content: stretch; }
     .all-tweaks-filters input { flex: 1; width: auto; }
     .all-tweaks-filters select { width: 112px; }

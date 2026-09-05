@@ -293,6 +293,8 @@ pub fn run() {
             commands::get_tweaks,
             commands::get_tweaks_fast,
             commands::check_category,
+            crate::modules::profiles::export_tweak_profile,
+            crate::modules::profiles::preview_tweak_profile,
             commands::apply_tweak,
             commands::undo_tweak,
             commands::kill_tweak_process,

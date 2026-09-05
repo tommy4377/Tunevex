@@ -41,6 +41,30 @@ export interface Tweak {
     revert_warning?: string; // Shown when reverting a Dangerous tweak
 }
 
+export type ProfileOperation = 'enable' | 'disable' | 'run' | 'skip';
+
+export interface ProfilePreviewEntry {
+    id: string;
+    name: string;
+    category: string;
+    tweak_type: TweakType;
+    operation: ProfileOperation;
+    current_enabled: boolean;
+    warning_level: WarningLevel;
+    requires_restart: boolean;
+}
+
+export interface ProfileIssue {
+    id?: string;
+    reason: string;
+}
+
+export interface ProfileImportPreview {
+    name: string;
+    entries: ProfilePreviewEntry[];
+    issues: ProfileIssue[];
+}
+
 export type TweakCheck =
     | { Registry: { root_key: string; path: string; key: string; value: any } }
     | { Powershell: { script: string; expected_output: string } };

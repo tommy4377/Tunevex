@@ -11,6 +11,7 @@ pub mod legacy_vibrancy; // Explicitly expose it for direct use if needed, or vi
 
 pub mod network;
 pub mod privacy;
+pub mod profiles;
 pub mod registry;
 pub mod security;
 pub mod startup;
