@@ -1,6 +1,26 @@
 use std::path::PathBuf;
 
 pub fn get_app_dir() -> Result<PathBuf, String> {
+    // Existing TommyTweaker installations keep using their current data
+    // directory so state, backups and rollback metadata remain available.
+    let mut legacy = Vec::new();
+    if let Ok(program_data) = std::env::var("PROGRAMDATA") {
+        legacy.push(PathBuf::from(&program_data).join("TommyTweaker"));
+    }
+    if let Ok(app_data) = std::env::var("APPDATA") {
+        legacy.push(PathBuf::from(&app_data).join("TommyTweaker"));
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            legacy.push(parent.join("TommyTweakerData"));
+        }
+    }
+    for dir in legacy {
+        if dir.exists() && ensure_writable_dir(&dir) {
+            return Ok(dir);
+        }
+    }
+
     if let Ok(program_data) = std::env::var("PROGRAMDATA") {
         let dir = PathBuf::from(program_data).join("Tunevex");
         if ensure_writable_dir(&dir) {

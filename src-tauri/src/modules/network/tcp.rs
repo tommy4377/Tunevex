@@ -170,6 +170,7 @@ pub fn get_tcp_tweaks() -> Vec<Tweak> {
                 script: r#"
 $ErrorActionPreference = 'Stop'
 $file = Join-Path $env:ProgramData 'Tunevex\backups\autotuning.txt'
+if (!(Test-Path -LiteralPath $file)) { $file = Join-Path $env:ProgramData 'TommyTweaker\backups\autotuning.txt' }
 $value = (Get-Content -Raw -LiteralPath $file -ErrorAction Stop).Trim()
 if ($value -notin @('disabled', 'highlyrestricted', 'restricted', 'normal', 'experimental')) { throw 'Invalid saved TCP Auto-Tuning level' }
 netsh int tcp set global "autotuninglevel=$value"

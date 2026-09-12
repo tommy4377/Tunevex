@@ -276,6 +276,7 @@ pub fn run() {
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init());
+
     builder
         .manage(Mutex::new(TweakContext { tweaks: all_tweaks }))
         .manage(Mutex::new(app_state))

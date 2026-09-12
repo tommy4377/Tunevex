@@ -11,7 +11,7 @@ use crate::modules::types::{
 
 pub fn get_task_tweaks() -> Vec<Tweak> {
     vec![Tweak {
-        id: "debloat-disable-misc-tasks".to_string(),
+        id: "debloat_disable_misc_tasks".to_string(),
         category: TweakCategory::DebloatTelemetry,
         name: "Disable Misc Scheduled Tasks".to_string(),
         description: "Disables Maps, Speech, Language, Retail Demo, and other unused tasks."

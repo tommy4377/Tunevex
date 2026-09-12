@@ -5,6 +5,7 @@ use winreg::enums::{HKEY_CURRENT_USER as CK, HKEY_LOCAL_MACHINE as LK, KEY_ALL_A
 use winreg::RegKey;
 
 const BACKUP_KEY_PATH: &str = "Software\\Tunevex\\StartupDisabled";
+const LEGACY_BACKUP_KEY_PATH: &str = "Software\\TommyTweaker\\StartupDisabled";
 
 pub fn scan() -> Vec<StartupItem> {
     let mut items = Vec::new();
@@ -114,10 +115,17 @@ fn scan_registry() -> Vec<StartupItem> {
             }
         }
 
-        // 2. Scan Disabled Keys (Backup)
-        let disabled_path = format!("{}\\{}", BACKUP_KEY_PATH, path.replace("\\", "_"));
-        if let Ok(key) = RegKey::predef(CK).open_subkey_with_flags(&disabled_path, KEY_READ) {
+        // 2. Scan Disabled Keys (Backup). Prefer Tunevex but keep reading
+        // the pre-rename TommyTweaker namespace for rollback compatibility.
+        for backup_root in [BACKUP_KEY_PATH, LEGACY_BACKUP_KEY_PATH] {
+            let disabled_path = format!("{}\\{}", backup_root, path.replace("\\", "_"));
+            let Ok(key) = RegKey::predef(CK).open_subkey_with_flags(&disabled_path, KEY_READ)
+            else {
+                continue;
+            };
+            let mut found = false;
             for (name, value) in key.enum_values().flatten() {
+                found = true;
                 let command = value.to_string();
                 items.push(StartupItem {
                     id: format!("REG:{}:{}:{}", hive_name, path, name),
@@ -133,6 +141,9 @@ fn scan_registry() -> Vec<StartupItem> {
                     safety_rating: SafetyRating::Unknown,
                     file_exists: false,
                 });
+            }
+            if found {
+                break;
             }
         }
     }
@@ -236,10 +247,21 @@ pub fn toggle_registry(id: &str, enable: bool) -> Result<(), String> {
     let backup_full_path = format!("{}\\{}", BACKUP_KEY_PATH, backup_subpath);
 
     if enable {
-        let backup_key = RegKey::predef(CK)
-            .open_subkey_with_flags(&backup_full_path, KEY_READ)
-            .map_err(|_| "Could not find disabled item".to_string())?;
-        let value: String = backup_key.get_value(name).map_err(|e| e.to_string())?;
+        let mut restored: Option<(String, String)> = None;
+        for backup_root in [BACKUP_KEY_PATH, LEGACY_BACKUP_KEY_PATH] {
+            let candidate = format!("{}\\{}", backup_root, backup_subpath);
+            let Ok(backup_key) =
+                RegKey::predef(CK).open_subkey_with_flags(&candidate, KEY_ALL_ACCESS)
+            else {
+                continue;
+            };
+            if let Ok(value) = backup_key.get_value::<String, _>(name) {
+                restored = Some((value, candidate));
+                break;
+            }
+        }
+        let (value, source_backup_path) =
+            restored.ok_or_else(|| "Could not find disabled item".to_string())?;
 
         let (target_key, _) = RegKey::predef(root)
             .create_subkey(path)
@@ -247,7 +269,11 @@ pub fn toggle_registry(id: &str, enable: bool) -> Result<(), String> {
         target_key
             .set_value(name, &value)
             .map_err(|e| e.to_string())?;
-        let _ = backup_key.delete_value(name);
+        if let Ok(backup_key) =
+            RegKey::predef(CK).open_subkey_with_flags(&source_backup_path, KEY_ALL_ACCESS)
+        {
+            let _ = backup_key.delete_value(name);
+        }
     } else {
         let original_key = RegKey::predef(root)
             .open_subkey_with_flags(path, KEY_READ)

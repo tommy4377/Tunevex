@@ -71,6 +71,7 @@ WARNING: Requires at least 4GB free disk space on system drive."
                 script: r#"
 $ErrorActionPreference = 'Stop'
 $file = Join-Path $env:ProgramData 'Tunevex\backups\pagefile.json'
+if (!(Test-Path -LiteralPath $file)) { $file = Join-Path $env:ProgramData 'TommyTweaker\backups\pagefile.json' }
 if (!(Test-Path -LiteralPath $file)) { throw 'No saved pagefile configuration; refusing to guess the previous configuration' }
 $saved = Get-Content -Raw -LiteralPath $file | ConvertFrom-Json
 $cs = Get-CimInstance Win32_ComputerSystem

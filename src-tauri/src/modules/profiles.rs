@@ -12,6 +12,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::State;
 
 const PROFILE_FORMAT: &str = "tunevex-profile";
+const LEGACY_PROFILE_FORMAT: &str = "tommytweaker-profile";
 const PROFILE_VERSION: u32 = 1;
 const MAX_PROFILE_SIZE: u64 = 1024 * 1024;
 
@@ -186,7 +187,7 @@ fn parse_profile(
 ) -> Result<ProfileImportPreview, String> {
     let profile: TweakProfile = serde_json::from_str(contents)
         .map_err(|error| format!("Invalid tweak profile JSON: {error}"))?;
-    if profile.format != PROFILE_FORMAT {
+    if profile.format != PROFILE_FORMAT && profile.format != LEGACY_PROFILE_FORMAT {
         return Err(format!("Unsupported profile format '{}'.", profile.format));
     }
     if profile.version != PROFILE_VERSION {
@@ -407,7 +408,7 @@ mod tests {
     fn import_rejects_operations_that_do_not_match_the_tweak_type() {
         let catalog = vec![toggle("toggle", false), action("action")];
         let json = r#"{
-            "format":"tunevex-profile","version":1,"name":"test",
+            "format":"tommytweaker-profile","version":1,"name":"test",
             "generated_at_unix":0,"scope":"custom","tweaks":[
                 {"id":"toggle","operation":"run"},
                 {"id":"action","operation":"enable"}
@@ -423,7 +424,7 @@ mod tests {
         let windows_dir = std::env::var_os("SystemRoot")
             .map(PathBuf::from)
             .expect("SystemRoot must be available on Windows");
-        let destination = windows_dir.join("tunevex-profile-path-test.json");
+        let destination = windows_dir.join("tommytweaker-profile-path-test.json");
 
         let resolved = profile_path(&destination.to_string_lossy(), false).unwrap();
         let resolved_windows_dir = windows_dir.canonicalize().unwrap();

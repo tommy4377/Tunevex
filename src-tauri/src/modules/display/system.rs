@@ -16,11 +16,18 @@ fn tweak_timer_resolution() -> Tweak {
         requires_restart: false,
         revert_operations: Some(vec![TweakOperation::Powershell {
             script: r#"
-$taskName = "Tunevex.SetTimerResolution"
-$scriptPath = Join-Path $env:ProgramData "Tunevex\SetTimerResolution.ps1"
-Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
-Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
-Remove-Item -LiteralPath $scriptPath -Force -ErrorAction SilentlyContinue
+$taskNames = @("Tunevex.SetTimerResolution", "TommyTweaker.SetTimerResolution")
+$scriptPaths = @(
+    (Join-Path $env:ProgramData "Tunevex\SetTimerResolution.ps1"),
+    (Join-Path $env:ProgramData "TommyTweaker\SetTimerResolution.ps1")
+)
+foreach ($taskName in $taskNames) {
+    Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+}
+foreach ($scriptPath in $scriptPaths) {
+    Remove-Item -LiteralPath $scriptPath -Force -ErrorAction SilentlyContinue
+}
 Write-Host "Stopped the timer-resolution holder and restored Windows timer selection." -ForegroundColor Green
 "#
             .to_string(),
@@ -30,6 +37,7 @@ Write-Host "Stopped the timer-resolution holder and restored Windows timer selec
         check: Some(TweakCheck::Powershell {
             script: r#"
 $task = Get-ScheduledTask -TaskName "Tunevex.SetTimerResolution" -ErrorAction SilentlyContinue
+if (!$task) { $task = Get-ScheduledTask -TaskName "TommyTweaker.SetTimerResolution" -ErrorAction SilentlyContinue }
 if ($task -and $task.State -ne "Disabled") { "True" } else { "False" }
 "#
             .to_string(),

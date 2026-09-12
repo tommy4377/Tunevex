@@ -1,4 +1,4 @@
-# Tunevex v0.6.0
+# Tunevex v0.7.0
 
 Profiles and rollback reliability
 
