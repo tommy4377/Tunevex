@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security policy
+    url: https://github.com/tommy4377/Tunevex/security/policy
+    about: Use the security policy for vulnerability reports.
