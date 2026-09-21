@@ -41,7 +41,7 @@
 
 <div class="titlebar">
   <div class="drag-region" data-tauri-drag-region>
-    <div class="window-title">TommyTweaker</div>
+    <div class="window-title">Tunevex</div>
     <div class="admin-label" title="This application runs elevated because tweaks change system settings."><ShieldCheck size={11} /> Administrator</div>
   </div>
 
