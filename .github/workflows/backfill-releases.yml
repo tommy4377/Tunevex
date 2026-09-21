@@ -1,0 +1,102 @@
+name: Backfill Tunevex releases
+
+on:
+  push:
+    branches:
+      - rebrand/tunevex
+    paths:
+      - .github/workflows/backfill-releases.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.tag }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tag:
+          - v0.1.0
+          - v0.2.0
+          - v0.3.0
+          - v0.4.0
+          - v0.5.0
+          - v0.6.0
+          - v1.0.0
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ matrix.tag }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: ${{ matrix.tag }}
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Validate frontend
+        run: npm run check
+
+      - name: Validate Rust formatting
+        working-directory: src-tauri
+        run: cargo fmt --check
+
+      - name: Validate Rust
+        working-directory: src-tauri
+        run: |
+          cargo check --locked
+          cargo test --locked
+
+      - name: Build portable executable
+        run: npm run tauri build -- --no-bundle
+
+      - name: Stage portable asset
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release | Out-Null
+          Copy-Item "src-tauri/target/release/tunevex.exe" "release/Tunevex.exe"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portable-${{ matrix.tag }}
+          path: release/Tunevex.exe
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish releases
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Create GitHub releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for tag in v0.1.0 v0.2.0 v0.3.0 v0.4.0 v0.5.0 v0.6.0 v1.0.0; do
+            asset="release-assets/portable-$tag/Tunevex.exe"
+            gh release delete "$tag" --yes --cleanup-tag=false 2>/dev/null || true
+            gh release create "$tag" "$asset" --title "Tunevex $tag" --generate-notes --verify-tag
+          done
