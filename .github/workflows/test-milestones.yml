@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   portable:
-    name: v\${{ matrix.version }}
+    name: v${{ matrix.version }}
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -40,7 +40,7 @@ jobs:
 
       - name: Checkout milestone
         shell: pwsh
-        run: git checkout "\${{ matrix.sha }}"
+        run: git checkout "${{ matrix.sha }}"
 
       - uses: actions/setup-node@v7
         with:
@@ -52,7 +52,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
-          shared-key: milestone-\${{ matrix.version }}
+          shared-key: milestone-${{ matrix.version }}
 
       - name: Install frontend
         run: npm ci
