@@ -16,11 +16,18 @@ fn tweak_timer_resolution() -> Tweak {
         requires_restart: false,
         revert_operations: Some(vec![TweakOperation::Powershell {
             script: r#"
-$taskName = "TommyTweaker.SetTimerResolution"
-$scriptPath = Join-Path $env:ProgramData "TommyTweaker\SetTimerResolution.ps1"
-Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
-Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
-Remove-Item -LiteralPath $scriptPath -Force -ErrorAction SilentlyContinue
+$taskNames = @("Tunevex.SetTimerResolution", "TommyTweaker.SetTimerResolution")
+$scriptPaths = @(
+    (Join-Path $env:ProgramData "Tunevex\SetTimerResolution.ps1"),
+    (Join-Path $env:ProgramData "TommyTweaker\SetTimerResolution.ps1")
+)
+foreach ($taskName in $taskNames) {
+    Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+}
+foreach ($scriptPath in $scriptPaths) {
+    Remove-Item -LiteralPath $scriptPath -Force -ErrorAction SilentlyContinue
+}
 Write-Host "Stopped the timer-resolution holder and restored Windows timer selection." -ForegroundColor Green
 "#
             .to_string(),
@@ -29,7 +36,8 @@ Write-Host "Stopped the timer-resolution holder and restored Windows timer selec
         enabled: false,
         check: Some(TweakCheck::Powershell {
             script: r#"
-$task = Get-ScheduledTask -TaskName "TommyTweaker.SetTimerResolution" -ErrorAction SilentlyContinue
+$task = Get-ScheduledTask -TaskName "Tunevex.SetTimerResolution" -ErrorAction SilentlyContinue
+if (!$task) { $task = Get-ScheduledTask -TaskName "TommyTweaker.SetTimerResolution" -ErrorAction SilentlyContinue }
 if ($task -and $task.State -ne "Disabled") { "True" } else { "False" }
 "#
             .to_string(),
@@ -37,8 +45,8 @@ if ($task -and $task.State -ne "Disabled") { "True" } else { "False" }
         }),
         operations: vec![TweakOperation::Powershell {
             script: r#"
-$taskName = "TommyTweaker.SetTimerResolution"
-$directory = Join-Path $env:ProgramData "TommyTweaker"
+$taskName = "Tunevex.SetTimerResolution"
+$directory = Join-Path $env:ProgramData "Tunevex"
 $scriptPath = Join-Path $directory "SetTimerResolution.ps1"
 New-Item -ItemType Directory -Path $directory -Force | Out-Null
 
@@ -46,18 +54,18 @@ $timerHolder = @'
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
-public static class TommyTweakerTimerResolution {
+public static class TunevexTimerResolution {
     [DllImport("ntdll.dll")]
     public static extern int NtSetTimerResolution(uint desired, bool set, out uint current);
 }
 "@
 $current = [uint32]0
-$result = [TommyTweakerTimerResolution]::NtSetTimerResolution(5000, $true, [ref]$current)
+$result = [TunevexTimerResolution]::NtSetTimerResolution(5000, $true, [ref]$current)
 if ($result -ne 0) { throw "NtSetTimerResolution failed with NTSTATUS $result" }
 try {
     while ($true) { Start-Sleep -Seconds 3600 }
 } finally {
-    [void][TommyTweakerTimerResolution]::NtSetTimerResolution(5000, $false, [ref]$current)
+    [void][TunevexTimerResolution]::NtSetTimerResolution(5000, $false, [ref]$current)
 }
 '@
 Set-Content -LiteralPath $scriptPath -Value $timerHolder -Encoding UTF8 -Force
