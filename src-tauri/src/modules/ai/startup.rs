@@ -80,7 +80,7 @@ pub async fn scan_startup_with_ai(
         (
             "user".to_string(),
             format!(
-                "You are an expert Windows optimization assistant in TommyTweaker. \
+                "You are an expert Windows optimization assistant in Tunevex. \
                   Reply ONLY with valid JSON matching the StartupScanResult schema. \
                   SYSTEM PROFILE:\n{}\n\nPAST AI MEMORY (last actions/diagnoses):\n{}",
                 serde_json::to_string_pretty(&profile).unwrap_or_default(),
