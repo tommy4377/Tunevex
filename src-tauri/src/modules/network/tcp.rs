@@ -184,7 +184,7 @@ Remove-Item -LiteralPath $file
                 TweakOperation::Powershell {
                     script: r#"
 $ErrorActionPreference = 'Stop'
-$file = Join-Path $env:ProgramData 'TommyTweaker\backups\autotuning.txt'
+$file = Join-Path $env:ProgramData 'Tunevex\backups\autotuning.txt'
 if (!(Test-Path -LiteralPath $file)) {
     $dump = netsh int tcp dump
     if ($LASTEXITCODE -ne 0) { throw 'Cannot query TCP Auto-Tuning' }
