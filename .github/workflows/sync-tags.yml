@@ -1,0 +1,35 @@
+name: Sync curated tags
+
+on:
+  push:
+    branches:
+      - rebrand/tunevex
+    paths:
+      - .github/workflows/sync-tags.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Replace curated tags
+        run: |
+          set -euo pipefail
+          for tag in v0.1.0 v0.2.0 v0.3.0 v0.4.0 v0.5.0 v0.6.0 v1.0.0; do
+            git push origin --delete "$tag" 2>/dev/null || true
+          done
+
+          git tag -f v0.1.0 dbe820a84c55588a6c178e5a4de6dac98df2b287
+          git tag -f v0.2.0 02e7456386934d047f02fb5d72c3f3f2421a4154
+          git tag -f v0.3.0 c273bd6456a2e6a39451f8b050204b2c1bcfb2fc
+          git tag -f v0.4.0 2d7eabae742088469b28d8174fef9068edb1e018
+          git tag -f v0.5.0 f64479847951a8e2df15aeebae03552be598b354
+          git tag -f v0.6.0 f2b8d6a031a9bcc55ab8312b2f3a8bb8abbcdec6
+          git tag -f v1.0.0 996a12e57635874ba225a7cb3592597ebb1be9be
+
+          git push origin             refs/tags/v0.1.0             refs/tags/v0.2.0             refs/tags/v0.3.0             refs/tags/v0.4.0             refs/tags/v0.5.0             refs/tags/v0.6.0             refs/tags/v1.0.0
