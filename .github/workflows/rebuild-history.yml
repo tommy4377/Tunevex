@@ -1,5 +1,5 @@
 name: Rebuild curated history
-# rebuild revision 2
+# rebuild revision 3
 
 on:
   push:
