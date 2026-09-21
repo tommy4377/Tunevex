@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  portable:
+    name: Portable Windows build
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Validate frontend
+        run: npm run check
+
+      - name: Validate Rust
+        working-directory: src-tauri
+        run: |
+          cargo fmt --check
+          cargo check --locked
+          cargo test --locked
+
+      - name: Build portable executable
+        run: npm run tauri build -- --no-bundle
+
+      - name: Stage portable asset
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release | Out-Null
+          Copy-Item "src-tauri/target/release/tunevex.exe" "release/Tunevex.exe"
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/Tunevex.exe
+          generate_release_notes: true
+          fail_on_unmatched_files: true
