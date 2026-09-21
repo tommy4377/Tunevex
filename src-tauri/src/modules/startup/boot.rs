@@ -3,6 +3,9 @@ use crate::modules::startup::{assess_safety, utils};
 use winreg::enums::*;
 use winreg::RegKey;
 
+const BACKUP_ROOT: &str = r"Software\Tunevex\Backups";
+const LEGACY_BACKUP_ROOT: &str = r"Software\TommyTweaker\Backups";
+
 pub fn scan() -> Vec<StartupItem> {
     let mut items = Vec::new();
     items.extend(scan_boot_execute());
@@ -171,7 +174,6 @@ pub fn toggle_boot_item(id: &str, enable: bool) -> Result<(), String> {
 
 fn toggle_ifeo_item(id: &str, enable: bool) -> Result<(), String> {
     let exe_name = id.strip_prefix("IFEO:").ok_or("Invalid IFEO ID format")?;
-
     let path = format!(
         r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\{}",
         exe_name
@@ -183,40 +185,32 @@ fn toggle_ifeo_item(id: &str, enable: bool) -> Result<(), String> {
         .map_err(|e| format!("Cannot open IFEO key: {}", e))?;
 
     if enable {
-        // Try to restore from backup
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-        let backup_path = format!(r"Software\TommyTweaker\Backups\IFEO\{}", exe_name);
-        if let Ok(backup_key) = hkcu.open_subkey(&backup_path) {
-            if let Ok(debugger) = backup_key.get_value::<String, _>("Debugger") {
-                let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-                let key_path = format!(
-                    r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\{}",
-                    exe_name
-                );
-                if let Ok(key) = hklm.open_subkey_with_flags(&key_path, KEY_ALL_ACCESS) {
-                    key.set_value("Debugger", &debugger)
-                        .map_err(|e| format!("Failed to restore debugger: {}", e))?;
-                    let _ = hkcu.delete_subkey_all(&backup_path);
-                    return Ok(());
-                }
-            }
+        for root in [BACKUP_ROOT, LEGACY_BACKUP_ROOT] {
+            let backup_path = format!(r"{}\IFEO\{}", root, exe_name);
+            let Ok(backup_key) = hkcu.open_subkey(&backup_path) else {
+                continue;
+            };
+            let Ok(debugger) = backup_key.get_value::<String, _>("Debugger") else {
+                continue;
+            };
+            key.set_value("Debugger", &debugger)
+                .map_err(|e| format!("Failed to restore debugger: {}", e))?;
+            let _ = hkcu.delete_subkey_all(&backup_path);
+            return Ok(());
         }
         Err("No backup found for this IFEO entry".to_string())
     } else {
-        // Backup before deletion
         if let Ok(debugger) = key.get_value::<String, _>("Debugger") {
             let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-            let backup_path = format!(r"Software\TommyTweaker\Backups\IFEO\{}", exe_name);
+            let backup_path = format!(r"{}\IFEO\{}", BACKUP_ROOT, exe_name);
             if let Ok((backup_key, _)) = hkcu.create_subkey(&backup_path) {
                 let _ = backup_key.set_value("Debugger", &debugger);
             }
         }
 
-        // Delete the debugger value
         key.delete_value("Debugger")
-            .map_err(|e| format!("Cannot remove debugger: {}", e))?;
-
-        Ok(())
+            .map_err(|e| format!("Cannot remove debugger: {}", e))
     }
 }
 
@@ -227,49 +221,43 @@ fn toggle_appinit_item(id: &str, enable: bool) -> Result<(), String> {
     } else {
         r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows"
     };
+    let backup_name = if is_32bit { "AppInit32" } else { "AppInit64" };
 
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    if let Ok(key) = hklm.open_subkey_with_flags(path, KEY_ALL_ACCESS) {
-        if enable {
-            // Restore from backup
-            let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-            let backup_path = if is_32bit {
-                r"Software\TommyTweaker\Backups\AppInit32"
-            } else {
-                r"Software\TommyTweaker\Backups\AppInit64"
-            };
-            if let Ok(backup_key) = hkcu.open_subkey(backup_path) {
-                if let Ok(dlls) = backup_key.get_value::<String, _>("AppInit_DLLs") {
-                    key.set_value("AppInit_DLLs", &dlls)
-                        .map_err(|e| format!("Failed to restore AppInit_DLLs: {}", e))?;
-                    let _ = key.set_value("LoadAppInit_DLLs", &1u32);
-                    let _ = hkcu.delete_subkey_all(backup_path);
-                    return Ok(());
-                }
-            }
-            Err("No backup found for AppInit_DLLs".to_string())
-        } else {
-            // Backup
-            if let Ok(current) = key.get_value::<String, _>("AppInit_DLLs") {
-                let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-                let backup_path = if is_32bit {
-                    r"Software\TommyTweaker\Backups\AppInit32"
-                } else {
-                    r"Software\TommyTweaker\Backups\AppInit64"
-                };
-                if let Ok((backup_key, _)) = hkcu.create_subkey(backup_path) {
-                    let _ = backup_key.set_value("AppInit_DLLs", &current);
-                }
-            }
+    let key = hklm
+        .open_subkey_with_flags(path, KEY_ALL_ACCESS)
+        .map_err(|_| "Could not open AppInit registry key".to_string())?;
 
-            // Clear
-            key.set_value("AppInit_DLLs", &"")
-                .map_err(|e| e.to_string())?;
-            let _ = key.set_value("LoadAppInit_DLLs", &0u32); // Disable loading
-            Ok(())
+    if enable {
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        for root in [BACKUP_ROOT, LEGACY_BACKUP_ROOT] {
+            let backup_path = format!(r"{}\{}", root, backup_name);
+            let Ok(backup_key) = hkcu.open_subkey(&backup_path) else {
+                continue;
+            };
+            let Ok(dlls) = backup_key.get_value::<String, _>("AppInit_DLLs") else {
+                continue;
+            };
+            key.set_value("AppInit_DLLs", &dlls)
+                .map_err(|e| format!("Failed to restore AppInit_DLLs: {}", e))?;
+            let _ = key.set_value("LoadAppInit_DLLs", &1u32);
+            let _ = hkcu.delete_subkey_all(&backup_path);
+            return Ok(());
         }
+        Err("No backup found for AppInit_DLLs".to_string())
     } else {
-        Err("Could not open AppInit registry key".to_string())
+        if let Ok(current) = key.get_value::<String, _>("AppInit_DLLs") {
+            let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+            let backup_path = format!(r"{}\{}", BACKUP_ROOT, backup_name);
+            if let Ok((backup_key, _)) = hkcu.create_subkey(&backup_path) {
+                let _ = backup_key.set_value("AppInit_DLLs", &current);
+            }
+        }
+
+        key.set_value("AppInit_DLLs", &"")
+            .map_err(|e| e.to_string())?;
+        let _ = key.set_value("LoadAppInit_DLLs", &0u32);
+        Ok(())
     }
 }
 
@@ -284,30 +272,30 @@ fn toggle_bootexec_item(id: &str, enable: bool) -> Result<(), String> {
         .map_err(|e| format!("Cannot open Session Manager key: {}", e))?;
 
     if enable {
-        // Restore from backup
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-        let backup_path = r"Software\TommyTweaker\Backups\BootExecute";
-        if let Ok(backup_key) = hkcu.open_subkey(backup_path) {
-            if let Ok(saved) = backup_key.get_value::<Vec<String>, _>("BootExecute") {
-                key.set_value("BootExecute", &saved)
-                    .map_err(|e| format!("Failed to restore BootExecute: {}", e))?;
-                // Delete backup after successful restore
-                let _ = backup_key.delete_value("BootExecute");
-                return Ok(());
-            }
+        for root in [BACKUP_ROOT, LEGACY_BACKUP_ROOT] {
+            let backup_path = format!(r"{}\BootExecute", root);
+            let Ok(backup_key) = hkcu.open_subkey_with_flags(&backup_path, KEY_ALL_ACCESS) else {
+                continue;
+            };
+            let Ok(saved) = backup_key.get_value::<Vec<String>, _>("BootExecute") else {
+                continue;
+            };
+            key.set_value("BootExecute", &saved)
+                .map_err(|e| format!("Failed to restore BootExecute: {}", e))?;
+            let _ = backup_key.delete_value("BootExecute");
+            return Ok(());
         }
         Err("No backup found for BootExecute item".to_string())
     } else {
-        // Backup current value first
         if let Ok(current) = key.get_value::<Vec<String>, _>("BootExecute") {
             let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-            let backup_path = r"Software\TommyTweaker\Backups\BootExecute";
-            if let Ok((backup_key, _)) = hkcu.create_subkey(backup_path) {
+            let backup_path = format!(r"{}\BootExecute", BACKUP_ROOT);
+            if let Ok((backup_key, _)) = hkcu.create_subkey(&backup_path) {
                 let _ = backup_key.set_value("BootExecute", &current);
             }
         }
 
-        // Remove the item from the MultiString value
         if let Ok(mut current) = key.get_value::<Vec<String>, _>("BootExecute") {
             current.retain(|v| v != exe_name);
             key.set_value("BootExecute", &current)
