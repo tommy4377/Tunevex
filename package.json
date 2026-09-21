@@ -35,5 +35,13 @@
   },
   "overrides": {
     "cookie": "0.7.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tommy4377/Tunevex.git"
+  },
+  "homepage": "https://github.com/tommy4377/Tunevex#readme",
+  "bugs": {
+    "url": "https://github.com/tommy4377/Tunevex/issues"
   }
 }
