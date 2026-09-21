@@ -1,6 +1,6 @@
 {
   "name": "tunevex",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "description": "Tunevex - Windows system tuning and optimization utility",
   "type": "module",
   "scripts": {
