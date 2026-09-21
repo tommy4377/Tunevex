@@ -172,7 +172,7 @@ pub fn get_tweaks() -> Vec<Tweak> {
                 script: r#"
 $settings = Join-Path $env:APPDATA "Code\User\settings.json"
 $backup = "$settings.tunevex.bak"
-if (!(Test-Path -LiteralPath $backup)) { $backup = "$settings.tunevex.bak" }
+if (!(Test-Path -LiteralPath $backup)) { $backup = "$settings.tommytweaker.bak" }
 if (!(Test-Path -LiteralPath $backup)) {
     throw "VS Code settings backup not found: $backup"
 }
@@ -186,7 +186,7 @@ Write-Host "Restored the VS Code settings backup: $backup" -ForegroundColor Gree
             operations: vec![TweakOperation::Powershell {
                 script: r#"
 $settings = Join-Path $env:APPDATA "Code\User\settings.json"
-$backup = "$settings.tommytweaker.bak"
+$backup = "$settings.tunevex.bak"
 $directory = Split-Path -Parent $settings
 New-Item -ItemType Directory -Path $directory -Force | Out-Null
 if ((Test-Path -LiteralPath $settings) -and !(Test-Path -LiteralPath $backup)) {
