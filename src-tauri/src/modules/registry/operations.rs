@@ -34,7 +34,11 @@ pub fn read_value(key: &RegKey, name: &str) -> Result<RegistryValue> {
         REG_QWORD => RegistryValue::QWord(key.get_value(name)?),
         REG_MULTI_SZ => RegistryValue::MultiString(key.get_value(name)?),
         REG_BINARY => RegistryValue::Binary(raw.bytes),
-        _ => return Err(anyhow::anyhow!("Unsupported registry type for {name}; cannot safely back up")),
+        _ => {
+            return Err(anyhow::anyhow!(
+                "Unsupported registry type for {name}; cannot safely back up"
+            ))
+        }
     })
 }
 
@@ -77,10 +81,14 @@ pub fn apply_registry_tweak(op: &TweakOperation) -> Result<()> {
             let root = get_root_key(root_key);
             // Request minimal rights: KEY_SET_VALUE to delete values
             match root.open_subkey_with_flags(path, KEY_SET_VALUE | KEY_QUERY_VALUE) {
-                Ok(subkey) => if let Err(e) = subkey.delete_value(key) {
-                    if e.kind() != std::io::ErrorKind::NotFound { return Err(e.into()); }
-                },
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
+                Ok(subkey) => {
+                    if let Err(e) = subkey.delete_value(key) {
+                        if e.kind() != std::io::ErrorKind::NotFound {
+                            return Err(e.into());
+                        }
+                    }
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
                 Err(e) => return Err(e.into()),
             }
             Ok(())

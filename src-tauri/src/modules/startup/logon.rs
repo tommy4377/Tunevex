@@ -119,7 +119,8 @@ fn scan_registry() -> Vec<StartupItem> {
         // the pre-rename TommyTweaker namespace for rollback compatibility.
         for backup_root in [BACKUP_KEY_PATH, LEGACY_BACKUP_KEY_PATH] {
             let disabled_path = format!("{}\\{}", backup_root, path.replace("\\", "_"));
-            let Ok(key) = RegKey::predef(CK).open_subkey_with_flags(&disabled_path, KEY_READ) else {
+            let Ok(key) = RegKey::predef(CK).open_subkey_with_flags(&disabled_path, KEY_READ)
+            else {
                 continue;
             };
             let mut found = false;
@@ -249,7 +250,9 @@ pub fn toggle_registry(id: &str, enable: bool) -> Result<(), String> {
         let mut restored: Option<(String, String)> = None;
         for backup_root in [BACKUP_KEY_PATH, LEGACY_BACKUP_KEY_PATH] {
             let candidate = format!("{}\\{}", backup_root, backup_subpath);
-            let Ok(backup_key) = RegKey::predef(CK).open_subkey_with_flags(&candidate, KEY_ALL_ACCESS) else {
+            let Ok(backup_key) =
+                RegKey::predef(CK).open_subkey_with_flags(&candidate, KEY_ALL_ACCESS)
+            else {
                 continue;
             };
             if let Ok(value) = backup_key.get_value::<String, _>(name) {

@@ -143,7 +143,12 @@ fn build_tweak_catalog() -> Vec<Tweak> {
         "gaming_disable_gameinput",
     ];
     for tweak in &mut tweaks {
-        if tweak.operations.iter().any(|op| matches!(op, modules::types::TweakOperation::NetAdapterProperty { .. })) {
+        if tweak.operations.iter().any(|op| {
+            matches!(
+                op,
+                modules::types::TweakOperation::NetAdapterProperty { .. }
+            )
+        }) {
             tweak.requires_restart = true;
         }
         if POWER_USER_CONTROLS.contains(&tweak.id.as_str()) {

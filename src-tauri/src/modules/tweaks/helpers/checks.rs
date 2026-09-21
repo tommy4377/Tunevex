@@ -85,7 +85,12 @@ pub fn check_registry_value(
     }
 }
 
-pub fn query_registry_value(root: &str, path: &str, name: &str, expected: &RegistryValue) -> Option<bool> {
+pub fn query_registry_value(
+    root: &str,
+    path: &str,
+    name: &str,
+    expected: &RegistryValue,
+) -> Option<bool> {
     let key = crate::modules::registry::operations::get_root_key(root);
     match key.open_subkey(path) {
         Ok(key) => match key.get_raw_value(name) {
@@ -99,7 +104,8 @@ pub fn query_registry_value(root: &str, path: &str, name: &str, expected: &Regis
 }
 
 pub fn check_powershell_output(script: &str, expected_output: &str) -> bool {
-    query_powershell(script).is_some_and(|output| output.eq_ignore_ascii_case(expected_output.trim()))
+    query_powershell(script)
+        .is_some_and(|output| output.eq_ignore_ascii_case(expected_output.trim()))
 }
 
 pub fn query_powershell(script: &str) -> Option<String> {
@@ -124,7 +130,13 @@ pub fn query_powershell(script: &str) -> Option<String> {
         Err(_) => return None,
     };
     if let Some(mut stdin) = child.stdin.take() {
-        if writeln!(stdin, "& {{ $ErrorActionPreference = 'Stop';\n{}\n}}\n", script).is_err() {
+        if writeln!(
+            stdin,
+            "& {{ $ErrorActionPreference = 'Stop';\n{}\n}}\n",
+            script
+        )
+        .is_err()
+        {
             let _ = child.kill();
             let _ = child.wait();
             return None;
@@ -140,17 +152,26 @@ pub fn query_powershell(script: &str) -> Option<String> {
 }
 
 pub fn tcp_global_matches(output: &str, settings: &[(String, String)]) -> bool {
-    !settings.is_empty() && settings.iter().all(|(key, value)| {
-        output.lines().filter(|line| line.trim_start().starts_with("set global "))
-            .flat_map(str::split_whitespace)
-            .any(|token| token.split_once('=').is_some_and(|(k, v)|
-                k.eq_ignore_ascii_case(key) && v.eq_ignore_ascii_case(value)))
-    })
+    !settings.is_empty()
+        && settings.iter().all(|(key, value)| {
+            output
+                .lines()
+                .filter(|line| line.trim_start().starts_with("set global "))
+                .flat_map(str::split_whitespace)
+                .any(|token| {
+                    token.split_once('=').is_some_and(|(k, v)| {
+                        k.eq_ignore_ascii_case(key) && v.eq_ignore_ascii_case(value)
+                    })
+                })
+        })
 }
 
 pub fn check_tcp_global(settings: &[(String, String)]) -> bool {
-    Command::new("netsh").args(["interface", "tcp", "dump"])
-        .creation_flags(0x08000000).output().ok()
+    Command::new("netsh")
+        .args(["interface", "tcp", "dump"])
+        .creation_flags(0x08000000)
+        .output()
+        .ok()
         .filter(|out| out.status.success())
         .is_some_and(|out| tcp_global_matches(&String::from_utf8_lossy(&out.stdout), settings))
 }
@@ -175,10 +196,25 @@ mod detector_tests {
     #[test]
     fn tcp_checks_match_only_the_requested_setting() {
         let dump = "# enabled\nset global rss=enabled ecncapability=disabled timestamps=allowed fastopen=enabled fastopenfallback=disabled";
-        assert!(!tcp_global_matches(dump, &[("ecncapability".into(), "enabled".into())]));
-        assert!(!tcp_global_matches(dump, &[("timestamps".into(), "enabled".into())]));
-        assert!(tcp_global_matches(dump, &[("rss".into(), "enabled".into())]));
-        assert!(!tcp_global_matches(dump, &[("fastopen".into(), "enabled".into()), ("fastopenfallback".into(), "enabled".into())]));
+        assert!(!tcp_global_matches(
+            dump,
+            &[("ecncapability".into(), "enabled".into())]
+        ));
+        assert!(!tcp_global_matches(
+            dump,
+            &[("timestamps".into(), "enabled".into())]
+        ));
+        assert!(tcp_global_matches(
+            dump,
+            &[("rss".into(), "enabled".into())]
+        ));
+        assert!(!tcp_global_matches(
+            dump,
+            &[
+                ("fastopen".into(), "enabled".into()),
+                ("fastopenfallback".into(), "enabled".into())
+            ]
+        ));
         assert!(!tcp_global_matches("", &[("rss".into(), "enabled".into())]));
     }
     #[test]
@@ -190,6 +226,9 @@ mod detector_tests {
     }
     #[test]
     fn missing_task_is_unknown_not_disabled() {
-        assert_eq!(query_scheduled_task_disabled(r"\Tunevex-Nonexistent-Detector-Test"), None);
+        assert_eq!(
+            query_scheduled_task_disabled(r"\Tunevex-Nonexistent-Detector-Test"),
+            None
+        );
     }
 }

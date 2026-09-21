@@ -13,7 +13,10 @@ pub fn get_storage_msi_tweaks() -> Vec<Tweak> {
         requires_restart: true,
         tweak_type: TweakType::Toggle,
         enabled: false,
-        check: Some(TweakCheck::MsiEnabledForClass { class: "NVMe".into(), priority: 3 }),
+        check: Some(TweakCheck::MsiEnabledForClass {
+            class: "NVMe".into(),
+            priority: 3,
+        }),
         revert_operations: Some(vec![TweakOperation::MsiRemove {
             class: "NVMe".to_string(),
         }]),

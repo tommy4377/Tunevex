@@ -9,9 +9,9 @@ use crate::modules::registry::operations::apply_registry_tweak;
 use crate::modules::startup::toggle_item;
 use crate::modules::startup::types::StartupItem;
 use crate::modules::tweaks::{
-    apply_msi_remove, apply_msi_set, apply_svc_host_split_all,
-    control_defender_services, get_current_windows_build, reset_dns_servers,
-    set_defender_exclusions, set_dns_servers, set_nic_property, win11_only_tweaks, TweakContext,
+    apply_msi_remove, apply_msi_set, apply_svc_host_split_all, control_defender_services,
+    get_current_windows_build, reset_dns_servers, set_defender_exclusions, set_dns_servers,
+    set_nic_property, win11_only_tweaks, TweakContext,
 };
 use crate::modules::types::{Tweak, TweakOperation, WarningLevel};
 use crate::modules::utils::privileges::is_admin;
@@ -74,7 +74,9 @@ pub async fn get_tweaks(
 
     // Move heavy I/O (registry, sc, schtasks) to blocking thread pool
     tokio::task::spawn_blocking(move || {
-        let _guard = crate::modules::tweaks::TWEAK_ENGINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = crate::modules::tweaks::TWEAK_ENGINE_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         tweaks
             .iter()
             .filter(|t| {
@@ -84,7 +86,10 @@ pub async fn get_tweaks(
             })
             .map(|t| {
                 let mut value = serde_json::to_value(t).expect("serializable tweak");
-                value["enabled"] = serde_json::json!(t.check.as_ref().and_then(crate::modules::tweaks::check_tweak_state));
+                value["enabled"] = serde_json::json!(t
+                    .check
+                    .as_ref()
+                    .and_then(crate::modules::tweaks::check_tweak_state));
                 value
             })
             .collect::<Vec<_>>()
@@ -148,15 +153,19 @@ pub async fn check_category(
 
     // Run checks in background thread - SEQUENTIAL (no rayon)
     tokio::task::spawn_blocking(move || {
-        let _guard = crate::modules::tweaks::TWEAK_ENGINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = crate::modules::tweaks::TWEAK_ENGINE_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         // Sequential execution - avoids thread pool saturation
         let results: Vec<(String, Option<bool>)> = tweaks
             .iter()
             .filter_map(|tweak| {
-                tweak
-                    .check
-                    .as_ref()
-                    .map(|check| (tweak.id.clone(), crate::modules::tweaks::check_tweak_state(check)))
+                tweak.check.as_ref().map(|check| {
+                    (
+                        tweak.id.clone(),
+                        crate::modules::tweaks::check_tweak_state(check),
+                    )
+                })
             })
             .collect();
 
@@ -185,14 +194,29 @@ pub async fn check_category(
 }
 
 #[tauri::command]
-pub async fn get_tweak_state(id: String, ctx: State<'_, Mutex<TweakContext>>) -> Result<Option<bool>, String> {
-    let check = ctx.lock().map_err(|e| e.to_string())?.tweaks.iter()
-        .find(|t| t.id == id).ok_or("Tweak ID not found")?.check.clone();
+pub async fn get_tweak_state(
+    id: String,
+    ctx: State<'_, Mutex<TweakContext>>,
+) -> Result<Option<bool>, String> {
+    let check = ctx
+        .lock()
+        .map_err(|e| e.to_string())?
+        .tweaks
+        .iter()
+        .find(|t| t.id == id)
+        .ok_or("Tweak ID not found")?
+        .check
+        .clone();
     tokio::task::spawn_blocking(move || {
-        let _guard = crate::modules::tweaks::TWEAK_ENGINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        check.as_ref().and_then(crate::modules::tweaks::check_tweak_state)
+        let _guard = crate::modules::tweaks::TWEAK_ENGINE_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        check
+            .as_ref()
+            .and_then(crate::modules::tweaks::check_tweak_state)
     })
-        .await.map_err(|e| e.to_string())
+    .await
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -819,7 +843,9 @@ pub async fn undo_tweak(
     let app_clone = app.clone();
 
     tokio::task::spawn_blocking(move || -> Result<(), String> {
-        let _guard = crate::modules::tweaks::TWEAK_ENGINE_LOCK.lock().map_err(|e| e.to_string())?;
+        let _guard = crate::modules::tweaks::TWEAK_ENGINE_LOCK
+            .lock()
+            .map_err(|e| e.to_string())?;
         let id = id_clone;
         let _app = app_clone;
 
@@ -844,22 +870,26 @@ pub async fn undo_tweak(
                     path,
                     key,
                 } => {
+                    let mgr = &backup_mgr;
+                    if mgr
+                        .restore_tweak_backup(root_key, path, key)
+                        .map_err(|e| format!("Failed to restore registry backup: {e}"))?
                     {
-                        let mgr = &backup_mgr;
-                        if mgr
-                            .restore_tweak_backup(root_key, path, key)
-                            .map_err(|e| format!("Failed to restore registry backup: {e}"))?
-                        {
-                            restored_keys.insert(format!("{}::{}::{}", root_key, path, key));
-                        }
+                        restored_keys.insert(format!("{}::{}::{}", root_key, path, key));
                     }
                 }
                 _ => {}
             }
         }
 
-        let device_settings = tweak.operations.iter().any(|op| matches!(op,
-            TweakOperation::MsiSet { .. } | TweakOperation::MsiSetNet { .. } | TweakOperation::NetAdapterProperty { .. }));
+        let device_settings = tweak.operations.iter().any(|op| {
+            matches!(
+                op,
+                TweakOperation::MsiSet { .. }
+                    | TweakOperation::MsiSetNet { .. }
+                    | TweakOperation::NetAdapterProperty { .. }
+            )
+        });
         if device_settings {
             crate::modules::tweaks::helpers::device_backup::restore(&id)?;
         }
@@ -868,10 +898,18 @@ pub async fn undo_tweak(
         println!("[TWEAK REVERT] Reverting ID: {}", id);
         if let Some(ref revert_ops) = tweak.revert_operations {
             for (i, op) in revert_ops.iter().enumerate() {
-                if device_settings && matches!(op,
-                    TweakOperation::MsiSet { .. } | TweakOperation::MsiSetNet { .. }
-                    | TweakOperation::MsiRemove { .. } | TweakOperation::MsiRemoveNet
-                    | TweakOperation::NetAdapterProperty { .. }) { continue; }
+                if device_settings
+                    && matches!(
+                        op,
+                        TweakOperation::MsiSet { .. }
+                            | TweakOperation::MsiSetNet { .. }
+                            | TweakOperation::MsiRemove { .. }
+                            | TweakOperation::MsiRemoveNet
+                            | TweakOperation::NetAdapterProperty { .. }
+                    )
+                {
+                    continue;
+                }
                 println!(
                     "[TWEAK REVERT] Operation {}/{}: {:?}",
                     i + 1,
@@ -932,8 +970,12 @@ pub async fn undo_tweak(
 
                         // Write script to stdin (not CLI arg)
                         if let Some(mut stdin) = child.stdin.take() {
-                            writeln!(stdin, "& {{ $ErrorActionPreference = 'Stop';\n{}\n}}\n", script)
-                                .map_err(|e| format!("Failed to write script to stdin: {}", e))?;
+                            writeln!(
+                                stdin,
+                                "& {{ $ErrorActionPreference = 'Stop';\n{}\n}}\n",
+                                script
+                            )
+                            .map_err(|e| format!("Failed to write script to stdin: {}", e))?;
                         }
 
                         let output = child
@@ -1148,8 +1190,12 @@ pub async fn undo_tweak(
             }
         }
 
-        for key in restored_keys { backup_mgr.entries.remove(&key); }
-        backup_mgr.save(backup_path).map_err(|e| format!("Cannot finish registry rollback journal: {e}"))?;
+        for key in restored_keys {
+            backup_mgr.entries.remove(&key);
+        }
+        backup_mgr
+            .save(backup_path)
+            .map_err(|e| format!("Cannot finish registry rollback journal: {e}"))?;
         Ok(())
     })
     .await

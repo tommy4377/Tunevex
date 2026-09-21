@@ -94,7 +94,9 @@ impl RegistryBackup {
                 write_value(&subkey, key, val)?;
             } else {
                 if let Err(e) = subkey.delete_value(key) {
-                    if e.kind() != std::io::ErrorKind::NotFound { return Err(e.into()); }
+                    if e.kind() != std::io::ErrorKind::NotFound {
+                        return Err(e.into());
+                    }
                 }
             }
             return Ok(true);

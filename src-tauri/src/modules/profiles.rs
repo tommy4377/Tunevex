@@ -143,7 +143,9 @@ fn build_profile(
         return Err("Unknown export mode. Use 'active' or 'template'.".to_string());
     }
 
-    let _guard = crate::modules::tweaks::TWEAK_ENGINE_LOCK.lock().map_err(|e| e.to_string())?;
+    let _guard = crate::modules::tweaks::TWEAK_ENGINE_LOCK
+        .lock()
+        .map_err(|e| e.to_string())?;
     let mut entries = Vec::new();
     for tweak in tweaks {
         let operation = match current_enabled(tweak, applied) {
@@ -219,10 +221,13 @@ fn parse_profile(
                 requested.operation,
                 ProfileOperation::Enable | ProfileOperation::Disable | ProfileOperation::Skip
             ),
-            TweakType::Action => (tweak.check.is_some() && requested.operation == ProfileOperation::Enable) || matches!(
-                requested.operation,
-                ProfileOperation::Run | ProfileOperation::Skip
-            ),
+            TweakType::Action => {
+                (tweak.check.is_some() && requested.operation == ProfileOperation::Enable)
+                    || matches!(
+                        requested.operation,
+                        ProfileOperation::Run | ProfileOperation::Skip
+                    )
+            }
         };
         if !operation_is_valid {
             issues.push(ProfileIssue {
@@ -339,7 +344,11 @@ mod tests {
             WarningLevel::Safe,
             false,
             Some(crate::modules::types::TweakCheck::Powershell {
-                script: if enabled { "'True'".into() } else { "'False'".into() },
+                script: if enabled {
+                    "'True'".into()
+                } else {
+                    "'False'".into()
+                },
                 expected_output: "True".into(),
             }),
             vec![],
@@ -378,12 +387,21 @@ mod tests {
     fn unknown_queries_and_uncounted_clicks_export_skip() {
         let mut unknown = toggle("unknown", true);
         unknown.check = Some(crate::modules::types::TweakCheck::Powershell {
-            script: "throw 'query failed'".into(), expected_output: "True".into(),
+            script: "throw 'query failed'".into(),
+            expected_output: "True".into(),
         });
         let mut unqueryable = toggle("uncounted", true);
         unqueryable.check = None;
-        let profile = build_profile(&[unknown, unqueryable], &HashSet::from(["uncounted".into()]), "template").unwrap();
-        assert!(profile.tweaks.iter().all(|t| t.operation == ProfileOperation::Skip));
+        let profile = build_profile(
+            &[unknown, unqueryable],
+            &HashSet::from(["uncounted".into()]),
+            "template",
+        )
+        .unwrap();
+        assert!(profile
+            .tweaks
+            .iter()
+            .all(|t| t.operation == ProfileOperation::Skip));
     }
 
     #[test]

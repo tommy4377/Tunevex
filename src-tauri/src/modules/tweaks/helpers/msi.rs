@@ -13,12 +13,15 @@ fn class_matches(class: &str, guid: &str, service: &str) -> bool {
         "HDC" => "{4d36e96a-e325-11ce-bfc1-08002be10318}",
         _ => return false,
     };
-    guid.eq_ignore_ascii_case(expected) && (class != "NVMe" || service.eq_ignore_ascii_case("stornvme"))
+    guid.eq_ignore_ascii_case(expected)
+        && (class != "NVMe" || service.eq_ignore_ascii_case("stornvme"))
 }
 
 fn device_paths(class: &str) -> Result<Vec<String>, String> {
     let root = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let pci = root.open_subkey(r"SYSTEM\CurrentControlSet\Enum\PCI").map_err(|e| e.to_string())?;
+    let pci = root
+        .open_subkey(r"SYSTEM\CurrentControlSet\Enum\PCI")
+        .map_err(|e| e.to_string())?;
     let mut paths = Vec::new();
     for hardware in pci.enum_keys() {
         let hardware = hardware.map_err(|e| e.to_string())?;
@@ -30,9 +33,16 @@ fn device_paths(class: &str) -> Result<Vec<String>, String> {
             let service: String = device.get_value("Service").unwrap_or_default();
             let matches = class_matches(class, &guid, &service);
             // Only touch devices whose drivers expose an MSI setting.
-            if matches && device.open_subkey(MSI).ok()
-                .and_then(|k| k.get_value::<u32, _>("MSISupported").ok()).is_some() {
-                paths.push(format!(r"SYSTEM\CurrentControlSet\Enum\PCI\{hardware}\{instance}"));
+            if matches
+                && device
+                    .open_subkey(MSI)
+                    .ok()
+                    .and_then(|k| k.get_value::<u32, _>("MSISupported").ok())
+                    .is_some()
+            {
+                paths.push(format!(
+                    r"SYSTEM\CurrentControlSet\Enum\PCI\{hardware}\{instance}"
+                ));
             }
         }
     }
@@ -44,29 +54,43 @@ fn values_match(msi: u32, priority: Option<u32>, expected: u32) -> bool {
 }
 
 pub fn check_msi_enabled_for_class(class: &str, priority: u32) -> bool {
-    let Ok(paths) = device_paths(class) else { return false };
+    let Ok(paths) = device_paths(class) else {
+        return false;
+    };
     let root = RegKey::predef(HKEY_LOCAL_MACHINE);
-    !paths.is_empty() && paths.iter().all(|path| {
-        let msi = root.open_subkey(format!(r"{path}\{MSI}")).ok()
-            .and_then(|k| k.get_value::<u32, _>("MSISupported").ok()).unwrap_or(0);
-        let actual = root.open_subkey(format!(r"{path}\{AFFINITY}")).ok()
-            .and_then(|k| k.get_value::<u32, _>("DevicePriority").ok());
-        values_match(msi, actual, priority)
-    })
+    !paths.is_empty()
+        && paths.iter().all(|path| {
+            let msi = root
+                .open_subkey(format!(r"{path}\{MSI}"))
+                .ok()
+                .and_then(|k| k.get_value::<u32, _>("MSISupported").ok())
+                .unwrap_or(0);
+            let actual = root
+                .open_subkey(format!(r"{path}\{AFFINITY}"))
+                .ok()
+                .and_then(|k| k.get_value::<u32, _>("DevicePriority").ok());
+            values_match(msi, actual, priority)
+        })
 }
 
 pub fn query_msi_state(class: &str, priority: u32) -> Option<bool> {
-    if device_paths(class).ok()?.is_empty() { return None; }
+    if device_paths(class).ok()?.is_empty() {
+        return None;
+    }
     Some(check_msi_enabled_for_class(class, priority))
 }
 
 pub fn check_msi_enabled_globally(priority: u32) -> bool {
     let mut found = false;
     for class in CLASSES {
-        let Ok(paths) = device_paths(class) else { return false };
+        let Ok(paths) = device_paths(class) else {
+            return false;
+        };
         if !paths.is_empty() {
             found = true;
-            if !check_msi_enabled_for_class(class, priority) { return false; }
+            if !check_msi_enabled_for_class(class, priority) {
+                return false;
+            }
         }
     }
     found
@@ -77,16 +101,41 @@ pub fn check_msi_enabled_on_net(priority: u32) -> bool {
 }
 
 pub fn apply_msi_set(owner: &str, class: &str, priority: u32) -> Result<(), String> {
-    if owner == "system_msi_global_safe" && class == "Display"
-        && !CLASSES.iter().any(|c| device_paths(c).is_ok_and(|p| !p.is_empty())) {
+    if owner == "system_msi_global_safe"
+        && class == "Display"
+        && !CLASSES
+            .iter()
+            .any(|c| device_paths(c).is_ok_and(|p| !p.is_empty()))
+    {
         return Err("No supported PCI devices expose MSI settings".into());
     }
     let paths = device_paths(class)?;
-    if paths.is_empty() && owner == "system_msi_global_safe" { return Ok(()); }
-    let values = paths.into_iter().flat_map(|path| [
-        (format!(r"{path}\{MSI}"), "MSISupported".into(), RegValue { bytes: 1u32.to_le_bytes().to_vec(), vtype: REG_DWORD }),
-        (format!(r"{path}\{AFFINITY}"), "DevicePriority".into(), RegValue { bytes: priority.to_le_bytes().to_vec(), vtype: REG_DWORD }),
-    ]).collect();
+    if paths.is_empty() && owner == "system_msi_global_safe" {
+        return Ok(());
+    }
+    let values = paths
+        .into_iter()
+        .flat_map(|path| {
+            [
+                (
+                    format!(r"{path}\{MSI}"),
+                    "MSISupported".into(),
+                    RegValue {
+                        bytes: 1u32.to_le_bytes().to_vec(),
+                        vtype: REG_DWORD,
+                    },
+                ),
+                (
+                    format!(r"{path}\{AFFINITY}"),
+                    "DevicePriority".into(),
+                    RegValue {
+                        bytes: priority.to_le_bytes().to_vec(),
+                        vtype: REG_DWORD,
+                    },
+                ),
+            ]
+        })
+        .collect();
     // Keep the driver's MessageNumberLimit intact.
     super::device_backup::set_values(owner, values)
 }
@@ -108,9 +157,25 @@ mod tests {
     }
     #[test]
     fn device_classes_use_guids_and_nvme_does_not_include_sata() {
-        assert!(class_matches("Display", "{4D36E968-E325-11CE-BFC1-08002BE10318}", "gpu"));
-        assert!(!class_matches("USB", "{4d36e968-e325-11ce-bfc1-08002be10318}", "gpu"));
-        assert!(class_matches("NVMe", "{4d36e97b-e325-11ce-bfc1-08002be10318}", "stornvme"));
-        assert!(!class_matches("NVMe", "{4d36e97b-e325-11ce-bfc1-08002be10318}", "storahci"));
+        assert!(class_matches(
+            "Display",
+            "{4D36E968-E325-11CE-BFC1-08002BE10318}",
+            "gpu"
+        ));
+        assert!(!class_matches(
+            "USB",
+            "{4d36e968-e325-11ce-bfc1-08002be10318}",
+            "gpu"
+        ));
+        assert!(class_matches(
+            "NVMe",
+            "{4d36e97b-e325-11ce-bfc1-08002be10318}",
+            "stornvme"
+        ));
+        assert!(!class_matches(
+            "NVMe",
+            "{4d36e97b-e325-11ce-bfc1-08002be10318}",
+            "storahci"
+        ));
     }
 }

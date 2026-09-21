@@ -17,7 +17,9 @@ pub fn nic_subkey_paths() -> Vec<String> {
         let sub_path = format!("{}\\{}", NIC_CLASS_PATH, sub);
         if let Ok(k) = hklm.open_subkey(&sub_path) {
             if k.get_value::<String, _>("DriverDesc").is_ok()
-                && k.get_value::<u32, _>("Characteristics").is_ok_and(|flags| flags & 4 != 0) {
+                && k.get_value::<u32, _>("Characteristics")
+                    .is_ok_and(|flags| flags & 4 != 0)
+            {
                 paths.push(sub_path);
             }
         }
@@ -26,7 +28,7 @@ pub fn nic_subkey_paths() -> Vec<String> {
 }
 
 pub fn set_nic_property(owner: &str, property: &str, value: &str) -> Result<(), String> {
-    use winreg::{enums::*, RegKey, types::ToRegValue};
+    use winreg::{enums::*, types::ToRegValue, RegKey};
     let root = RegKey::predef(HKEY_LOCAL_MACHINE);
     let mut values = Vec::new();
     for path in nic_subkey_paths() {
@@ -58,7 +60,7 @@ pub fn query_nic_property(property: &str, expected: &str) -> Option<bool> {
                     return Some(false);
                 }
             }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
             Err(_) => return None,
         }
     }
