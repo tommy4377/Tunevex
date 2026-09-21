@@ -166,48 +166,9 @@ HISTORICAL_METADATA = [
     "LICENSE",
     ".gitignore",
     "src-tauri/.gitignore",
+    ".github/workflows/release.yml",
 ]
 
-HISTORICAL_RELEASE = """name: Release
-
-on:
-  push:
-    tags:
-      - "v*.*.*"
-
-permissions:
-  contents: write
-
-jobs:
-  portable:
-    name: Portable Windows build
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri -> target
-      - name: Install frontend dependencies
-        run: npm ci
-      - name: Build portable executable
-        run: npm run tauri build -- --no-bundle
-      - name: Stage portable asset
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force release | Out-Null
-          Copy-Item "src-tauri/target/release/tunevex.exe" "release/Tunevex.exe"
-      - name: Publish GitHub release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: release/Tunevex.exe
-          generate_release_notes: true
-          fail_on_unmatched_files: true
-"""
 
 FINAL_METADATA = [
     "CONTRIBUTING.md",
@@ -365,6 +326,8 @@ def set_version(stage, version):
         data["version"] = version
         data["description"] = "Tunevex - Windows system tuning and optimization utility"
         data["license"] = "MIT"
+        if version != "1.0.0" and isinstance(data.get("scripts"), dict):
+            data["scripts"]["check"] = "vite build"
         package.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
     package_lock = stage / "package-lock.json"
@@ -443,9 +406,6 @@ def copy_metadata(final_stage, stage, is_final):
             source = final_stage / relative
             if source.exists():
                 copy_path(source, stage / relative)
-        release = stage / ".github" / "workflows" / "release.yml"
-        release.parent.mkdir(parents=True, exist_ok=True)
-        release.write_text(HISTORICAL_RELEASE, encoding="utf-8")
     else:
         for relative in FINAL_METADATA:
             source = final_stage / relative
