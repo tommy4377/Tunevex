@@ -1,5 +1,5 @@
 $ErrorActionPreference = "Stop"
-$logPath = "C:\TommyTweaker_Logs"
+$logPath = "C:\Tunevex_Logs"
 if (!(Test-Path $logPath)) { New-Item -ItemType Directory -Path $logPath -Force | Out-Null }
 $logFile = "$logPath\additions_verification_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt"
 
