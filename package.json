@@ -1,7 +1,7 @@
 {
-  "name": "app",
-  "version": "0.1.0",
-  "description": "TommyTweaker - Ultimate Gaming Optimizer",
+  "name": "tunevex",
+  "version": "3.0.0",
+  "description": "Tunevex - Windows system tuning and optimization utility",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
