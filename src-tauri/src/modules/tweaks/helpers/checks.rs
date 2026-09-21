@@ -190,6 +190,6 @@ mod detector_tests {
     }
     #[test]
     fn missing_task_is_unknown_not_disabled() {
-        assert_eq!(query_scheduled_task_disabled(r"\TommyTweaker-Nonexistent-Detector-Test"), None);
+        assert_eq!(query_scheduled_task_disabled(r"\Tunevex-Nonexistent-Detector-Test"), None);
     }
 }
