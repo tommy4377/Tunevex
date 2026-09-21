@@ -3,7 +3,8 @@ use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-const SERVICE_NAME: &str = "TommyTweaker";
+const SERVICE_NAME: &str = "Tunevex";
+const LEGACY_SERVICE_NAME: &str = "TommyTweaker";
 const KEY_USERNAME: &str = "gemini_api_key";
 const GEMINI_MODEL: &str = "gemini-3.5-flash";
 const MAX_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
@@ -37,21 +38,38 @@ pub fn save_api_key(key: &str) -> Result<(), String> {
 }
 
 pub fn get_api_key() -> Result<String, String> {
-    let entry = Entry::new(SERVICE_NAME, KEY_USERNAME)
-        .map_err(|e| format!("Credential Manager error: {e}"))?;
-    let key = entry
-        .get_password()
-        .map_err(|_| "No Gemini key found. Add an AI Studio key in AI settings.".to_string())?;
-    validate_api_key_format(&key)?;
-    Ok(key)
+    for service in [SERVICE_NAME, LEGACY_SERVICE_NAME] {
+        let Ok(entry) = Entry::new(service, KEY_USERNAME) else {
+            continue;
+        };
+        let Ok(key) = entry.get_password() else {
+            continue;
+        };
+        validate_api_key_format(&key)?;
+        if service == LEGACY_SERVICE_NAME {
+            // Best-effort migration: keep the old entry readable while also
+            // saving the credential under the Tunevex namespace.
+            let _ = save_api_key(&key);
+        }
+        return Ok(key);
+    }
+    Err("No Gemini key found. Add an AI Studio key in AI settings.".to_string())
 }
 
 pub fn delete_api_key() -> Result<(), String> {
-    let entry = Entry::new(SERVICE_NAME, KEY_USERNAME)
-        .map_err(|e| format!("Credential Manager error: {e}"))?;
-    entry
-        .delete_credential()
-        .map_err(|e| format!("Failed to delete key: {e}"))
+    let mut deleted = false;
+    for service in [SERVICE_NAME, LEGACY_SERVICE_NAME] {
+        if let Ok(entry) = Entry::new(service, KEY_USERNAME) {
+            if entry.delete_credential().is_ok() {
+                deleted = true;
+            }
+        }
+    }
+    if deleted {
+        Ok(())
+    } else {
+        Err("No saved Gemini key was found.".to_string())
+    }
 }
 
 #[derive(Serialize)]
