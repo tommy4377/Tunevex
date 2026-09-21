@@ -124,7 +124,8 @@ if ($disks.Count -gt 0 -and @($disks | Where-Object { -not $_.IsWriteCacheEnable
             }),
             revert_operations: Some(vec![TweakOperation::Powershell {
                 script: r#"
-$statePath = Join-Path $env:ProgramData "TommyTweaker\write-cache-state.json"
+$statePath = Join-Path $env:ProgramData "Tunevex\write-cache-state.json"
+if (!(Test-Path -LiteralPath $statePath)) { $statePath = Join-Path $env:ProgramData "TommyTweaker\write-cache-state.json" }
 if (!(Test-Path -LiteralPath $statePath)) { throw "Original disk write-cache state is unavailable: $statePath" }
 $saved = @(Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json)
 $disks = @(Get-CimInstance -Namespace "root/Microsoft/Windows/Storage" -ClassName MSFT_PhysicalDisk -ErrorAction Stop)
@@ -143,7 +144,7 @@ Write-Host "Restored the original write-cache state for supported physical disks
             }]),
             operations: vec![TweakOperation::Powershell {
                 script: r#"
-$directory = Join-Path $env:ProgramData "TommyTweaker"
+$directory = Join-Path $env:ProgramData "Tunevex"
 $statePath = Join-Path $directory "write-cache-state.json"
 New-Item -ItemType Directory -Path $directory -Force | Out-Null
 $disks = @(Get-CimInstance -Namespace "root/Microsoft/Windows/Storage" -ClassName MSFT_PhysicalDisk -ErrorAction Stop)
