@@ -1,0 +1,50 @@
+name: Validate repaired milestones once
+
+on:
+  push:
+    branches:
+      - rebrand/tunevex
+    paths:
+      - .github/workflows/validate-repaired.yml
+
+permissions:
+  contents: read
+
+jobs:
+  portable:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: "0.1.0"
+            sha: "dc67f752b1a609da5977b2bbd800daf8d1e52b9e"
+          - version: "0.2.0"
+            sha: "82524db402927c9f092d11c4e102652f72d396da"
+          - version: "0.6.0"
+            sha: "af641360f02d3a94dc1bd587ce3829a661e92e42"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Checkout milestone
+        shell: pwsh
+        run: git checkout "${{ matrix.sha }}"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          shared-key: repaired-${{ matrix.version }}
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - name: Build portable executable
+        run: cargo build --release --manifest-path src-tauri/Cargo.toml
+      - name: Verify executable
+        shell: pwsh
+        run: |
+          if (!(Test-Path "src-tauri/target/release/tunevex.exe")) { throw "Tunevex.exe missing" }
