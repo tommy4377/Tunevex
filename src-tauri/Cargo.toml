@@ -48,7 +48,7 @@ keyring = { version = "3", features = ["windows-native"] }
 
 
 # Windows dependencies
-winreg = "0.52"
+winreg = "0.55"
 window-vibrancy = "0.5"
 # wmi removed: unused dep that conflicts with windows = "0.61" (windows_core version mismatch)
 
