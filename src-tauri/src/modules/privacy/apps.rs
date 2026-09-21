@@ -171,7 +171,8 @@ pub fn get_tweaks() -> Vec<Tweak> {
             revert_operations: Some(vec![TweakOperation::Powershell {
                 script: r#"
 $settings = Join-Path $env:APPDATA "Code\User\settings.json"
-$backup = "$settings.tommytweaker.bak"
+$backup = "$settings.tunevex.bak"
+if (!(Test-Path -LiteralPath $backup)) { $backup = "$settings.tunevex.bak" }
 if (!(Test-Path -LiteralPath $backup)) {
     throw "VS Code settings backup not found: $backup"
 }
