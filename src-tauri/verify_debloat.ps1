@@ -1,13 +1,13 @@
 # verify_debloat.ps1
 # Automating verification of debloat tweaks
-# Logs output to C:\TommyTweaker_Logs
+# Logs output to C:\Tunevex_Logs
 
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
     Write-Warning "Please run as Administrator!"
     exit
 }
 
-$LogDir = "C:\TommyTweaker_Logs"
+$LogDir = "C:\Tunevex_Logs"
 if (!(Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
 $LogFile = "$LogDir\debloat_verification_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt"
 
