@@ -2,7 +2,7 @@
     import { invoke } from "@tauri-apps/api/core";
     import { fade } from "svelte/transition";
 
-    let description = "TommyTweaker Restore Point";
+    let description = "Tunevex Restore Point";
     let status = "";
     let isCreating = false;
     let isSuccess = false;
