@@ -16,7 +16,7 @@
 
     function defaultFileName(mode: "active" | "template") {
         const date = new Date().toISOString().slice(0, 10);
-        return mode === "active" ? `tommytweaker-active-${date}.json` : `tommytweaker-template-${date}.json`;
+        return mode === "active" ? `tunevex-active-${date}.json` : `tunevex-template-${date}.json`;
     }
 
     async function exportProfile(mode: "active" | "template") {
