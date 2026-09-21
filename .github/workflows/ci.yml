@@ -6,57 +6,9 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  format-once:
-    name: Format Rust once
-    if: github.event_name == 'pull_request' && github.head_ref == 'rebrand/tunevex'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: rebrand/tunevex
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - name: Apply rustfmt and commit if needed
-        run: |
-          cd src-tauri
-          cargo fmt
-          cd ..
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src-tauri
-          if git diff --cached --quiet; then
-            exit 0
-          fi
-          git commit -m "style(rust): apply rustfmt"
-          git push origin HEAD:rebrand/tunevex
-
-  lockfile-once:
-    name: Refresh Cargo.lock once
-    if: github.event_name == 'pull_request' && github.head_ref == 'rebrand/tunevex'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: rebrand/tunevex
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Regenerate lockfile and commit if needed
-        run: |
-          cd src-tauri
-          cargo generate-lockfile
-          cd ..
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src-tauri/Cargo.lock
-          if git diff --cached --quiet; then
-            exit 0
-          fi
-          git commit -m "chore(deps): refresh Cargo.lock"
-          git push origin HEAD:rebrand/tunevex
-
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
@@ -84,9 +36,18 @@ jobs:
       - name: Format
         working-directory: src-tauri
         run: cargo fmt --check
+      - name: Refresh lockfile for validation
+        working-directory: src-tauri
+        run: cargo generate-lockfile
       - name: Check
         working-directory: src-tauri
-        run: cargo check --locked
+        run: cargo check
       - name: Test
         working-directory: src-tauri
-        run: cargo test --locked
+        run: cargo test
+      - name: Upload refreshed Cargo.lock
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-lock
+          path: src-tauri/Cargo.lock
+          if-no-files-found: error
