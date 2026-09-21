@@ -4,7 +4,7 @@ pub fn build_context_injection(
     memory_ctx: &str,
 ) -> (String, String) {
     let user = format!(
-        r#"You are an expert Windows optimization assistant in TommyTweaker.
+        r#"You are an expert Windows optimization assistant in Tunevex.
 
 SYSTEM PROFILE:
 {}
@@ -36,7 +36,7 @@ pub fn build_chat_context_injection(
     memory_ctx: &str,
 ) -> (String, String) {
     let user = format!(
-        r#"You are an expert Windows optimization assistant inside TommyTweaker.
+        r#"You are an expert Windows optimization assistant inside Tunevex.
 
 SYSTEM PROFILE:
 {}
