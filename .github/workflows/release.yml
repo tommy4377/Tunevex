@@ -52,7 +52,7 @@ jobs:
           Copy-Item "src-tauri/target/release/tunevex.exe" "release/Tunevex.exe"
 
       - name: Publish GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: release/Tunevex.exe
           generate_release_notes: true
