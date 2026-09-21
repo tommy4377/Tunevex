@@ -2,5 +2,5 @@
 // #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    tommytweaker_lib::run()
+    tunevex_lib::run()
 }
