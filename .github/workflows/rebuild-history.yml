@@ -326,6 +326,15 @@ jobs:
                           target = stage / rel
                           target.parent.mkdir(parents=True, exist_ok=True)
                           target.write_text(content, encoding="utf-8")
+                  if version == "0.6.0":
+                      capability = stage / "src-tauri/capabilities/default.json"
+                      if capability.exists():
+                          data = json.loads(capability.read_text(encoding="utf-8"))
+                          data["permissions"] = [
+                              permission for permission in data.get("permissions", [])
+                              if permission != "mcp-bridge:default"
+                          ]
+                          capability.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
               copy_metadata(stage, meta, final=final)
 
               cargo = stage / "src-tauri/Cargo.toml"
