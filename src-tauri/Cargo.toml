@@ -1,9 +1,11 @@
 [package]
-name = "tommytweaker"
-version = "0.1.0"
-description = "Ultimate Gaming Optimizer"
-authors = ["TommyTweaker"]
+name = "tunevex"
+version = "3.0.0"
+description = "Windows system tuning and optimization utility"
+authors = ["Tommaso Verardi"]
 edition = "2021"
+license = "MIT"
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -11,7 +13,7 @@ edition = "2021"
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "tommytweaker_lib"
+name = "tunevex_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
