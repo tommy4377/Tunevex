@@ -25,7 +25,7 @@
         try {
             path = await save({
                 defaultPath: defaultFileName(mode),
-                filters: [{ name: "TommyTweaker profile", extensions: ["json"] }],
+                filters: [{ name: "Tunevex profile", extensions: ["json"] }],
             });
         } catch (error) {
             notice = { kind: "error", text: `Could not open the save dialog: ${String(error)}` };
@@ -53,7 +53,7 @@
             path = await open({
                 multiple: false,
                 directory: false,
-                filters: [{ name: "TommyTweaker profile", extensions: ["json"] }],
+                filters: [{ name: "Tunevex profile", extensions: ["json"] }],
             });
         } catch (error) {
             notice = { kind: "error", text: `Could not open the file dialog: ${String(error)}` };
