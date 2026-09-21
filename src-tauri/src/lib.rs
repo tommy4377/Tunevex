@@ -272,13 +272,6 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init());
 
-    #[cfg(debug_assertions)]
-    let builder = builder.plugin(
-        tauri_plugin_mcp_bridge::Builder::new()
-            .bind_address("127.0.0.1")
-            .build(),
-    );
-
     builder
         .manage(Mutex::new(TweakContext { tweaks: all_tweaks }))
         .manage(Mutex::new(app_state))
