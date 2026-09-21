@@ -1,0 +1,26 @@
+name: Feature request
+description: Propose a Windows tweak or Tunevex workflow
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: windows-setting
+    attributes:
+      label: Windows setting or API involved
+      description: Include documentation or known registry/API behavior when available.
+  - type: textarea
+    id: rollback
+    attributes:
+      label: Rollback and compatibility considerations
