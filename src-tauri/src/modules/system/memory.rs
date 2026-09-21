@@ -87,7 +87,7 @@ Remove-Item -LiteralPath $file
             operations: vec![TweakOperation::Powershell {
                 script: r#"
 $ErrorActionPreference = 'Stop'
-$file = Join-Path $env:ProgramData 'TommyTweaker\backups\pagefile.json'
+$file = Join-Path $env:ProgramData 'Tunevex\backups\pagefile.json'
 $cs = Get-CimInstance Win32_ComputerSystem
 if (!(Test-Path -LiteralPath $file)) {
     $saved = @{ Automatic = $cs.AutomaticManagedPagefile; Pages = @(Get-CimInstance Win32_PageFileSetting | Select-Object Name, InitialSize, MaximumSize) }
