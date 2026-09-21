@@ -11,7 +11,8 @@ use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::State;
 
-const PROFILE_FORMAT: &str = "tommytweaker-profile";
+const PROFILE_FORMAT: &str = "tunevex-profile";
+const LEGACY_PROFILE_FORMAT: &str = "tommytweaker-profile";
 const PROFILE_VERSION: u32 = 1;
 const MAX_PROFILE_SIZE: u64 = 1024 * 1024;
 
@@ -184,7 +185,7 @@ fn parse_profile(
 ) -> Result<ProfileImportPreview, String> {
     let profile: TweakProfile = serde_json::from_str(contents)
         .map_err(|error| format!("Invalid tweak profile JSON: {error}"))?;
-    if profile.format != PROFILE_FORMAT {
+    if profile.format != PROFILE_FORMAT && profile.format != LEGACY_PROFILE_FORMAT {
         return Err(format!("Unsupported profile format '{}'.", profile.format));
     }
     if profile.version != PROFILE_VERSION {
