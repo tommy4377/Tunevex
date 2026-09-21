@@ -151,13 +151,11 @@ jobs:
               ]:
                   remove_path(stage / rel)
 
+              remove_path(stage / ".github")
               if not final:
-                  remove_path(stage / ".github")
                   for p in list(stage.glob("*.md")) + list(stage.glob("*.MD")):
                       if p.name.lower() != "readme.md":
                           remove_path(p)
-              else:
-                  remove_path(stage / ".github/workflows/rebuild-history.yml")
 
           def rename_paths(stage):
               for p in sorted(stage.rglob("*"), key=lambda x: len(x.parts), reverse=True):
@@ -311,6 +309,16 @@ jobs:
                   strip_mcp(stage)
                   set_version(stage, version)
                   write_readme(stage, version, title, features)
+                  if version == "0.2.0":
+                      for rel in [
+                          "src/components/ui/Card.svelte",
+                          "src/components/ui/SectionHeader.svelte",
+                          "src/components/ui/Select.svelte",
+                      ]:
+                          content = run(["git", "show", "324e5566db65f913083e43cc147a3210bd43a30f:" + rel]).stdout
+                          target = stage / rel
+                          target.parent.mkdir(parents=True, exist_ok=True)
+                          target.write_text(content, encoding="utf-8")
               copy_metadata(stage, meta, final=final)
 
               cargo = stage / "src-tauri/Cargo.toml"
