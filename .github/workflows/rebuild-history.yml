@@ -309,6 +309,13 @@ jobs:
                   strip_mcp(stage)
                   set_version(stage, version)
                   write_readme(stage, version, title, features)
+                  if version == "0.1.0":
+                      lib = stage / "src-tauri/src/lib.rs"
+                      if lib.exists():
+                          text = lib.read_text(encoding="utf-8")
+                          text = text.replace("use crate::modules::hardware::get_hardware_tweaks;\n", "")
+                          text = text.replace("    all_tweaks.extend(get_hardware_tweaks());\n", "")
+                          lib.write_text(text, encoding="utf-8")
                   if version == "0.2.0":
                       for rel in [
                           "src/components/ui/Card.svelte",
