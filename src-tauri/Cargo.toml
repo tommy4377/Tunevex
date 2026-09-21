@@ -1,6 +1,6 @@
 [package]
 name = "tunevex"
-version = "3.0.0"
+version = "1.0.0"
 description = "Windows system tuning and optimization utility"
 authors = ["Tommaso Verardi"]
 edition = "2021"
