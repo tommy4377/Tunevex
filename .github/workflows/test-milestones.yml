@@ -1,0 +1,76 @@
+name: Test milestone builds once
+
+on:
+  push:
+    branches:
+      - rebrand/tunevex
+    paths:
+      - .github/workflows/test-milestones.yml
+
+permissions:
+  contents: read
+
+jobs:
+  portable:
+    name: v\${{ matrix.version }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: "0.1.0"
+            sha: "7467b8a48cf3eba9b02c55d7354b59ca9ecb57c3"
+          - version: "0.2.0"
+            sha: "9265a5e9e63346ab0265344a863b3c36f45115b3"
+          - version: "0.3.0"
+            sha: "4103ae083742dff1dd43ea675794d92cf3e6d4b3"
+          - version: "0.4.0"
+            sha: "434a71ba780316b00e1b89dd2422ad68ce3ed6d6"
+          - version: "0.5.0"
+            sha: "f29a41eab5384e4e9cedde8eed2ee36f96982fd5"
+          - version: "0.6.0"
+            sha: "6314a937e5b612a45052adb852dab22c0581124f"
+          - version: "1.0.0"
+            sha: "951ebfcf260decae787b6911fb23fd76fc2ffe52"
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Checkout milestone
+        shell: pwsh
+        run: git checkout "\${{ matrix.sha }}"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          shared-key: milestone-\${{ matrix.version }}
+
+      - name: Install frontend
+        run: npm ci
+
+      - name: Check frontend
+        run: npm run check
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build portable executable
+        shell: pwsh
+        run: cargo build --release --manifest-path src-tauri/Cargo.toml
+
+      - name: Verify executable
+        shell: pwsh
+        run: |
+          if (!(Test-Path "src-tauri/target/release/tunevex.exe")) {
+            throw "Portable executable was not produced."
+          }
+          Get-Item "src-tauri/target/release/tunevex.exe"
