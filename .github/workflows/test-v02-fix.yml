@@ -1,0 +1,35 @@
+name: Test v0.2 fix once
+
+on:
+  push:
+    branches:
+      - rebrand/tunevex
+    paths:
+      - .github/workflows/test-v02-fix.yml
+
+permissions:
+  contents: read
+
+jobs:
+  portable:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Checkout candidate
+        run: git checkout 427494ea3e181b3cdb7ad2f985d149b05823cb2d
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - name: Build portable executable
+        run: cargo build --release --manifest-path src-tauri/Cargo.toml
+      - name: Verify executable
+        shell: pwsh
+        run: |
+          if (!(Test-Path "src-tauri/target/release/tunevex.exe")) { throw "Tunevex.exe missing" }
