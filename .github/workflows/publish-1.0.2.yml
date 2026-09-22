@@ -1,0 +1,72 @@
+name: publish-tunevex-1.0.2
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/publish-1.0.2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Checkout release snapshot
+        shell: pwsh
+        run: git checkout e9982a206461c729d5a79dfe1eb6741afc186f38
+
+      - name: Validate and build frontend
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          npm ci
+          npm run check
+          npm run build
+
+      - name: Validate and build portable executable
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          cargo fmt --check --manifest-path src-tauri/Cargo.toml
+          cargo check --locked --manifest-path src-tauri/Cargo.toml
+          cargo test --locked --manifest-path src-tauri/Cargo.toml
+          cargo build --release --locked --manifest-path src-tauri/Cargo.toml
+
+      - name: Tag and publish
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git tag v1.0.2 e9982a206461c729d5a79dfe1eb6741afc186f38
+          git push origin refs/tags/v1.0.2
+          New-Item -ItemType Directory -Force release | Out-Null
+          Copy-Item "src-tauri/target/release/tunevex.exe" "release/Tunevex.exe"
+          $notes = @(
+            '## Fixes',
+            '- Finalizes the canonical per-user data location at %LOCALAPPDATA%\Tunevex.',
+            '- Automatically migrates state, backups and logs from TommyTweaker, roaming AppData, ProgramData and executable-local legacy locations.',
+            '- Preserves conflicting legacy files instead of overwriting newer Tunevex data.',
+            '- Keeps old TommyTweaker registry, profile and credential identifiers only as backward-compatibility readers.',
+            '- Cleans operational status text and removes leftover notification/status emoji where they were not useful.',
+            '',
+            '## Upgrade',
+            'Existing Tunevex and TommyTweaker data is migrated automatically on first launch.'
+          )
+          $notes | Set-Content -Encoding utf8 release-notes.md
+          gh release create v1.0.2 "release/Tunevex.exe#Tunevex.exe" --verify-tag --title "Tunevex v1.0.2" --notes-file release-notes.md
