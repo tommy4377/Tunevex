@@ -24,7 +24,7 @@
         { id: 0, label: "XPRESS 4K — Fastest, Safest ✓" },
         { id: 1, label: "XPRESS 8K — Balanced" },
         { id: 2, label: "XPRESS 16K — Better Compression" },
-        { id: 3, label: "LZX — Maximum (High CPU ⚠️)" },
+        { id: 3, label: "LZX — Maximum (High CPU)" },
     ];
 
     $: selectedAlgoLabel =
@@ -331,7 +331,7 @@
                     on:click={state.isScanning ? cancelOperation : scan}
                     disabled={state.isCompressing && !state.isScanning}
                 >
-                    {state.isScanning ? "🛑 Stop" : "Scan"}
+                    {state.isScanning ? "Stop" : "Scan"}
                 </button>
             </div>
         </div>
@@ -393,7 +393,7 @@
                     disabled={!state.path ||
                         (state.isScanning && !state.isCompressing)}
                 >
-                    {state.isCompressing ? "🛑 Stop" : "Compress Now"}
+                    {state.isCompressing ? "Stop" : "Compress Now"}
                 </button>
             </div>
         </div>
@@ -415,11 +415,11 @@
             <div class="progress-header">
                 <span class="progress-label">
                     {#if state.isScanning}
-                        🔍 Scanning files...
+                        Scanning files...
                     {:else if state.isCompressing}
-                        🗜️ Compressing files...
+                        Compressing files...
                     {:else if state.scanResult}
-                        ✅ Scan complete
+                        Scan complete
                     {/if}
                 </span>
                 {#if state.progressTotal > 0}
@@ -473,7 +473,7 @@
                     <div class="stat-summary">
                         {#if state.scanResult.compressed_size && state.scanResult.compressed_size < state.scanResult.total_size}
                             <span class="saved-info">
-                                💾 {formatBytes(
+                                {formatBytes(
                                     state.scanResult.total_size -
                                         state.scanResult.compressed_size,
                                 )} of {formatBytes(state.scanResult.total_size)}
@@ -486,7 +486,7 @@
                             </span>
                         {:else}
                             <span class="saved-info">
-                                📊 {formatBytes(state.scanResult.total_size)} total
+                                {formatBytes(state.scanResult.total_size)} total
                                 in
                                 {state.scanResult.file_count} files
                             </span>
@@ -564,7 +564,7 @@
             <!-- Bytes Analyzed (during scan) -->
             {#if (state.isScanning || state.isCompressing) && state.bytesAnalyzed > 0}
                 <div class="bytes-analyzed">
-                    ⚡ {formatBytes(state.bytesAnalyzed)} processed
+                    {formatBytes(state.bytesAnalyzed)} processed
                 </div>
             {/if}
         </div>
