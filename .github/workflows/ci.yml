@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, rebuilt-history]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+
+  rust:
+    name: Rust
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - name: Format
+        working-directory: src-tauri
+        run: cargo fmt --check
+      - name: Check
+        working-directory: src-tauri
+        run: cargo check --locked
+      - name: Test
+        working-directory: src-tauri
+        run: cargo test --locked
