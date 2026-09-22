@@ -85,7 +85,7 @@ cargo run --manifest-path src-tauri/Cargo.toml
 
 ## Profiles and compatibility
 
-New exports use the versioned `tunevex-profile` format. Legacy `tommytweaker-profile` files and selected historical local-state identifiers remain recognized so existing users are not stranded by the rename from TommyTweaker. Since v1.0.1, existing TommyTweaker application data, backups and logs are automatically migrated into the canonical Tunevex data directory on first launch.
+New exports use the versioned `tunevex-profile` format. Legacy `tommytweaker-profile` files and selected historical local-state identifiers remain recognized so existing users are not stranded by the rename from TommyTweaker. Since v1.0.2, Tunevex stores per-user application state under `%LOCALAPPDATA%\\Tunevex` and automatically migrates existing data from TommyTweaker, earlier Tunevex ProgramData/AppData locations and portable fallback directories on first launch.
 
 Imported profiles contain stable catalog IDs rather than executable commands or scripts. Tunevex validates and previews them before applying changes.
 
