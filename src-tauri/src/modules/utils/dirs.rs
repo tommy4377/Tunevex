@@ -1,9 +1,26 @@
 use std::path::{Path, PathBuf};
 
+/// Returns the canonical per-user Tunevex data directory.
+///
+/// Windows prefers %LOCALAPPDATA%\Tunevex. Roaming AppData is used only as
+/// a fallback when LocalAppData is unavailable, and an executable-local
+/// TunevexData directory is the final fallback.
 pub fn get_app_dir() -> Result<PathBuf, String> {
+    for target in canonical_targets() {
+        if ensure_writable_dir(&target) {
+            migrate_legacy_data(&target);
+            return Ok(target);
+        }
+    }
+
+    Err("Cannot find a writable directory for Tunevex data.".to_string())
+}
+
+fn canonical_targets() -> Vec<PathBuf> {
     let mut targets = Vec::new();
-    if let Ok(program_data) = std::env::var("PROGRAMDATA") {
-        targets.push(PathBuf::from(program_data).join("Tunevex"));
+
+    if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+        targets.push(PathBuf::from(local_app_data).join("Tunevex"));
     }
     if let Ok(app_data) = std::env::var("APPDATA") {
         targets.push(PathBuf::from(app_data).join("Tunevex"));
@@ -14,31 +31,41 @@ pub fn get_app_dir() -> Result<PathBuf, String> {
         }
     }
 
-    for target in targets {
-        if ensure_writable_dir(&target) {
-            migrate_legacy_data(&target);
-            return Ok(target);
-        }
-    }
-
-    Err("Cannot find a writable directory for Tunevex data.".to_string())
+    targets
 }
 
 fn legacy_dirs() -> Vec<PathBuf> {
     let mut legacy = Vec::new();
 
-    if let Ok(program_data) = std::env::var("PROGRAMDATA") {
-        legacy.push(PathBuf::from(program_data).join("TommyTweaker"));
-    }
-    if let Ok(app_data) = std::env::var("APPDATA") {
-        legacy.push(PathBuf::from(app_data).join("TommyTweaker"));
-    }
     if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
-        legacy.push(PathBuf::from(local_app_data).join("TommyTweaker"));
+        let base = PathBuf::from(local_app_data);
+        legacy.push(base.join("TommyTweaker"));
+        legacy.push(base.join("Tommy Tweaker"));
+        legacy.push(base.join("com.tommy4377.tunevex"));
     }
+
+    if let Ok(app_data) = std::env::var("APPDATA") {
+        let base = PathBuf::from(app_data);
+        legacy.push(base.join("TommyTweaker"));
+        legacy.push(base.join("Tommy Tweaker"));
+        legacy.push(base.join("Tunevex"));
+        legacy.push(base.join("com.tommy4377.tunevex"));
+    }
+
+    if let Ok(program_data) = std::env::var("PROGRAMDATA") {
+        let base = PathBuf::from(program_data);
+        // Tunevex 1.0.1 preferred ProgramData before AppData. Migrate that
+        // location into the canonical per-user LocalAppData directory too.
+        legacy.push(base.join("Tunevex"));
+        legacy.push(base.join("TommyTweaker"));
+        legacy.push(base.join("Tommy Tweaker"));
+    }
+
     if let Ok(exe) = std::env::current_exe() {
         if let Some(parent) = exe.parent() {
             legacy.push(parent.join("TommyTweakerData"));
+            legacy.push(parent.join("Tommy Tweaker Data"));
+            legacy.push(parent.join("TunevexData"));
         }
     }
 
@@ -83,14 +110,22 @@ fn move_or_merge_dir(source: &Path, target: &Path) -> Result<(), String> {
 
         if file_type.is_dir() {
             move_or_merge_dir(&source_path, &target_path)?;
+            if source_path.exists()
+                && std::fs::read_dir(&source_path)
+                    .map_err(|e| e.to_string())?
+                    .next()
+                    .is_none()
+            {
+                let _ = std::fs::remove_dir(&source_path);
+            }
         } else if target_path.exists() {
-            // New-name data is authoritative. If the legacy file differs,
-            // preserve it next to the canonical file instead of losing it.
+            // Canonical Tunevex data wins. Preserve a differing legacy file
+            // beside it instead of silently overwriting either copy.
             let same = std::fs::read(&source_path).ok() == std::fs::read(&target_path).ok();
             if same {
                 let _ = std::fs::remove_file(&source_path);
             } else {
-                let backup = unique_legacy_backup_path(&target_path);
+                let backup = unique_migration_backup_path(&target_path);
                 move_file(&source_path, &backup)?;
             }
         } else {
@@ -110,7 +145,7 @@ fn move_or_merge_dir(source: &Path, target: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn unique_legacy_backup_path(target: &Path) -> PathBuf {
+fn unique_migration_backup_path(target: &Path) -> PathBuf {
     let file_name = target
         .file_name()
         .and_then(|name| name.to_str())
@@ -118,9 +153,9 @@ fn unique_legacy_backup_path(target: &Path) -> PathBuf {
 
     for index in 0..1000 {
         let suffix = if index == 0 {
-            ".legacy-tommytweaker".to_string()
+            ".legacy-tunevex-migration".to_string()
         } else {
-            format!(".legacy-tommytweaker-{index}")
+            format!(".legacy-tunevex-migration-{index}")
         };
         let candidate = target.with_file_name(format!("{file_name}{suffix}"));
         if !candidate.exists() {
@@ -128,7 +163,7 @@ fn unique_legacy_backup_path(target: &Path) -> PathBuf {
         }
     }
 
-    target.with_file_name(format!("{file_name}.legacy-tommytweaker-backup"))
+    target.with_file_name(format!("{file_name}.legacy-tunevex-migration-backup"))
 }
 
 fn move_file(source: &Path, target: &Path) -> Result<(), String> {
