@@ -147,11 +147,11 @@ onMount(async () => {
       tweaks = tweaks.map(t => t.id === id ? { ...t, enabled } : t);
     });
 
-    // ✅ Check SOLO la categoria attuale, niente background queue
+    // Check only the active category; do not start a background queue
     const startCategory = currentCat || 'Home';
     await checkCategoryNow(startCategory);
 
-    // ❌ RIMOSSO: processBackgroundQueue() — era il colpevole
+    // Background queue intentionally disabled here
   } catch (e: any) {
     error = e.toString();
     loading = false;
