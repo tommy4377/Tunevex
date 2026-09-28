@@ -55,7 +55,7 @@ window-vibrancy = "0.5"
 # wmi removed: unused dep that conflicts with windows = "0.61" (windows_core version mismatch)
 
 [dependencies.windows]
-version = "0.61.3"
+version = "0.62.2"
 features = [
     "Win32_Foundation",
     "Win32_Graphics_Dwm",
